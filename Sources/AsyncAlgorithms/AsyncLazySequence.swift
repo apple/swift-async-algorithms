@@ -32,15 +32,10 @@ public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
     
     @inlinable
     public mutating func next() async -> Base.Element? {
-      guard !Task.isCancelled, var iterator = iterator else {
-        iterator = nil
-        return nil
-      }
-      if let value = iterator.next() {
-        self.iterator = iterator
+      if !Task.isCancelled, let value = iterator?.next() {
         return value
       } else {
-        self.iterator = nil
+        iterator = nil
         return nil
       }
     }
