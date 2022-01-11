@@ -103,12 +103,19 @@ final class TestLazy: XCTestCase {
     let source = Indefinite(value: "test")
     let sequence = source.async
     let finished = expectation(description: "finished")
+    let iterated = expectation(description: "iterated")
     let task = Task {
-      for await _ in sequence { }
+      var firstIteration = false
+      for await _ in sequence {
+        if !firstIteration {
+          firstIteration = true
+          iterated.fulfill()
+        }
+      }
       finished.fulfill()
     }
     // ensure the other task actually starts
-    try! await Task.sleep(nanoseconds: 10_000)
+    wait(for: [iterated], timeout: 1.0)
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence
     task.cancel()
