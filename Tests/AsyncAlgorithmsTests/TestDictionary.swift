@@ -41,7 +41,7 @@ final class TestDictionary: XCTestCase {
     XCTAssertEqual(expected, actual)
   }
   
-  func test_throwing_uniqingWith() async {
+  func test_throwing_uniquingWith() async {
     let source = Array([1, 2, 3, 4, 5, 6])
     let input = source.async.map { (value: Int) async throws -> (Int, Int) in
       if value == 4 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
