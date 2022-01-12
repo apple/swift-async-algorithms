@@ -33,4 +33,18 @@ final class TestSetAlgebra: XCTestCase {
     let actual = await IndexSet(source.async)
     XCTAssertEqual(expected, actual)
   }
+  
+  func test_throwing() async {
+    let source = Array([1, 2, 3, 4, 5, 6])
+    let input = source.async.map { (value: Int) async throws -> Int in
+      if value == 4 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
+      return value
+    }
+    do {
+      _ = try await Set(input)
+      XCTFail()
+    } catch {
+      XCTAssertEqual((error as NSError).code, -1)
+    }
+  }
 }
