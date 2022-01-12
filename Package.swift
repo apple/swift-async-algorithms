@@ -14,12 +14,21 @@ let package = Package(
     .library(
       name: "AsyncAlgorithms",
       targets: ["AsyncAlgorithms"]),
+    .library(
+      name: "_AsyncAlgorithms",
+      type: .static,
+      targets: ["_AsyncAlgorithms"]),
   ],
   dependencies: [],
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: []),
+      dependencies: ["_AsyncAlgorithms"]),
+    .target(name: "_AsyncAlgorithms", swiftSettings: [
+      .unsafeFlags([
+        "-parse-stdlib"
+      ])
+    ]),
     .testTarget(
       name: "AsyncAlgorithmsTests",
       dependencies: ["AsyncAlgorithms"]),
