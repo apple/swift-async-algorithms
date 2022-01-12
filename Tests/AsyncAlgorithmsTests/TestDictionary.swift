@@ -34,7 +34,7 @@ final class TestDictionary: XCTestCase {
     }
   }
   
-  func test_uniqingWith() async {
+  func test_uniquingWith() async {
     let source = [("a", 1), ("b", 2), ("a", 3), ("b", 4)]
     let expected = Dictionary(source) { first, _ in first }
     let actual = await Dictionary(source.async) { first, _ in first }
