@@ -30,7 +30,7 @@ extension Task {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first result or thrown error from the running tasks
-  public static func first<Tasks: Sequence>(
+  static func first<Tasks: Sequence>(
     _ tasks: Tasks
   ) async throws -> Success
   where Tasks.Element == Task<Success, Failure>, Failure == Error {
@@ -69,7 +69,7 @@ extension Task {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first result or thrown error from the running tasks
-  public static func first(
+  static func first(
     _ tasks: Task<Success, Failure>...
   ) async throws -> Success where Failure == Error {
     try await first(tasks)
@@ -82,7 +82,7 @@ extension Task where Failure == Never {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first result from the running tasks
-  public static func first<Tasks: Sequence>(
+  static func first<Tasks: Sequence>(
     _ tasks: Tasks
   ) async -> Success
   where Tasks.Element == Task<Success, Never> {
@@ -121,7 +121,7 @@ extension Task where Failure == Never {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first result from the running tasks
-  public static func first(
+  static func first(
     _ tasks: Task<Success, Never>...
   ) async -> Success {
     await first(tasks)
