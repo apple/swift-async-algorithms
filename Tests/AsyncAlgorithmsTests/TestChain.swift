@@ -58,6 +58,29 @@ final class TestChain2: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
+  
+  func test_cancellation() async {
+    let source = Indefinite(value: "test")
+    let sequence = chain(source.async, ["past indefinite"].async)
+    let finished = expectation(description: "finished")
+    let iterated = expectation(description: "iterated")
+    let task = Task {
+      var firstIteration = false
+      for await _ in sequence {
+        if !firstIteration {
+          firstIteration = true
+          iterated.fulfill()
+        }
+      }
+      finished.fulfill()
+    }
+    // ensure the other task actually starts
+    wait(for: [iterated], timeout: 1.0)
+    // cancellation should ensure the loop finishes
+    // without regards to the remaining underlying sequence
+    task.cancel()
+    wait(for: [finished], timeout: 1.0)
+  }
 }
 
 final class TestChain3: XCTestCase {
@@ -122,5 +145,28 @@ final class TestChain3: XCTestCase {
     XCTAssertEqual([1, 2, 3, 4, 5, 6, 7], actual)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
+  }
+  
+  func test_cancellation() async {
+    let source = Indefinite(value: "test")
+    let sequence = chain(source.async, ["past indefinite"].async, "and even further".async)
+    let finished = expectation(description: "finished")
+    let iterated = expectation(description: "iterated")
+    let task = Task {
+      var firstIteration = false
+      for await _ in sequence {
+        if !firstIteration {
+          firstIteration = true
+          iterated.fulfill()
+        }
+      }
+      finished.fulfill()
+    }
+    // ensure the other task actually starts
+    wait(for: [iterated], timeout: 1.0)
+    // cancellation should ensure the loop finishes
+    // without regards to the remaining underlying sequence
+    task.cancel()
+    wait(for: [finished], timeout: 1.0)
   }
 }
