@@ -149,7 +149,7 @@ final class TestChain3: XCTestCase {
   
   func test_cancellation() async {
     let source = Indefinite(value: "test")
-    let sequence = chain(source.async, ["past indefinite"].async, "and even further".async)
+    let sequence = chain(source.async, ["past indefinite"].async, ["and even further"].async)
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")
     let task = Task {
