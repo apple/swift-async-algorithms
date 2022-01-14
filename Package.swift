@@ -14,7 +14,6 @@ let package = Package(
     .library(
       name: "AsyncAlgorithms",
       targets: ["AsyncAlgorithms"]),
-
   ],
   dependencies: [],
   targets: [
