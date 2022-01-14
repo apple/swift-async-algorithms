@@ -46,4 +46,33 @@ final class TestTaskFirst: XCTestCase {
       XCTAssertEqual((error as NSError).code, -1)
     }
   }
+  
+  func test_cancellation() async {
+    let firstReady = expectation(description: "first ready")
+    let secondReady = expectation(description: "second ready")
+    let firstCancelled = expectation(description: "first cancelled")
+    let secondCancelled = expectation(description: "second cancelled")
+    let task = Task {
+      _ = await Task.first(Task {
+        await withTaskCancellationHandler {
+          firstCancelled.fulfill()
+        } operation: { () -> Int in
+          firstReady.fulfill()
+          try? await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+          return 1
+        }
+      }, Task {
+        await withTaskCancellationHandler {
+          secondCancelled.fulfill()
+        } operation: { () -> Int in
+          secondReady.fulfill()
+          try? await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+          return 1
+        }
+      })
+    }
+    wait(for: [firstReady, secondReady], timeout: 1.0)
+    task.cancel()
+    wait(for: [firstCancelled, secondCancelled], timeout: 1.0)
+  }
 }
