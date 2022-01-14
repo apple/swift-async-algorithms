@@ -9,8 +9,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Metal
-
 /// Creates an asynchronous sequence of elements from two underlying asynchronous sequences
 public func merge<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncMerge2Sequence<Base1, Base2>
 where
