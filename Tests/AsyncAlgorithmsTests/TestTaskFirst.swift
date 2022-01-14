@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
-import AsyncAlgorithms
+@testable import AsyncAlgorithms
 
 final class TestTaskFirst: XCTestCase {
   func test_first() async {
