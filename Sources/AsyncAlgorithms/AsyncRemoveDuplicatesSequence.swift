@@ -18,11 +18,11 @@ extension AsyncSequence where Element: Equatable {
 }
 
 extension AsyncSequence {
-  public func removeDuplicates(by predicate: @escaping (Element, Element) async -> Bool) -> AsyncRemoveDuplicatesSequence<Self> {
+  public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async -> Bool) -> AsyncRemoveDuplicatesSequence<Self> {
     return AsyncRemoveDuplicatesSequence(self, predicate: predicate)
   }
   
-  public func removeDuplicates(by predicate: @escaping (Element, Element) async throws -> Bool) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
+  public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async throws -> Bool) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
     return AsyncThrowingRemoveDuplicatesSequence(self, predicate: predicate)
   }
 }
@@ -36,13 +36,13 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
     var iterator: Base.AsyncIterator
 
     @usableFromInline
-    var predicate: (Element, Element) async -> Bool
+    let predicate: @Sendable (Element, Element) async -> Bool
 
     @usableFromInline
     var last: Element?
 
     @inlinable
-    init(iterator: Base.AsyncIterator, predicate: @escaping (Element, Element) async -> Bool) {
+    init(iterator: Base.AsyncIterator, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
       self.iterator = iterator
       self.predicate = predicate
     }
@@ -67,9 +67,9 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
   let base: Base
 
   @usableFromInline
-  let predicate: (Element, Element) async -> Bool
+  let predicate: @Sendable (Element, Element) async -> Bool
   
-  init(_ base: Base, predicate: @escaping (Element, Element) async -> Bool) {
+  init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
     self.base = base
     self.predicate = predicate
   }
@@ -80,6 +80,10 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
   }
 }
 
+extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
+extension AsyncRemoveDuplicatesSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
+
+
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
   
@@ -89,13 +93,13 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
     var iterator: Base.AsyncIterator
 
     @usableFromInline
-    var predicate: (Element, Element) async throws -> Bool
+    let predicate: @Sendable (Element, Element) async throws -> Bool
 
     @usableFromInline
     var last: Element?
 
     @inlinable
-    init(iterator: Base.AsyncIterator, predicate: @escaping (Element, Element) async throws -> Bool) {
+    init(iterator: Base.AsyncIterator, predicate: @escaping @Sendable (Element, Element) async throws -> Bool) {
       self.iterator = iterator
       self.predicate = predicate
     }
@@ -120,9 +124,9 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
   let base: Base
 
   @usableFromInline
-  let predicate: (Element, Element) async throws -> Bool
+  let predicate: @Sendable (Element, Element) async throws -> Bool
   
-  init(_ base: Base, predicate: @escaping (Element, Element) async throws -> Bool) {
+  init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async throws -> Bool) {
     self.base = base
     self.predicate = predicate
   }
@@ -132,3 +136,6 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
     Iterator(iterator: base.makeAsyncIterator(), predicate: predicate)
   }
 }
+
+extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
+extension AsyncThrowingRemoveDuplicatesSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
