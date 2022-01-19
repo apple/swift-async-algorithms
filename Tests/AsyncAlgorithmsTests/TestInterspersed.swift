@@ -45,28 +45,25 @@
      let source = [1, 2, 3, -1, 4, 5]
      let expected = [1, 0, 2, 0, 3, 0]
      var actual = [Int]()
-     let throwingSequence = source.async.map ({ (e) throws -> Int in
-       if e < 0 {
-         throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
-       }
-       return e
-     })
+     let sequence = source.async.map {
+       try throwOn(-1, $0)
+     }.interspersed(with: 0)
 
-     var iterator = throwingSequence.interspersed(with: 0).makeAsyncIterator()
+     var iterator = sequence.makeAsyncIterator()
      do {
        while let item = try await iterator.next() {
          actual.append(item)
        }
        XCTFail()
      } catch {
-       XCTAssertEqual((error as NSError).code, -1)
+       XCTAssertEqual(Failure(), error as? Failure)
      }
      let pastEnd = try! await iterator.next()
      XCTAssertNil(pastEnd)
      XCTAssertEqual(actual, expected)
    }
 
-   func test_removeDuplicates_cancellation() async {
+   func test_cancellation() async {
      let source = Indefinite(value: "test")
      let sequence = source.async.interspersed(with: "sep")
      let finished = expectation(description: "finished")
