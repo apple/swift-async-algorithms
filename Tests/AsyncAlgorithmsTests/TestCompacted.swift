@@ -49,6 +49,23 @@ final class TestCompacted: XCTestCase {
     XCTAssertEqual(expected, actual)
   }
   
+  func test_throwing() async throws {
+    let sequence = [1, nil, 3, 4, 5, nil, 7].async.map { try throwOn(4, $0) }.compacted()
+    var iterator = sequence.makeAsyncIterator()
+    var collected = [Int]()
+    do {
+      while let value = try await iterator.next() {
+        collected.append(value)
+      }
+      XCTFail()
+    } catch {
+      XCTAssertEqual(error as? Failure, Failure())
+    }
+    XCTAssertEqual(collected, [1, 3])
+    let pastEnd = try await iterator.next()
+    XCTAssertNil(pastEnd)
+  }
+  
   func test_cancellation() async {
     let value: String? = "test"
     let source = Indefinite(value: value)
