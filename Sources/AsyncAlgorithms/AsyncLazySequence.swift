@@ -10,12 +10,23 @@
 //===----------------------------------------------------------------------===//
 
 extension Sequence {
+  /// An asynchronous sequence containing the same elements as this sequence,
+  /// but on which  operations, such as `map` and `filter`, are
+  /// implemented asynchronously.
   @inlinable
   public var async: AsyncLazySequence<Self> {
     AsyncLazySequence(self)
   }
 }
 
+/// An asynchronous sequence composed from a synchronous sequence.
+///
+/// Asynchronous lazy sequences can be used to interface existing or pre-calculated
+/// data to interoperate with other asynchronous sequences and algoritms based on
+/// asynchronous sequences.
+///
+/// This functions similarly to `LazySequence` by accessing elemetns sequentially
+/// in the iterators next method.
 @frozen
 public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
   public typealias Element = Base.Element
