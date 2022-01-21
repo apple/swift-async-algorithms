@@ -30,12 +30,6 @@ public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
 
 extension AsyncLazySequence: Sendable where Base: Sendable { }
 extension AsyncLazySequence.Iterator: Sendable where Base.Iterator: Sendable { }
-
-extension AsyncLazySequence: Codable where Base: Codable { }
-
-extension AsyncLazySequence: Equatable where Base: Equatable { }
-
-extension AsyncLazySequence: Hashable where Base: Hashable { }
 ```
 
 The resulting `AsyncLazySequence` is an `AsyncSequence`, with conditional conformance to `Sendable`, `Codable`, `Equatable`, 

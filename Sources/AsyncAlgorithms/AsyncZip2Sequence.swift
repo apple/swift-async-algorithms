@@ -158,9 +158,3 @@ extension AsyncZip2Sequence: AsyncSequence {
     Iterator(base1.makeAsyncIterator(), base2.makeAsyncIterator())
   }
 }
-
-extension AsyncZip2Sequence: Codable where Base1: Codable, Base2: Codable { }
-
-extension AsyncZip2Sequence: Equatable where Base1: Equatable, Base2: Equatable { }
-
-extension AsyncZip2Sequence: Hashable where Base1: Hashable, Base2: Hashable { }
