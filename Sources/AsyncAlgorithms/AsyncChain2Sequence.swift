@@ -78,3 +78,6 @@ extension AsyncChain2Sequence: AsyncSequence {
     Iterator(base1.makeAsyncIterator(), base2.makeAsyncIterator())
   }
 }
+
+extension AsyncChain2Sequence: Sendable where Base1: Sendable, Base2: Sendable { }
+extension AsyncChain2Sequence.Iterator: Sendable where Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable { }
