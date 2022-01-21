@@ -203,9 +203,3 @@ extension AsyncZip3Sequence: AsyncSequence {
     Iterator(base1.makeAsyncIterator(), base2.makeAsyncIterator(), base3.makeAsyncIterator())
   }
 }
-
-extension AsyncZip3Sequence: Codable where Base1: Codable, Base2: Codable, Base3: Codable { }
-
-extension AsyncZip3Sequence: Equatable where Base1: Equatable, Base2: Equatable, Base3: Equatable { }
-
-extension AsyncZip3Sequence: Hashable where Base1: Hashable, Base2: Hashable, Base3: Hashable { }
