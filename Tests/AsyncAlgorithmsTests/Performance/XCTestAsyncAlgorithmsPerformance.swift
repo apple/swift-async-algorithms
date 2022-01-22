@@ -13,8 +13,7 @@ import AsyncAlgorithms
 import Foundation
 import XCTest
 
-// TODO: Update all of these to use Clock and Duration and remove Foundation/ProcessInfo dependencies.
-public struct InfiniteTimedSingleValueSequence<Value: Sendable>: AsyncSequence, Sendable {
+public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
     public typealias Element = Value
     let value: Value
     let duration: Double
@@ -32,10 +31,7 @@ public struct InfiniteTimedSingleValueSequence<Value: Sendable>: AsyncSequence, 
 
         @inlinable
         public mutating func next() async throws -> Element? {
-            if start == nil {
-                start = ProcessInfo.processInfo.systemUptime
-            }
-            guard ProcessInfo.processInfo.systemUptime - start! <= duration else {
+            guard !Task.isCancelled else {
                 return nil
             }
             return value
@@ -43,38 +39,6 @@ public struct InfiniteTimedSingleValueSequence<Value: Sendable>: AsyncSequence, 
     }
     public func makeAsyncIterator() -> AsyncIterator {
         return AsyncIterator(value: value, duration: duration)
-    }
-}
-
-public struct InfiniteTimedSequence<Source : AsyncSequence>: AsyncSequence, Sendable where Source: Sendable, Source.AsyncIterator: Sendable {
-    public typealias Element = Source.Element
-    let sequence: Source
-    let duration: Double
-
-    public struct AsyncIterator: AsyncIteratorProtocol, Sendable {
-
-        @usableFromInline
-        var iterator: Source.AsyncIterator
-
-        @usableFromInline
-        let duration: Double
-
-        @usableFromInline
-        var start: Double? = nil
-
-        @inlinable
-        public mutating func next() async rethrows -> Element? {
-            if start == nil {
-                start = ProcessInfo.processInfo.systemUptime
-            }
-            guard ProcessInfo.processInfo.systemUptime - start! <= duration else {
-                return nil
-            }
-            return try await iterator.next()
-        }
-    }
-    public func makeAsyncIterator() -> AsyncIterator {
-        return AsyncIterator(iterator: sequence.makeAsyncIterator(), duration: duration)
     }
 }
 
@@ -98,15 +62,15 @@ final class _ThroughputMetric: NSObject, XCTMetric, @unchecked Sendable {
 }
 
 extension XCTestCase {
-    public func measureSequenceThroughput<S: AsyncSequence, Output>( output: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteTimedSingleValueSequence<Output>) -> S) async where S: Sendable {
+    public func measureSequenceThroughput<S: AsyncSequence, Output>( output: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
         let metric = _ThroughputMetric()
 
         measure(metrics: [metric]) {
-            let infSeq = InfiniteTimedSingleValueSequence(value: output(), duration: 1.0)
+            let infSeq = InfiniteAsyncSequence(value: output(), duration: 1.0)
             let seq = sequenceBuilder(infSeq)
 
             let exp = self.expectation(description: "Finished")
-            Task<Int, Error> {
+            let iterTask = Task<Int, Error> {
                 var eventCount = 0
                 for try await _ in seq {
                     eventCount += 1
@@ -115,19 +79,21 @@ extension XCTestCase {
                 exp.fulfill()
                 return eventCount
             }
+            usleep(UInt32(1 * USEC_PER_SEC))
+            iterTask.cancel()
             self.wait(for: [exp], timeout: 2.0)
         }
     }
 
-    public func measureSequenceThroughput<S: AsyncSequence, Source: AsyncSequence>( source: Source, _ sequenceBuilder: (InfiniteTimedSequence<Source>) -> S) async where S: Sendable, Source: Sendable {
+    public func measureSequenceThroughput<S: AsyncSequence, Source: AsyncSequence>( source: Source, _ sequenceBuilder: (Source) -> S) async where S: Sendable, Source: Sendable {
         let metric = _ThroughputMetric()
 
         measure(metrics: [metric]) {
-            let infSeq = InfiniteTimedSequence(sequence: source, duration: 1.0)
+            let infSeq = source
             let seq = sequenceBuilder(infSeq)
 
             let exp = self.expectation(description: "Finished")
-            Task<Int, Error> {
+            let iterTask = Task<Int, Error> {
                 var eventCount = 0
                 for try await _ in seq {
                     eventCount += 1
@@ -136,6 +102,8 @@ extension XCTestCase {
                 exp.fulfill()
                 return eventCount
             }
+            usleep(UInt32(1 * USEC_PER_SEC))
+            iterTask.cancel()
             self.wait(for: [exp], timeout: 2.0)
         }
     }
