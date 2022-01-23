@@ -14,33 +14,33 @@ import XCTest
 
 final class TestTaskFirst: XCTestCase {
   func test_first() async {
-    let firstValue = await Task.first(Task {
+    let firstValue = await Task.select(Task {
       return 1
     }, Task {
       try! await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
       return 2
-    })
+    }).value
     XCTAssertEqual(firstValue, 1)
   }
   
   func test_second() async {
-    let firstValue = await Task.first(Task {
+    let firstValue = await Task.select(Task {
       try! await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
       return 1
     }, Task {
       return 2
-    })
+    }).value
     XCTAssertEqual(firstValue, 2)
   }
 
   func test_throwing() async {
     do {
-      _ = try await Task.first(Task { () async throws -> Int in
+      _ = try await Task.select(Task { () async throws -> Int in
         try await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
         return 1
       }, Task { () async throws -> Int in
         throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
-      })
+      }).value
       XCTFail()
     } catch {
       XCTAssertEqual((error as NSError).code, -1)
@@ -53,7 +53,7 @@ final class TestTaskFirst: XCTestCase {
     let firstCancelled = expectation(description: "first cancelled")
     let secondCancelled = expectation(description: "second cancelled")
     let task = Task {
-      _ = await Task.first(Task {
+      _ = await Task.select(Task {
         await withTaskCancellationHandler {
           firstCancelled.fulfill()
         } operation: { () -> Int in
