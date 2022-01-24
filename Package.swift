@@ -14,12 +14,14 @@ let package = Package(
     .library(
       name: "AsyncAlgorithms",
       targets: ["AsyncAlgorithms"]),
+    .library(name: "ClockStub", type: .static, targets: ["ClockStub"])
   ],
   dependencies: [],
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: []),
+      dependencies: ["ClockStub"]),
+    .target(name: "ClockStub"),
     .testTarget(
       name: "AsyncAlgorithmsTests",
       dependencies: ["AsyncAlgorithms"]),
