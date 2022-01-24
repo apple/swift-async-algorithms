@@ -45,7 +45,7 @@ where
     }
     
     mutating func apply(_ task1: Task<Partial, Never>?, _ task2: Task<Partial, Never>?) async rethrows -> Element? {
-      switch await Task.first([task1, task2].compactMap { $0 }) {
+      switch await Task.select([task1, task2].compactMap { $0 }).value {
       case .first(let result, let iterator):
         do {
           guard let value = try state.0.resolve(result, iterator) else {
