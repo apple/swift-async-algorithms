@@ -9,7 +9,7 @@
 
 * Implementation: [apple/swift-async-algorithms#NNNNN](https://github.com/apple/swift-async-algorithms/pull/NNNNN)
 * Decision Notes: [Rationale](https://forums.swift.org/), [Additional Commentary](https://forums.swift.org/)
-* Bugs: [SR-NNNN](https://bugs.swift.org/browse/SR-NNNN), [SR-MMMM](https://bugs.swift.org/browse/SR-MMMM)
+* Bugs: [NNNN](https://github.com/apple/swift-async-algorithms/issues)
 
 ## Introduction
 
