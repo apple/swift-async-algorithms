@@ -16,24 +16,24 @@ final class TestZip2: XCTestCase {
   func test_zip() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
-    let expected = Array(zip(a, b)).map { "\($0)" + $1 }
-    let actual = await Array(zip(a.async, b.async)).map { "\($0)" + $1 }
+    let expected = Array(zip(a, b))
+    let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
   
   func test_zip_first_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
-    let expected = Array(zip(a, b)).map { "\($0)" + $1 }
-    let actual = await Array(zip(a.async, b.async)).map { "\($0)" + $1 }
+    let expected = Array(zip(a, b))
+    let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
   
   func test_zip_second_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
-    let expected = Array(zip(a, b)).map { "\($0)" + $1 }
-    let actual = await Array(zip(a.async, b.async)).map { "\($0)" + $1 }
+    let expected = Array(zip(a, b))
+    let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
   
@@ -42,11 +42,11 @@ final class TestZip2: XCTestCase {
     let b = ["a", "b", "c"]
     let sequence = zip(a.async, b.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int, str) = await iterator.next() {
-      collected.append("\(int)\(str)")
+    var collected = [(Int, String)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a", "2b", "3c"], collected)
+    XCTAssertEqual([(1, "a"), (2, "b"), (3, "c")], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -56,11 +56,11 @@ final class TestZip2: XCTestCase {
     let b = ["a", "b", "c"]
     let sequence = zip(a.async, b.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int, str) = await iterator.next() {
-      collected.append("\(int)\(str)")
+    var collected = [(Int, String)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a", "2b", "3c"], collected)
+    XCTAssertEqual([(1, "a"), (2, "b"), (3, "c")], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -70,11 +70,11 @@ final class TestZip2: XCTestCase {
     let b = ["a", "b", "c", "d", "e"]
     let sequence = zip(a.async, b.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int, str) = await iterator.next() {
-      collected.append("\(int)\(str)")
+    var collected = [(Int, String)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a", "2b", "3c"], collected)
+    XCTAssertEqual([(1, "a"), (2, "b"), (3, "c")], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -84,16 +84,16 @@ final class TestZip2: XCTestCase {
     let b = ["a", "b", "c"]
     let sequence = zip(a.async.map { try throwOn(2, $0) }, b.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
+    var collected = [(Int, String)]()
     do {
-      while let (int, str) = try await iterator.next() {
-        collected.append("\(int)\(str)")
+      while let item = try await iterator.next() {
+        collected.append(item)
       }
       XCTFail()
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(["1a"], collected)
+    XCTAssertEqual([(1, "a")], collected)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -103,16 +103,16 @@ final class TestZip2: XCTestCase {
     let b = ["a", "b", "c"]
     let sequence = zip(a.async, b.async.map { try throwOn("b", $0) })
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
+    var collected = [(Int, String)]()
     do {
-      while let (int, str) = try await iterator.next() {
-        collected.append("\(int)\(str)")
+      while let item = try await iterator.next() {
+        collected.append(item)
       }
       XCTFail()
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(["1a"], collected)
+    XCTAssertEqual([(1, "a")], collected)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -147,32 +147,32 @@ final class TestZip3: XCTestCase {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
     let c = [1, 2, 3]
-    let actual = await Array(zip(a.async, b.async, c.async)).map { "\($0)" + $1 + "\($2)" }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], actual)
+    let actual = await Array(zip(a.async, b.async, c.async))
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], actual)
   }
   
   func test_zip_first_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
     let c = [1, 2, 3]
-    let actual = await Array(zip(a.async, b.async, c.async)).map { "\($0)" + $1 + "\($2)"}
-    XCTAssertEqual(["1a1", "2b2", "3c3"], actual)
+    let actual = await Array(zip(a.async, b.async, c.async))
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], actual)
   }
   
   func test_zip_second_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
     let c = [1, 2, 3]
-    let actual = await Array(zip(a.async, b.async, c.async)).map { "\($0)" + $1 + "\($2)"  }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], actual)
+    let actual = await Array(zip(a.async, b.async, c.async))
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], actual)
   }
   
   func test_zip_third_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
     let c = [1, 2, 3, 4, 5]
-    let actual = await Array(zip(a.async, b.async, c.async)).map { "\($0)" + $1 + "\($2)" }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], actual)
+    let actual = await Array(zip(a.async, b.async, c.async))
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], actual)
   }
   
   func test_iterate_past_end() async {
@@ -181,11 +181,11 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async, b.async, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int1, str, int2) = await iterator.next() {
-      collected.append("\(int1)\(str)\(int2)")
+    var collected = [(Int, String, Int)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], collected)
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -196,11 +196,11 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async, b.async, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int1, str, int2) = await iterator.next() {
-      collected.append("\(int1)\(str)\(int2)")
+    var collected = [(Int, String, Int)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], collected)
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -211,11 +211,11 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async, b.async, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int1, str, int2) = await iterator.next() {
-      collected.append("\(int1)\(str)\(int2)")
+    var collected = [(Int, String, Int)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], collected)
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -226,11 +226,11 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3, 4, 5]
     let sequence = zip(a.async, b.async, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
-    while let (int1, str, int2) = await iterator.next() {
-      collected.append("\(int1)\(str)\(int2)")
+    var collected = [(Int, String, Int)]()
+    while let item = await iterator.next() {
+      collected.append(item)
     }
-    XCTAssertEqual(["1a1", "2b2", "3c3"], collected)
+    XCTAssertEqual([(1, "a", 1), (2, "b", 2), (3, "c", 3)], collected)
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -241,16 +241,16 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async.map { try throwOn(2, $0) }, b.async, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
+    var collected = [(Int, String, Int)]()
     do {
-      while let (int1, str, int2) = try await iterator.next() {
-        collected.append("\(int1)\(str)\(int2)")
+      while let item = try await iterator.next() {
+        collected.append(item)
       }
       XCTFail()
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(["1a1"], collected)
+    XCTAssertEqual([(1, "a", 1)], collected)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -261,16 +261,16 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async, b.async.map { try throwOn("b", $0) }, c.async)
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
+    var collected = [(Int, String, Int)]()
     do {
-      while let (int1, str, int2) = try await iterator.next() {
-        collected.append("\(int1)\(str)\(int2)")
+      while let item = try await iterator.next() {
+        collected.append(item)
       }
       XCTFail()
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(["1a1"], collected)
+    XCTAssertEqual([(1, "a", 1)], collected)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
@@ -281,16 +281,16 @@ final class TestZip3: XCTestCase {
     let c = [1, 2, 3]
     let sequence = zip(a.async, b.async, c.async.map { try throwOn(2, $0) })
     var iterator = sequence.makeAsyncIterator()
-    var collected = [String]()
+    var collected = [(Int, String, Int)]()
     do {
-      while let (int1, str, int2) = try await iterator.next() {
-        collected.append("\(int1)\(str)\(int2)")
+      while let item = try await iterator.next() {
+        collected.append(item)
       }
       XCTFail()
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(["1a1"], collected)
+    XCTAssertEqual([(1, "a", 1)], collected)
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
