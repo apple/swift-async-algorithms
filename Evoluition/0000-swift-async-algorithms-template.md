@@ -17,7 +17,7 @@ A short description of what the feature is. Try to keep it to a
 single-paragraph "elevator pitch" so the reader understands what
 problem this proposal is addressing.
 
-Swift-evolution thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
+Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
 
 ## Motivation
 
