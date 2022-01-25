@@ -48,7 +48,7 @@ final class _ThroughputMetric: NSObject, XCTMetric, @unchecked Sendable {
   override init() { }
   
   func reportMeasurements(from startTime: XCTPerformanceMeasurementTimestamp, to endTime: XCTPerformanceMeasurementTimestamp) throws -> [XCTPerformanceMeasurement] {
-    return [XCTPerformanceMeasurement(identifier: "com.swift.AsyncAlgorithms.Throughput", displayName: "Throughput", doubleValue: Double(eventCount) / (endTime.date.timeIntervalSinceReferenceDate - startTime.date.timeIntervalSinceReferenceDate), unitSymbol: " Events/sec")]
+    return [XCTPerformanceMeasurement(identifier: "com.swift.AsyncAlgorithms.Throughput", displayName: "Throughput", doubleValue: Double(eventCount) / (endTime.date.timeIntervalSinceReferenceDate - startTime.date.timeIntervalSinceReferenceDate), unitSymbol: " Events/sec", polarity: .prefersLarger)]
   }
   
   func copy(with zone: NSZone? = nil) -> Any {
@@ -64,9 +64,10 @@ final class _ThroughputMetric: NSObject, XCTMetric, @unchecked Sendable {
 extension XCTestCase {
   public func measureSequenceThroughput<S: AsyncSequence, Output>( output: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
     let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
-      let infSeq = InfiniteAsyncSequence(value: output(), duration: 1.0)
+      let infSeq = InfiniteAsyncSequence(value: output(), duration: sampleTime)
       let seq = sequenceBuilder(infSeq)
       
       let exp = self.expectation(description: "Finished")
@@ -79,14 +80,15 @@ extension XCTestCase {
         exp.fulfill()
         return eventCount
       }
-      usleep(UInt32(1 * USEC_PER_SEC))
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
       iterTask.cancel()
-      self.wait(for: [exp], timeout: 2.0)
+      self.wait(for: [exp], timeout: sampleTime * 2)
     }
   }
   
   public func measureSequenceThroughput<S: AsyncSequence, Source: AsyncSequence>( source: Source, _ sequenceBuilder: (Source) -> S) async where S: Sendable, Source: Sendable {
     let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
       let infSeq = source
@@ -102,9 +104,9 @@ extension XCTestCase {
         exp.fulfill()
         return eventCount
       }
-      usleep(UInt32(1 * USEC_PER_SEC))
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
       iterTask.cancel()
-      self.wait(for: [exp], timeout: 2.0)
+      self.wait(for: [exp], timeout: sampleTime * 2)
     }
   }
 }
