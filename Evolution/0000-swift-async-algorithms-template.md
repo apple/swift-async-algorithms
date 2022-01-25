@@ -43,13 +43,6 @@ comments detailing what it does. The detail in this section should be
 sufficient for someone who is *not* one of the authors to be able to
 reasonably implement the feature.
 
-## Effect on ABI stability
-
-Does the proposal change the ABI of existing library features? The
-ABI comprises all aspects the layout of data types. Purely syntactic 
-changes rarely change existing ABI. Additive features may extend the 
-ABI.
-
 ## Effect on API resilience
 
 API resilience describes the changes one can make to a public API
