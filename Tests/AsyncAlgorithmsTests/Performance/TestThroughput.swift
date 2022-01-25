@@ -33,6 +33,11 @@ final class TestThroughput: XCTestCase {
       $0.interspersed(with: 0)
     }
   }
+  func test_joined() async {
+    await measureSequenceThroughput(output: [1, 2, 3, 4, 5].async) {
+      $0.joined(separator: [0, 0, 0, 0, 0].async)
+    }
+  }
   func test_merge2() async {
     await measureSequenceThroughput(output: 1) {
       merge($0, (0..<10).async)
