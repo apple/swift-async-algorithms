@@ -53,9 +53,9 @@ public struct ManualClock: Clock {
   public struct Instant: InstantProtocol {
     public typealias Duration = Step
     
-    fileprivate let rawValue: Int
+    internal let rawValue: Int
     
-    fileprivate init(_ rawValue: Int) {
+    internal init(_ rawValue: Int) {
       self.rawValue = rawValue
     }
     
