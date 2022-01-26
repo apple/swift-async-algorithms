@@ -21,7 +21,7 @@ public protocol MarbleDiagramTest: Sendable {
 
 extension XCTestCase {
   @resultBuilder
-  public struct MarbleDiagram {
+  public struct MarbleDiagram : Sendable {
     struct Test<Operation: AsyncSequence>: MarbleDiagramTest, @unchecked Sendable where Operation.Element == String {
       let inputs: [String]
       let sequence: Operation
@@ -94,21 +94,47 @@ extension XCTestCase {
       static func parse(_ dsl: String) -> [(ManualClock.Instant, Emission)] {
         var emissions = [(ManualClock.Instant, Emission)]()
         var when = ManualClock.Instant(0)
+        var group: String?
         for ch in dsl {
           switch ch {
           case "-":
-            when += .steps(1)
+            if group == nil {
+              when += .steps(1)
+            } else {
+              group?.append(ch)
+            }
           case "^":
-            when += .steps(1)
-            emissions.append((when, .failure(Failure())))
+            if group == nil {
+              when += .steps(1)
+              emissions.append((when, .failure(Failure())))
+            } else {
+              group?.append(ch)
+            }
           case "|":
-            when += .steps(1)
-            emissions.append((when, .finish))
+            if group == nil {
+              when += .steps(1)
+              emissions.append((when, .finish))
+            } else {
+              group?.append(ch)
+            }
+          case "'":
+            if let value = group {
+              group = nil
+              when += .steps(1)
+              emissions.append((when, .value(value)))
+            } else {
+              group = ""
+            }
           case " ":
+            group?.append(ch)
             continue
           default:
-            when += .steps(1)
-            emissions.append((when, .value(String(ch))))
+            if group == nil {
+              when += .steps(1)
+              emissions.append((when, .value(String(ch))))
+            } else {
+              group?.append(ch)
+            }
           }
         }
         return emissions
@@ -138,27 +164,54 @@ extension XCTestCase {
       Test(inputs: [input1, input2], sequence: sequence, output: output)
     }
     
+    public static func buildBlock<Operation: AsyncSequence>(_ input1: String, _ input2: String, _ input3: String, _ sequence: Operation, _ output: String) -> some MarbleDiagramTest where Operation.Element == String {
+      Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
+    }
+    
+    public struct InputList: RandomAccessCollection, Sendable {
+      let state = ManagedCriticalState([Input]())
+      let clock: ManualClock
+      
+      public var startIndex: Int { return 0 }
+      public var endIndex: Int {
+        state.withCriticalRegion { $0.count }
+      }
+      
+      public subscript(position: Int) -> XCTestCase.MarbleDiagram.Input {
+        get {
+          return state.withCriticalRegion { state in
+            if position >= state.count {
+              for _ in state.count...position {
+                state.append(Input(clock: clock))
+              }
+            }
+            return state[position]
+          }
+        }
+      }
+    }
+    
     let manualClock: ManualClock
+    public var inputs: InputList
     
     public var clock: Clock {
       Clock(manualClock)
     }
     
-    public private(set) var inputs: [Input]
-    
-    init(clock: ManualClock, _ inputs: Input...) {
-      self.inputs = inputs
+    init(clock: ManualClock) {
       self.manualClock = clock
+      inputs = InputList(clock: clock)
     }
   }
   
-  public func marbleDiagram<Test: MarbleDiagramTest>(@MarbleDiagram _ build: (MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func marbleDiagram<Test: MarbleDiagramTest>(@MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     let finished = expectation(description: "finished")
     let clock = ManualClock()
-    let input1 = MarbleDiagram.Input(clock: clock)
-    let diagram = MarbleDiagram(clock: clock, input1)
-    let test = build(diagram)
-    input1.parse(test.inputs[0])
+    var diagram = MarbleDiagram(clock: clock)
+    let test = build(&diagram)
+    for (index, input) in diagram.inputs.enumerated() {
+      input.parse(test.inputs[index])
+    }
     var expected = Dictionary(uniqueKeysWithValues: MarbleDiagram.Input.parse(test.output).map { ($0, $1.result) })
     let actual = ManagedCriticalState([ManualClock.Instant:Result<String?, Error>]())
     let gate = Gate()
@@ -174,15 +227,16 @@ extension XCTestCase {
       finished.fulfill()
     }
     
-    Task { [expected] in
-      while true {
+    let task = Task { [expected, diagram] in
+      while !Task.isCancelled {
         clock.advance()
-        
-        let resumption = input1.state.withCriticalRegion { state in
-          return state.continuations.removeValue(forKey: clock.now)
-        }
-        if let resumption = resumption {
-          resumption.1.resume(with: resumption.0.result)
+        for input in diagram.inputs {
+          let resumption = input.state.withCriticalRegion { state in
+            return state.continuations.removeValue(forKey: clock.now)
+          }
+          if let resumption = resumption {
+            resumption.1.resume(with: resumption.0.result)
+          }
         }
         gate.open()
         if expected[clock.now] != nil {
@@ -191,6 +245,7 @@ extension XCTestCase {
       }
     }
     wait(for: [finished], timeout: executionTimeAllowance)
+    task.cancel()
     let collected = actual.withCriticalRegion { zip($0.keys, $0.values) }
     for (instant, result) in collected {
       if let expectedResult = expected.removeValue(forKey: instant) {
