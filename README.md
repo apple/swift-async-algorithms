@@ -2,8 +2,6 @@
 
 **Swift Async Algorithms** is an open-source package of asynchronous sequence and advanced algorithms that involve concurrency, along with their related types.
 
-Read more about the package, and the intent behind it, in the [announcement on swift.org](https://swift.org/blog/)
-
 ## Contents
 
 #### Combining asynchronous sequences
