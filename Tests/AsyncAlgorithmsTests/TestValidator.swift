@@ -135,4 +135,12 @@ final class TestValidator: XCTestCase {
     value = validator.current
     XCTAssertEqual(value, [2, 3, 4])
   }
+  
+  func test_diagram() {
+    marbleDiagram {
+      "a-b-c|"
+      $0.inputs[0].map { $0 }
+      "a-b-c|"
+    }
+  }
 }

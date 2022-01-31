@@ -30,8 +30,9 @@ public struct Validator<Element: Sendable>: Sendable {
   
   private let state = ManagedCriticalState(State())
 
-  private func ready() {
+  private func ready(_ apply: (inout State) -> Void) {
     state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
+      apply(&state)
       switch state.ready {
       case .idle:
         state.ready = .ready
@@ -45,7 +46,7 @@ public struct Validator<Element: Sendable>: Sendable {
     }?.resume()
   }
   
-  private func step() async {
+  internal func step() async {
     await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
       state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
         switch state.ready {
@@ -61,44 +62,38 @@ public struct Validator<Element: Sendable>: Sendable {
       }?.resume()
     }
   }
+
+  let onEvent: (@Sendable (Result<Element?, Error>) async -> Void)?
+  
+  init(onEvent: @Sendable @escaping (Result<Element?, Error>) async -> Void) {
+
+    self.onEvent = onEvent
+  }
+  
+  public init() {
+    self.onEvent = nil
+  }
   
   public func test<S: AsyncSequence>(_ sequence: S, onFinish: @Sendable @escaping (inout S.AsyncIterator) async -> Void) where S.Element == Element {
     let envelope = Envelope(contents: sequence)
     Task {
       var iterator = envelope.contents.makeAsyncIterator()
-      ready()
+      ready { _ in }
       do {
         while let item = try await iterator.next() {
-          state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
+          await onEvent?(.success(item))
+          ready { state in
             state.collected.append(item)
-            switch state.ready {
-            case .idle:
-              state.ready = .ready
-              return nil
-            case .pending(let continuation):
-              state.ready = .idle
-              return continuation
-            case .ready:
-              return nil
-            }
-          }?.resume()
-        }
-      } catch {
-        state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
-          state.failure = error
-          switch state.ready {
-          case .idle:
-            state.ready = .ready
-            return nil
-          case .pending(let continuation):
-            state.ready = .idle
-            return continuation
-          case .ready:
-            return nil
           }
-        }?.resume()
+        }
+        await onEvent?(.success(nil))
+      } catch {
+        await onEvent?(.failure(error))
+        ready { state in
+          state.failure = error
+        }
       }
-      ready()
+      ready { _ in }
       await onFinish(&iterator)
     }
   }
