@@ -73,7 +73,7 @@ public struct ManualClock: Clock {
   }
   
   fileprivate struct Wakeup {
-    let id: Int
+    let generation: Int
     let continuation: UnsafeContinuation<Void, Error>
     let deadline: Instant
   }
@@ -87,7 +87,7 @@ public struct ManualClock: Clock {
       case .cancelled(let generation):
         hasher.combine(generation)
       case .wakeup(let wakeup):
-        hasher.combine(wakeup.id)
+        hasher.combine(wakeup.generation)
       }
     }
     
@@ -96,11 +96,11 @@ public struct ManualClock: Clock {
       case (.cancelled(let lhsGen), .cancelled(let rhsGen)):
         return lhsGen == rhsGen
       case (.cancelled(let lhsGen), .wakeup(let rhs)):
-        return lhsGen == rhs.id
+        return lhsGen == rhs.generation
       case (.wakeup(let lhs), .cancelled(let rhsGen)):
-        return lhs.id == rhsGen
+        return lhs.generation == rhsGen
       case (.wakeup(let lhs), .wakeup(let rhs)):
-        return lhs.id == rhs.id
+        return lhs.generation == rhs.generation
       }
     }
     
@@ -109,11 +109,11 @@ public struct ManualClock: Clock {
       case (.cancelled(let lhsGen), .cancelled(let rhsGen)):
         return lhsGen < rhsGen
       case (.cancelled(let lhsGen), .wakeup(let rhs)):
-        return lhsGen < rhs.id
+        return lhsGen < rhs.generation
       case (.wakeup(let lhs), .cancelled(let rhsGen)):
-        return lhs.id < rhsGen
+        return lhs.generation < rhsGen
       case (.wakeup(let lhs), .wakeup(let rhs)):
-        return lhs.id < rhs.id
+        return lhs.generation < rhs.generation
       }
     }
     
@@ -180,6 +180,12 @@ public struct ManualClock: Clock {
     }
     for item in pending.sorted() {
       item.resume()
+    }
+  }
+  
+  public func advance(by steps: Step) {
+    for _ in 0..<steps.rawValue {
+      advance()
     }
   }
   
