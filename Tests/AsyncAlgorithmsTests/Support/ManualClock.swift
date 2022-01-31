@@ -191,7 +191,7 @@ public struct ManualClock: Clock {
   
   fileprivate func schedule(_ generation: Int, continuation: UnsafeContinuation<Void, Error>, deadline: Instant) {
     let resumption = state.withCriticalRegion { state -> (UnsafeContinuation<Void, Error>, Result<Void, Error>)? in
-      let wakeup = Wakeup(id: generation, continuation: continuation, deadline: deadline)
+      let wakeup = Wakeup(generation: generation, continuation: continuation, deadline: deadline)
       if let existing = state.scheduled.remove(.wakeup(wakeup)) {
         switch existing {
         case .wakeup:
