@@ -22,7 +22,7 @@ public protocol MarbleDiagramTest: Sendable {
 extension XCTestCase {
   @resultBuilder
   public struct MarbleDiagram : Sendable {
-    struct Test<Operation: AsyncSequence>: MarbleDiagramTest, @unchecked Sendable where Operation.Element == String {
+    fileprivate struct Test<Operation: AsyncSequence>: MarbleDiagramTest, @unchecked Sendable where Operation.Element == String {
       let inputs: [String]
       let sequence: Operation
       let output: String
@@ -34,7 +34,7 @@ extension XCTestCase {
       }
     }
     
-    enum Event {
+    fileprivate enum Event {
       case step
       case failure
       case finish
@@ -57,17 +57,17 @@ extension XCTestCase {
         }
       }
       
-      struct State {
+      fileprivate struct State {
         var emissions = [(ManualClock.Instant, Emission)]()
         var continuations = [ManualClock.Instant: (Emission, UnsafeContinuation<Element?, Error>)]()
       }
       
-      let state = ManagedCriticalState(State())
-      let clock: ManualClock
+      fileprivate let state = ManagedCriticalState(State())
+      fileprivate let clock: ManualClock
       
       public struct Iterator: AsyncIteratorProtocol {
-        let state: ManagedCriticalState<State>
-        let clock: ManualClock
+        fileprivate let state: ManagedCriticalState<State>
+        fileprivate let clock: ManualClock
         
         public mutating func next() async throws -> Element? {
           let next = state.withCriticalRegion { state -> (ManualClock.Instant, Emission)? in
@@ -91,7 +91,7 @@ extension XCTestCase {
         Iterator(state: state, clock: clock)
       }
       
-      static func parse(_ dsl: String) -> [(ManualClock.Instant, Emission)] {
+      fileprivate static func parse(_ dsl: String) -> [(ManualClock.Instant, Emission)] {
         var emissions = [(ManualClock.Instant, Emission)]()
         var when = ManualClock.Instant(0)
         var group: String?
@@ -149,9 +149,9 @@ extension XCTestCase {
     }
     
     public struct Clock {
-      let manualClock: ManualClock
+      fileprivate let manualClock: ManualClock
       
-      init(_ manualClock: ManualClock) {
+      fileprivate init(_ manualClock: ManualClock) {
         self.manualClock = manualClock
       }
     }
@@ -169,8 +169,8 @@ extension XCTestCase {
     }
     
     public struct InputList: RandomAccessCollection, Sendable {
-      let state = ManagedCriticalState([Input]())
-      let clock: ManualClock
+      fileprivate let state = ManagedCriticalState([Input]())
+      fileprivate let clock: ManualClock
       
       public var startIndex: Int { return 0 }
       public var endIndex: Int {
@@ -191,14 +191,14 @@ extension XCTestCase {
       }
     }
     
-    let manualClock: ManualClock
+    fileprivate let manualClock: ManualClock
     public var inputs: InputList
     
     public var clock: Clock {
       Clock(manualClock)
     }
     
-    init(clock: ManualClock) {
+    fileprivate init(clock: ManualClock) {
       self.manualClock = clock
       inputs = InputList(clock: clock)
     }
