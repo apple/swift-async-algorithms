@@ -63,7 +63,7 @@ The throwing behavior of `AsyncCombineLatestSequence` is that if any of the base
 
 ### Naming
 
-Since the inherent behavior of `combineLatest(_:...)` combines the latest values from multiple streams into a tuple the naming is intended to be quite literal. There are precident terms of art in other frameworks and libraries (listed in the comparison second). Other naming takes the form of "withLatestFrom", this particular naming method was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
+Since the inherent behavior of `combineLatest(_:...)` combines the latest values from multiple streams into a tuple the naming is intended to be quite literal. There are precident terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
 
 ### Comparison with other libraries
 
