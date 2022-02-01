@@ -19,7 +19,7 @@
 - [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Remove nil values from an asynchronous sequence.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Remove sequentially adjacent duplicate values.
-- [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Place a value between every two elements of an asynchronous sequence.
+- [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
 
 #### Obtaining all values from an asynchronous sequence
 
