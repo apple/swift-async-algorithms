@@ -14,6 +14,15 @@ for try await (apple, nasdaq) = combineLatest(appleFeed, nasdaqFeed) {
 }
 ```
 
+Given some sample inputs the following combined events can be expected.
+
+| Timestamp   | appleFeed | nasdaqFeed | combined output               |                 
+| ----------- | --------- | ---------- | ----------------------------- |
+| 11:40 AM    | 173.91    |            |                               |
+| 12:25 AM    |           | 14236.78   | AAPL: 173.91 NASDAQ: 14236.78 |
+| 12:40 AM    |           | 14218.34   | AAPL: 173.91 NASDAQ: 14218.34 |
+|  1:15 PM    | 173.00    |            | AAPL: 173.00 NASDAQ: 14218.34 |
+
 ## Detailed Design
 
 This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted these will be implemented in terms of two and three base sequence cases.
