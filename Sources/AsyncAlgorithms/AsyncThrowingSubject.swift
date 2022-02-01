@@ -67,7 +67,7 @@ public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: Asyn
   }
   
   enum Emission {
-    case initial
+    case idle
     case pending([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>])
     case awaiting(Set<Awaiting>)
     
@@ -84,7 +84,7 @@ public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: Asyn
   }
   
   struct State {
-    var emission: Emission = .initial
+    var emission: Emission = .idle
     var generation = 0
     var terminal = false
   }
@@ -110,13 +110,13 @@ public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: Asyn
     return try await withUnsafeThrowingContinuation { continuation in
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
         switch state.emission {
-        case .initial:
+        case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
           return nil
         case .pending(var sends):
           let send = sends.removeFirst()
           if sends.count == 0 {
-            state.emission = .initial
+            state.emission = .idle
           } else {
             state.emission = .pending(sends)
           }
@@ -145,7 +145,7 @@ public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: Asyn
           state.terminal = true
         }
         switch state.emission {
-        case .initial:
+        case .idle:
           state.emission = .pending([continuation])
           return nil
         case .pending(var sends):
@@ -155,7 +155,7 @@ public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: Asyn
         case .awaiting(var nexts):
           let next = nexts.removeFirst().continuation
           if nexts.count == 0 {
-            state.emission = .initial
+            state.emission = .idle
           } else {
             state.emission = .awaiting(nexts)
           }

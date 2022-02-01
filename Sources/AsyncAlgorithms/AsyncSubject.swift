@@ -62,7 +62,7 @@ public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
   }
   
   enum Emission {
-    case initial
+    case idle
     case pending([UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>])
     case awaiting(Set<Awaiting>)
     
@@ -79,7 +79,7 @@ public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
   }
   
   struct State {
-    var emission: Emission = .initial
+    var emission: Emission = .idle
     var generation = 0
     var terminal = false
   }
@@ -105,13 +105,13 @@ public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
     return await withUnsafeContinuation { continuation in
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
         switch state.emission {
-        case .initial:
+        case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
           return nil
         case .pending(var sends):
           let send = sends.removeFirst()
           if sends.count == 0 {
-            state.emission = .initial
+            state.emission = .idle
           } else {
             state.emission = .pending(sends)
           }
@@ -140,7 +140,7 @@ public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
           state.terminal = true
         }
         switch state.emission {
-        case .initial:
+        case .idle:
           state.emission = .pending([continuation])
           return nil
         case .pending(var sends):
@@ -150,7 +150,7 @@ public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
         case .awaiting(var nexts):
           let next = nexts.removeFirst().continuation
           if nexts.count == 0 {
-            state.emission = .initial
+            state.emission = .idle
           } else {
             state.emission = .awaiting(nexts)
           }
