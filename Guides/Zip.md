@@ -82,4 +82,4 @@ It is common in some libraries to have a `ZipMap` or some other combination of `
 
 **ReactiveX** ReactiveX has an [API definition of Zip](https://reactivex.io/documentation/operators/zip.html) as a top level function for combinining Observables.
 
-**Combine** Combine has an [API definition of combineLatest](https://developer.apple.com/documentation/combine/publisher/zip(_:)/) has an operator style method for combining Publishers.
+**Combine** Combine has an [API definition of zip](https://developer.apple.com/documentation/combine/publisher/zip(_:)/) has an operator style method for combining Publishers.
