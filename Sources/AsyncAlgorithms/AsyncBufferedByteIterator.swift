@@ -46,7 +46,8 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
   /// Creates an asynchronous buffered byte iterator with a specified capacity and read function.
   ///
   /// - Parameters:
-  ///   - capacity: The allocated capacity of the backing buffer for iteration.
+  ///   - capacity: The maximum number of bytes that a single invocation of `readFunction` may produce.
+  ///   This is the allocated capacity of the backing buffer for iteration; the value must be greater than 0.
   ///   - readFunction: The function for refilling the buffer.
   public init(
     capacity: Int,
