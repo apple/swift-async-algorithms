@@ -66,7 +66,7 @@ public struct AsyncMerge3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Ba
 
 The `merge(_:...)` function takes two or more asynchronous sequences as arguments with the resulting `AsyncMergeSequence` which is an asynchronous sequence.
 
-Since the bases comprising the `AsyncMergeSequence` must be iterated concurrently to produce the latest value it means that those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elemnts they produce must be `Sendable`. 
+Since the bases comprising the `AsyncMergeSequence` must be iterated concurrently to produce the latest value it means that those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elements they produce must be `Sendable`. 
 
 When iterating a `AsyncMergeSequence` it becomes terminal when all of the base asynchronous sequences are terminal; meaning there is no more potential of any elements being produced. 
 
