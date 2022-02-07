@@ -74,7 +74,7 @@ The throwing behavior of `AsyncMergeSequence` is that if any of the bases throw 
 
 ### Naming
 
-Since the inherent behavior of `merge(_:...)` merges values from multiple streams into a singular asynchronous sequence the naming is intended to be quite literal. There are precident terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
+Since the inherent behavior of `merge(_:...)` merges values from multiple streams into a singular asynchronous sequence the naming is intended to be quite literal. There are precedent terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
 
 ### Comparison with other libraries
 
