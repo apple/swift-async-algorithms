@@ -17,7 +17,7 @@
 
 #### Performance optimized asynchronous iterators
 
-- [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly effecient iterator useful for iterating byte sequences derived from asynchronous read functions.
+- [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
 #### Other useful asynchronous sequences
 - [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.

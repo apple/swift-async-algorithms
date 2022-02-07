@@ -22,44 +22,22 @@
 ///
 /// A typical use of `AsyncBufferedByteIterator` looks something like this:
 ///
-///     public struct AsyncBytes: AsyncSequence {
-///       actor Handle {
-///         var fd: Int32
-///
-///         init(_ fd: Int32) {
-///           self.fd = fd
-///         }
-///
-///         deinit {
-///           close(fd)
-///         }
-///
-///         func readBytes(
-///           into buffer: UnsafeMutableRawBufferPointer
-///         ) async throws -> Int {
-///           let amount =
-///             read(fd, buffer.baseAddress, buffer.count)
-///           guard amount >= 0 else {
-///             throw Failure(errno)
-///           }
-///           return amount
-///         }
-///       }
+///     struct AsyncBytes: AsyncSequence {
 ///       public typealias Element = UInt8
-///       public typealias AsyncIterator = AsyncBufferedByteIterator
-///       var handle: Handle
+///       var handle: ReadableThing
 ///
-///       internal init(_ fd: Int32) {
-///         handle = Handle(fd)
+///       internal init(_ readable: ReadableThing) {
+///         handle = readable
 ///       }
 ///
 ///       public func makeAsyncIterator() -> AsyncBufferedByteIterator {
-///         return AsyncBufferedByteIterator(capacity: 16384) { buffer in
+///         return BufferedAsyncByteIterator(capacity: 16384) { buffer in
 ///           // This runs once every 16384 invocations of next()
-///           return try await handle.readBytes(into: buffer)
+///           return try await handle.read(into: buffer)
 ///         }
 ///       }
 ///     }
+///
 ///
 public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
   public typealias Element = UInt8

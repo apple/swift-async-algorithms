@@ -3,46 +3,23 @@
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncBufferedByteIterator.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestBufferedByteIterator.swift)]
 
-Provides a highly effecient iterator useful for iterating byte sequences derived from asynchronous read functions.
+Provides a highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
-This type can provide the infrastructure to allow for taking file descriptors or other such read sources and making them into `AsyncSequence` types with an element of `UInt8`
+This type provides infrastructure for creating `AsyncSequence` types with an `Element` of `UInt8` backed by file descriptors or similar read sources.
 
 ```swift
-public struct AsyncBytes: AsyncSequence {
-  actor Handle {
-    var fd: Int32
-
-    init(_ fd: Int32) {
-      self.fd = fd
-    }
-
-    deinit {
-      close(fd)
-    }
-
-    func readBytes(
-      into buffer: UnsafeMutableRawBufferPointer
-    ) async throws -> Int {
-      let amount =
-        read(fd, buffer.baseAddress, buffer.count)
-      guard amount >= 0 else {
-        throw Failure(errno)
-      }
-      return amount
-    }
-  }
+struct AsyncBytes: AsyncSequence {
   public typealias Element = UInt8
-  public typealias AsyncIterator = AsyncBufferedByteIterator
-  var handle: Handle
+  var handle: ReadableThing
 
-  internal init(_ fd: Int32) {
-    handle = Handle(fd)
+  internal init(_ readable: ReadableThing) {
+    handle = readable
   }
 
   public func makeAsyncIterator() -> AsyncBufferedByteIterator {
-    return AsyncBufferedByteIterator(capacity: 16384) { buffer in
+    return BufferedAsyncByteIterator(capacity: 16384) { buffer in
       // This runs once every 16384 invocations of next()
-      return try await handle.readBytes(into: buffer)
+      return try await handle.read(into: buffer)
     }
   }
 }
@@ -65,13 +42,13 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
 
 For each invocation of `next` the iterator will check if a buffer has been filled. If the buffer is filled with some amount of bytes a fast path is taken to directly return a byte out of that buffer. If the buffer is not filled then the read function is invoked to acquire the next filled buffer and then it takes a byte out of that buffer.
 
-If at any point in time the buffer is filled with returning a count of 0 the iterator is claimed to be finished, and no additional invocations to the read function is made.
+If the read function returns 0 indicating it read no more bytes the iterator is claimed to be finished and no additional invocations to the read function are made.
 
-If at any point of reloading the read function throws, the error will be thrown by the iteration. Subsequent invocations to the iterator will return nil without invoking the read function.
+If the read function throws the error will be thrown by the iteration. Subsequent invocations to the iterator will return nil without invoking the read function.
 
 During the iteration if the task is cancelled the iteration will check the cancellation only in passes where the read function is invoked and will throw a `CancellationError`.
 
 ### Naming
 
-This type was named precicely for what it does: it is an asynchronous iterator that buffers bytes. 
+This type was named precisely for what it does: it is an asynchronous iterator that buffers bytes. 
 
