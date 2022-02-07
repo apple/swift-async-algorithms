@@ -68,7 +68,7 @@ Each iteration of an `AsyncZipSequence` will await all base iterators to produce
 
 `AsyncZipSequence` requires that the iterations are done concurrently. This means that the base sequences, their elements, and iterators must all be `Sendable`. That makes `AsyncZipSequence` inherently `Sendable`.
 
-Because the source of throwing of `AsyncZipSequence` is only determined by it's bases. That means that if a base is throwing the iteration of the `AsyncZipSequence` can throw. If no bases can throw then the `AsyncZipSequence` does not throw.
+The source of throwing of `AsyncZipSequence` is determined by it's bases. That means that if any base is throwing then the iteration of the `AsyncZipSequence` can throw. If no bases can throw then the `AsyncZipSequence` does not throw.
 
 ### Naming
 
