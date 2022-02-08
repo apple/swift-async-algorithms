@@ -9,7 +9,7 @@
 - [`chain(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Chain.md): Concatenates two or more asynchronous sequences with the same element type. 
 - [`combineLatest(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/CombineLatest.md): Combines two or more asynchronous sequences into an asynchronous sequence producing a tuple of elements from those base asynchronous sequences that updates when any of the base sequences produce a value.
 - [`merge(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Merge.md): Merges two or more asynchronous sequence into a single asynchronous sequence producing the elements of all of the underlying asynchronous sequences.
-- [`zip(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Creates an asynchronous sequence of pairs built out of underlying asynchronous sequences.
+- [`zip(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Zip.md): Creates an asynchronous sequence of pairs built out of underlying asynchronous sequences.
 
 #### Creating asynchronous sequences
 
