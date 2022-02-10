@@ -1,0 +1,4 @@
+module CMarableDiagram [system] {
+  header "CMarbleDiagram.h"
+  export *
+}

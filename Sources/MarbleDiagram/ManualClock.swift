@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import AsyncAlgorithms
+import ClockStub
 
 public struct ManualClock: Clock {
   public struct Step: DurationProtocol {
@@ -50,7 +50,7 @@ public struct ManualClock: Clock {
     }
   }
   
-  public struct Instant: InstantProtocol {
+  public struct Instant: InstantProtocol, CustomStringConvertible {
     public typealias Duration = Step
     
     internal let rawValue: Int
@@ -70,6 +70,10 @@ public struct ManualClock: Clock {
     public func duration(to other: ManualClock.Instant) -> ManualClock.Step {
       .init(other.rawValue - rawValue)
     }
+    
+    public var description: String {
+      return "tick \(rawValue)"
+    }
   }
   
   fileprivate struct Wakeup {
@@ -78,7 +82,7 @@ public struct ManualClock: Clock {
     let deadline: Instant
   }
   
-  fileprivate enum Scheduled: Hashable, Comparable {
+  fileprivate enum Scheduled: Hashable, Comparable, CustomStringConvertible {
     case cancelled(Int)
     case wakeup(Wakeup)
     
@@ -88,6 +92,13 @@ public struct ManualClock: Clock {
         hasher.combine(generation)
       case .wakeup(let wakeup):
         hasher.combine(wakeup.generation)
+      }
+    }
+    
+    var description: String {
+      switch self {
+      case .cancelled: return "Cancelled wakeup"
+      case .wakeup(let wakeup): return "Wakeup at \(wakeup.deadline)"
       }
     }
     
@@ -138,6 +149,7 @@ public struct ManualClock: Clock {
     var generation = 0
     var scheduled = Set<Scheduled>()
     var now = Instant(0)
+    var hasSleepers = false
   }
   
   fileprivate let state = ManagedCriticalState(State())
@@ -147,6 +159,8 @@ public struct ManualClock: Clock {
   }
   
   public var minimumResolution: Step { return .zero }
+
+  public init() { }
   
   fileprivate func cancel(_ generation: Int) {
     state.withCriticalRegion { state -> UnsafeContinuation<Void, Error>? in
@@ -165,6 +179,10 @@ public struct ManualClock: Clock {
     }?.resume(throwing: CancellationError())
   }
   
+  var hasSleepers: Bool {
+    state.withCriticalRegion { $0.hasSleepers }
+  }
+  
   public func advance() {
     let pending = state.withCriticalRegion { state -> Set<Scheduled> in
       state.now += .steps(1)
@@ -176,6 +194,9 @@ public struct ManualClock: Clock {
         }
       }
       state.scheduled.subtract(pending)
+      if pending.count > 0 {
+        state.hasSleepers = false
+      }
       return pending
     }
     for item in pending.sorted() {
@@ -195,7 +216,6 @@ public struct ManualClock: Clock {
       if let existing = state.scheduled.remove(.wakeup(wakeup)) {
         switch existing {
         case .wakeup:
-          // already a wakeup with this generation?!
           fatalError()
         case .cancelled:
           // dont bother adding it back because it has been cancelled before we got here
@@ -205,6 +225,7 @@ public struct ManualClock: Clock {
         // there is no cancelled placeholder so let it run free
         if deadline > state.now {
           // the deadline is in the future so run it then
+          state.hasSleepers = true
           state.scheduled.insert(.wakeup(wakeup))
           return nil
         } else {
