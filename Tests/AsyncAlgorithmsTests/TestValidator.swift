@@ -11,6 +11,7 @@
 
 import XCTest
 import AsyncAlgorithms
+import MarbleDiagram
 
 final class TestValidator: XCTestCase {
   func test_gate() async {
@@ -134,13 +135,5 @@ final class TestValidator: XCTestCase {
     wait(for: [finished], timeout: 1.0)
     value = validator.current
     XCTAssertEqual(value, [2, 3, 4])
-  }
-  
-  func test_diagram() {
-    marbleDiagram {
-      "a-b-c|"
-      $0.inputs[0].map { $0 }
-      "a-b-c|"
-    }
   }
 }

@@ -11,6 +11,7 @@
 
 import XCTest
 import AsyncAlgorithms
+import MarbleDiagram
 
 final class TestManualClock: XCTestCase {
   func test_sleep() async {

@@ -11,6 +11,7 @@
 
 import XCTest
 import AsyncAlgorithms
+import MarbleDiagram
 
 final class TestCombineLatest2: XCTestCase {
   func test_combineLatest() async {
