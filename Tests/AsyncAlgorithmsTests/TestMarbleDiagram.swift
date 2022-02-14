@@ -22,6 +22,14 @@ final class TestMarbleDiagram: XCTestCase {
     }
   }
   
+  func test_diagram_space_noop() {
+    marbleDiagram {
+      "    a -- b --  c       ---|"
+      $0.inputs[0].map { item in await Task { item.capitalized }.value }
+      "    A- - B - - C   -  --  |     "
+    }
+  }
+  
   func test_diagram_failure_mismatch_value() {
     expectFailures(["expected \"X\" but got \"C\" at tick 6"])
     marbleDiagram {
