@@ -30,6 +30,52 @@ final class TestMarbleDiagram: XCTestCase {
     }
   }
   
+  func test_diagram_string_input() {
+    marbleDiagram {
+      "'foo''bar''baz'|"
+      $0.inputs[0].map { $0.first.map { String($0) } ?? "X" }
+      "fbb|"
+    }
+  }
+  
+  func test_diagram_string_input_expectation() {
+    marbleDiagram {
+      "'foo''bar''baz'|"
+      $0.inputs[0]
+      "'foo''bar''baz'|"
+    }
+  }
+  
+  func test_diagram_string_dsl_contents() {
+    marbleDiagram {
+      "'foo-''bar^''baz|'|"
+      $0.inputs[0]
+      "'foo-''bar^''baz|'|"
+    }
+  }
+  
+  func test_diagram_emoji() {
+    struct EmojiTokens: MarbleDiagramTheme {
+      func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
+        switch character {
+        case "➖": return .step
+        case "❗️": return .error
+        case "❌": return .finish
+        case "➡️": return .beginValue
+        case "⬅️": return .endValue
+        case " ": return .skip
+        default: return .value(String(character))
+        }
+      }
+    }
+    
+    marbleDiagram(theme: EmojiTokens()) {
+      "➖🔴➖🟠➖🟡➖🟢➖❌"
+      $0.inputs[0]
+      "➖🔴➖🟠➖🟡➖🟢➖❌"
+    }
+  }
+  
   func test_diagram_failure_mismatch_value() {
     expectFailures(["expected \"X\" but got \"C\" at tick 6"])
     marbleDiagram {

@@ -72,8 +72,41 @@ public protocol MarbleDiagramTest: Sendable {
   func test(_ event: (String) -> Void) async throws
 }
 
+public protocol MarbleDiagramTheme {
+  func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token
+}
+
+extension MarbleDiagramTheme where Self == MarbleDiagram.ASCIITheme {
+  public static var ascii: MarbleDiagram.ASCIITheme {
+    return MarbleDiagram.ASCIITheme()
+  }
+}
+
 @resultBuilder
 public struct MarbleDiagram : Sendable {
+  public enum Token {
+    case step
+    case error
+    case finish
+    case beginValue
+    case endValue
+    case skip
+    case value(String)
+  }
+  
+  public struct ASCIITheme: MarbleDiagramTheme {
+    public func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
+      switch character {
+      case "-": return .step
+      case "^": return .error
+      case "|": return .finish
+      case "'": return inValue ? .endValue : .beginValue
+      case " ": return .skip
+      default: return .value(String(character))
+      }
+    }
+  }
+  
   struct Failure: Error, Equatable { }
   
   fileprivate struct Test<Operation: AsyncSequence>: MarbleDiagramTest, @unchecked Sendable where Operation.Element == String {
@@ -88,39 +121,85 @@ public struct MarbleDiagram : Sendable {
     }
   }
   
-  fileprivate enum Event {
-    case step
-    case failure
-    case finish
-    case value(String)
+  enum Event {
+    case value(String, String.Index)
+    case failure(Error, String.Index)
+    case finish(String.Index)
+    
+    var result: Result<String?, Error> {
+      switch self {
+      case .value(let value, _): return .success(value)
+      case .failure(let failure, _): return .failure(failure)
+      case .finish: return .success(nil)
+      }
+    }
+    
+    var index: String.Index {
+      switch self {
+      case .value(_, let index): return index
+      case .failure(_, let index): return index
+      case .finish(let index): return index
+      }
+    }
+    
+    fileprivate static func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) -> [(ManualClock.Instant, Event)] {
+      var emissions = [(ManualClock.Instant, Event)]()
+      var when = ManualClock.Instant(0)
+      var string: String?
+      
+      for index in dsl.indices {
+        let ch = dsl[index]
+        switch theme.token(dsl[index], inValue: string != nil) {
+        case .step:
+          if string == nil {
+            when += .steps(1)
+          } else {
+            string?.append(ch)
+          }
+        case .error:
+          if string == nil {
+            when += .steps(1)
+            emissions.append((when, .failure(Failure(), index)))
+          } else {
+            string?.append(ch)
+          }
+        case .finish:
+          if string == nil {
+            when += .steps(1)
+            emissions.append((when, .finish(index)))
+          } else {
+            string?.append(ch)
+          }
+        case .beginValue:
+          string = ""
+        case .endValue:
+          if let value = string {
+            string = nil
+            when += .steps(1)
+            emissions.append((when, .value(value, index)))
+          }
+        case .skip:
+          string?.append(ch)
+          continue
+        case .value(let str):
+          if string == nil {
+            when += .steps(1)
+            emissions.append((when, .value(String(ch), index)))
+          } else {
+            string?.append(str)
+          }
+        }
+      }
+      return emissions
+    }
+    
   }
   
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
-    enum Emission {
-      case value(Element, String.Index)
-      case failure(Error, String.Index)
-      case finish(String.Index)
-      
-      var result: Result<Element?, Error> {
-        switch self {
-        case .value(let value, _): return .success(value)
-        case .failure(let failure, _): return .failure(failure)
-        case .finish: return .success(nil)
-        }
-      }
-      
-      var index: String.Index {
-        switch self {
-        case .value(_, let index): return index
-        case .failure(_, let index): return index
-        case .finish(let index): return index
-        }
-      }
-    }
     
     fileprivate struct State {
-      var emissions = [(ManualClock.Instant, Emission)]()
+      var emissions = [(ManualClock.Instant, Event)]()
     }
     
     fileprivate let state = ManagedCriticalState(State())
@@ -131,7 +210,7 @@ public struct MarbleDiagram : Sendable {
       fileprivate let clock: ManualClock
       
       public mutating func next() async throws -> Element? {
-        let next = state.withCriticalRegion { state -> (ManualClock.Instant, Emission)? in
+        let next = state.withCriticalRegion { state -> (ManualClock.Instant, Event)? in
           guard state.emissions.count > 0 else {
             return nil
           }
@@ -149,59 +228,8 @@ public struct MarbleDiagram : Sendable {
       Iterator(state: state, clock: clock)
     }
     
-    fileprivate static func parse(_ dsl: String) -> [(ManualClock.Instant, Emission)] {
-      var emissions = [(ManualClock.Instant, Emission)]()
-      var when = ManualClock.Instant(0)
-      var group: String?
-      
-      for index in dsl.indices {
-        let ch = dsl[index]
-        switch ch {
-        case "-":
-          if group == nil {
-            when += .steps(1)
-          } else {
-            group?.append(ch)
-          }
-        case "^":
-          if group == nil {
-            when += .steps(1)
-            emissions.append((when, .failure(Failure(), index)))
-          } else {
-            group?.append(ch)
-          }
-        case "|":
-          if group == nil {
-            when += .steps(1)
-            emissions.append((when, .finish(index)))
-          } else {
-            group?.append(ch)
-          }
-        case "'":
-          if let value = group {
-            group = nil
-            when += .steps(1)
-            emissions.append((when, .value(value, index)))
-          } else {
-            group = ""
-          }
-        case " ":
-          group?.append(ch)
-          continue
-        default:
-          if group == nil {
-            when += .steps(1)
-            emissions.append((when, .value(String(ch), index)))
-          } else {
-            group?.append(ch)
-          }
-        }
-      }
-      return emissions
-    }
-    
-    func parse(_ dsl: String) {
-      let emissions = Input.parse(dsl)
+    func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) {
+      let emissions = Event.parse(dsl, theme: theme)
       state.withCriticalRegion { state in
         state.emissions = emissions
       }
@@ -366,8 +394,9 @@ public struct MarbleDiagram : Sendable {
     }
   }
   
-  static func validate(
-    output: String, 
+  static func validate<Theme: MarbleDiagramTheme>(
+    output: String,
+    theme: Theme,
     expected: [ManualClock.Instant : Result<String?, Error>], 
     actual: [(ManualClock.Instant, Result<String?, Error>)]
   ) -> [ExpectationFailure] {
@@ -387,7 +416,7 @@ public struct MarbleDiagram : Sendable {
     var processed = Set<ManualClock.Instant>()
     var failures = [ExpectationFailure]()
     // reparse the output to fetch indicies
-    let events = MarbleDiagram.Input.parse(output).map { when, emission in
+    let events = Event.parse(output, theme: theme).map { when, emission in
       return (when, emission.index)
     }
     let times = events.map { $0.0 }.sorted()
@@ -538,7 +567,8 @@ public struct MarbleDiagram : Sendable {
     return failures
   }
   
-  public static func test<Test: MarbleDiagramTest>(
+  public static func test<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(
+    theme: Theme,
     @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
   ) -> [ExpectationFailure] {
     let clock = ManualClock()
@@ -547,10 +577,10 @@ public struct MarbleDiagram : Sendable {
     let test = build(&diagram)
     
     for (index, input) in diagram.inputs.enumerated() {
-      input.parse(test.inputs[index])
+      input.parse(test.inputs[index], theme: theme)
     }
     
-    let parsedOutput = MarbleDiagram.Input.parse(test.output)
+    let parsedOutput = Event.parse(test.output, theme: theme)
     let expected = Dictionary(uniqueKeysWithValues: parsedOutput.map { ($0, $1.result) })
     
     guard let end = (expected.keys + diagram.inputs.compactMap { $0.end }).max() else {
@@ -616,9 +646,16 @@ public struct MarbleDiagram : Sendable {
     Context.driver = nil
     
     return validate(
-      output: test.output, 
+      output: test.output,
+      theme: theme,
       expected: expected, 
       actual: actual.withCriticalRegion { $0 })
+  }
+  
+  public static func test<Test: MarbleDiagramTest>(
+    @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
+  ) -> [ExpectationFailure] {
+    self.test(theme: .ascii, build)
   }
 }
 
