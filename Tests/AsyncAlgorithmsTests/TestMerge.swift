@@ -123,6 +123,15 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
   }
   
+  func test_diagram() {
+    marbleDiagram {
+      "a-c-e-g-|"
+      "-b-d-f-h"
+      merge($0.inputs[0], $0.inputs[1])
+      "abcdefgh|"
+    }
+  }
+  
   func test_cancellation() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
@@ -299,6 +308,16 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection([7, 8, 9]), Set([7, 8, 9]))
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
+  }
+  
+  func test_diagram() {
+    marbleDiagram {
+      "a---e---|"
+      "-b-d-f-h|"
+      "--c---g-|"
+      merge($0.inputs[0], $0.inputs[1], $0.inputs[2])
+      "abcdefgh|"
+    }
   }
 
   func test_cancellation() async {

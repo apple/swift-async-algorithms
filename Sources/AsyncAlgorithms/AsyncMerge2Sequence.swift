@@ -102,11 +102,18 @@ where
       }
       switch state {
       case (.idle(let iterator1), .idle(let iterator2)):
-        return try await apply(first(iterator1), second(iterator2))
+        let task1 = first(iterator1)
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2))
+        return try await apply(task1, task2)
       case (.idle(let iterator1), .pending(let task2)):
-        return try await apply(first(iterator1), task2)
+        let task1 = first(iterator1)
+        state = (.pending(task1), .pending(task2))
+        return try await apply(task1, task2)
       case (.pending(let task1), .idle(let iterator2)):
-        return try await apply(task1, second(iterator2))
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2))
+        return try await apply(task1, task2)
       case (.idle(var iterator1), .terminal):
         do {
           if let value = try await iterator1.next() {
@@ -133,10 +140,14 @@ where
           state = (.terminal, .terminal)
           throw error
         }
+      case (.terminal, .pending(let task2)):
+        return try await apply(nil, task2)
+      case (.pending(let task1), .pending(let task2)):
+        return try await apply(task1, task2)
+      case (.pending(let task1), .terminal):
+        return try await apply(task1, nil)
       case (.terminal, .terminal):
         return nil
-      default:
-        fatalError()
       }
     }
   }
