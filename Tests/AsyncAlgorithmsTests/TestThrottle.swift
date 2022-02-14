@@ -92,4 +92,36 @@ final class TestThrottle: XCTestCase {
       "-a-c-e^"
     }
   }
+  
+  func test_emission_2_rate_1() {
+    marbleDiagram {
+      "-a-b-c-d-e-f-g-h-i-j-k-|"
+      $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
+      "-a-b-c-d-e-f-g-h-i-j-k-|"
+    }
+  }
+  
+  func test_emission_2_rate_2() {
+    marbleDiagram {
+      "-a-b-c-d-e-f-g-h-i-j-k-|"
+      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      "-a-b-c-d-e-f-g-h-i-j-k-|"
+    }
+  }
+  
+  func test_emission_3_rate_2() {
+    marbleDiagram {
+      "--a--b--c--d--e--f--g|"
+      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      "--a--b--c--d--e--f--g|"
+    }
+  }
+  
+  func test_emission_2_rate_3() {
+    marbleDiagram {
+      "-a-b-c-d-e-f-g-h-i-j-k-|"
+      $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
+      "---b---d---f---h---j---|"
+    }
+  }
 }
