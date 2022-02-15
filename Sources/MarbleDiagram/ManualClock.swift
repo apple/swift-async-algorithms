@@ -185,7 +185,7 @@ public struct ManualClock: Clock {
   
   public func advance() {
     let pending = state.withCriticalRegion { state -> Set<Scheduled> in
-      state.now += .steps(1)
+      state.now = state.now.advanced(by: .steps(1))
       let pending = state.scheduled.filter { item in
         if let deadline = item.deadline {
           return deadline <= state.now

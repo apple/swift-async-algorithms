@@ -20,7 +20,7 @@ final class TestManualClock: XCTestCase {
     let afterSleep = expectation(description: "after sleep")
     let state = ManagedCriticalState(false)
     Task {
-      try await clock.sleep(until: start + .steps(3))
+      try await clock.sleep(until: start.advanced(by: .steps(3)))
       state.withCriticalRegion { $0 = true }
       afterSleep.fulfill()
     }
@@ -42,7 +42,7 @@ final class TestManualClock: XCTestCase {
     let failure = ManagedCriticalState<Error?>(nil)
     let task = Task {
       do {
-        try await clock.sleep(until: start + .steps(3))
+        try await clock.sleep(until: start.advanced(by: .steps(3)))
       } catch {
         failure.withCriticalRegion { $0 = error }
       }
@@ -65,7 +65,7 @@ final class TestManualClock: XCTestCase {
     let failure = ManagedCriticalState<Error?>(nil)
     let task = Task {
       do {
-        try await clock.sleep(until: start + .steps(3))
+        try await clock.sleep(until: start.advanced(by: .steps(3)))
       } catch {
         failure.withCriticalRegion { $0 = error }
       }
