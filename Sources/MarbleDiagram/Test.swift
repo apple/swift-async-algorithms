@@ -58,42 +58,56 @@ extension MarbleDiagram {
     static var currentJob: Job?
   }
   
+  enum ActualResult {
+    case success(String?)
+    case failure(Error)
+    case none
+    
+    init(_ result: Result<String?, Error>?) {
+      if let result = result {
+        switch result {
+        case .success(let value):
+          self = .success(value)
+        case .failure(let error):
+          self = .failure(error)
+        }
+      } else {
+        self = .none
+      }
+    }
+  }
+  
   static func validate<Theme: MarbleDiagramTheme>(
     output: String,
     theme: Theme,
-    expected: [Clock.Instant : Result<String?, Error>],
+    expected: [(Clock.Instant, Result<String?, Error>)],
     actual: [(Clock.Instant, Result<String?, Error>)]
   ) -> (ExpectationResult, [ExpectationFailure]) {
-    let result = ExpectationResult(
-      expected: expected.map({ $0 }).sorted(by: { lhs, rhs in lhs.key < rhs.key}),
-      actual: actual
-    )
-    
-    var processed = Set<Clock.Instant>()
+    let result = ExpectationResult(expected: expected, actual: actual)
     var failures = [ExpectationFailure]()
-    // reparse the output to fetch indicies
-    let events = Event.parse(output, theme: theme).map { when, emission in
-      return (when, emission.index)
+    
+    let actualTimes = actual.map { when, _ in when }
+    let expectedTimes = expected.map { when, _ in when }
+    
+    var expectedMap = [Clock.Instant: [Result<String?, Error>]]()
+    var actualMap = [Clock.Instant: [Result<String?, Error>]]()
+    
+    for (when, result) in expected {
+      expectedMap[when, default: []].append(result)
     }
-    let times = events.map { $0.0 }.sorted()
-    let parsedOutput = Dictionary(uniqueKeysWithValues: events)
-    func index(for when: Clock.Instant) -> String.Index {
-      if let index = parsedOutput[when] {
-        return index
-      }
-      // calculate a best guess for the index
-      if let firstAfter = times.first(where: { $0 > when }) {
-        if let followingEvent = parsedOutput[firstAfter] {
-          if followingEvent > output.startIndex {
-            return output.index(before: followingEvent)
-          }
-        }
-      }
-      return output.startIndex
+    
+    for (when, result) in actual {
+      actualMap[when, default: []].append(result)
     }
-    for (when, actualResult) in actual {
-      processed.insert(when)
-      if let expectedResult = expected[when] {
+    
+    let allTimes = Set(actualTimes + expectedTimes).sorted()
+    for when in allTimes {
+      let expectedResults = expectedMap[when] ?? []
+      let actualResults = actualMap[when] ?? []
+      var expectedIterator = expectedResults.makeIterator()
+      var actualIterator = actualResults.makeIterator()
+      while let expectedResult = expectedIterator.next() {
+        let actualResult = ActualResult(actualIterator.next())
         switch (expectedResult, actualResult) {
         case (.success(let expected), .success(let actual)):
           switch (expected, actual) {
@@ -101,144 +115,117 @@ extension MarbleDiagram {
             if expected != actual {
               let failure = ExpectationFailure(
                 when: when,
-                kind: .expectedMismatch(expected, actual),
-                index: index(for: when),
-                output: output)
+                kind: .expectedMismatch(expected, actual))
               failures.append(failure)
             }
           case (.none, .some(let actual)):
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFinishButGotValue(actual),
-              index: index(for: when),
-              output: output)
+              kind: .expectedFinishButGotValue(actual))
             failures.append(failure)
           case (.some(let expected), .none):
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedValueButGotFinished(expected),
-              index: index(for: when),
-              output: output)
+              kind: .expectedValueButGotFinished(expected))
             failures.append(failure)
           case (.none, .none):
             break
-          }
-        case (.failure, .failure):
-          break
-        case (.failure(let expected), .success(let actual)):
-          if let actual = actual {
-            let failure = ExpectationFailure(
-              when: when,
-              kind: .expectedFailureButGotValue(expected, actual),
-              index: index(for: when),
-              output: output)
-            failures.append(failure)
-          } else {
-            let failure = ExpectationFailure(
-              when: when,
-              kind: .expectedFailureButGotFinish(expected),
-              index: index(for: when),
-              output: output)
-            failures.append(failure)
           }
         case (.success(let expected), .failure(let actual)):
           if let expected = expected {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedValueButGotFailure(expected, actual),
-              index: index(for: when),
-              output: output)
+              kind: .expectedValueButGotFailure(expected, actual))
             failures.append(failure)
           } else {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFinishButGotFailure(actual),
-              index: index(for: when),
-              output: output)
+              kind: .expectedFinishButGotFailure(actual))
             failures.append(failure)
           }
+        case (.success(let expected), .none):
+          switch expected {
+          case .some(let expected):
+            let failure = ExpectationFailure(
+              when: when,
+              kind: .expectedValue(expected))
+            failures.append(failure)
+          case .none:
+            let failure = ExpectationFailure(
+              when: when,
+              kind: .expectedFinish)
+            failures.append(failure)
+          }
+        case (.failure(let expected), .success(let actual)):
+          if let actual = actual {
+            let failure = ExpectationFailure(
+              when: when,
+              kind: .expectedFailureButGotValue(expected, actual))
+            failures.append(failure)
+          } else {
+            let failure = ExpectationFailure(
+              when: when,
+              kind: .expectedFailureButGotFinish(expected))
+            failures.append(failure)
+          }
+        case (.failure, .failure):
+          break
+        case (.failure(let expected), .none):
+          let failure = ExpectationFailure(
+            when: when,
+            kind: .expectedFailure(expected))
+          failures.append(failure)
         }
-      } else {
-        switch actualResult {
+      }
+      while let unexpectedResult = actualIterator.next() {
+        switch unexpectedResult {
         case .success(let actual):
           switch actual {
           case .some(let actual):
             let failure = ExpectationFailure(
               when: when,
-              kind: .unexpectedValue(actual),
-              index: index(for: when),
-              output: output)
+              kind: .unexpectedValue(actual))
             failures.append(failure)
           case .none:
             let failure = ExpectationFailure(
               when: when,
-              kind: .unexpectedFinish,
-              index: index(for: when),
-              output: output)
+              kind: .unexpectedFinish)
             failures.append(failure)
           }
         case .failure(let actual):
           let failure = ExpectationFailure(
             when: when,
-            kind: .unexpectedFailure(actual),
-            index: index(for: when),
-            output: output)
+            kind: .unexpectedFailure(actual))
           failures.append(failure)
         }
       }
     }
     
-    let unchecked = expected.keys.filter { !processed.contains($0) }
-    for when in unchecked {
-      guard let expectation = expected[when] else {
-        continue
-      }
-      switch expectation {
-      case .success(let expected):
-        switch expected {
-        case .some(let expected):
-          let failure = ExpectationFailure(
-            when: when,
-            kind: .expectedValue(expected),
-            index: index(for: when),
-            output: output)
-          failures.append(failure)
-        case .none:
-          let failure = ExpectationFailure(
-            when: when,
-            kind: .expectedFinish,
-            index: index(for: when),
-            output: output)
-          failures.append(failure)
-        }
-      case .failure(let error):
-        let failure = ExpectationFailure(
-          when: when,
-          kind: .expectedFailure(error),
-          index: index(for: when),
-          output: output)
-        failures.append(failure)
-      }
-    }
     return (result, failures)
   }
   
   public static func test<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(
     theme: Theme,
     @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
-  ) -> (ExpectationResult, [ExpectationFailure]) {
+  ) throws -> (ExpectationResult, [ExpectationFailure]) {
     var diagram = MarbleDiagram()
     let clock = diagram.clock
     let test = build(&diagram)
     
     for (index, input) in diagram.inputs.enumerated() {
-      input.parse(test.inputs[index], theme: theme)
+      try input.parse(test.inputs[index], theme: theme)
     }
     
-    let parsedOutput = Event.parse(test.output, theme: theme)
-    let expected = Dictionary(uniqueKeysWithValues: parsedOutput.map { ($0, $1.result) })
+    let parsedOutput = try Event.parse(test.output, theme: theme)
+    var expected = [(Clock.Instant, Result<String?, Error>)]()
+    for (when, event) in parsedOutput {
+      for result in event.results {
+        expected.append((when, result))
+      }
+    }
+    let times = parsedOutput.map { when, _ in when }
     
-    guard let end = (expected.keys + diagram.inputs.compactMap { $0.end }).max() else {
+    guard let end = (times + diagram.inputs.compactMap { $0.end }).max() else {
       return (ExpectationResult(expected: [], actual: []), [])
     }
 
@@ -297,7 +284,7 @@ extension MarbleDiagram {
   
   public static func test<Test: MarbleDiagramTest>(
     @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
-  ) -> (ExpectationResult, [ExpectationFailure]) {
-    self.test(theme: .ascii, build)
+  ) throws -> (ExpectationResult, [ExpectationFailure]) {
+    try self.test(theme: .ascii, build)
   }
 }

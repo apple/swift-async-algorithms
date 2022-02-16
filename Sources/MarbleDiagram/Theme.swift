@@ -26,6 +26,8 @@ extension MarbleDiagram {
     case finish
     case beginValue
     case endValue
+    case beginGroup
+    case endGroup
     case skip
     case value(String)
   }
@@ -37,6 +39,8 @@ extension MarbleDiagram {
       case "^": return .error
       case "|": return .finish
       case "'": return inValue ? .endValue : .beginValue
+      case "[": return .beginGroup
+      case "]": return .endGroup
       case " ": return .skip
       default: return .value(String(character))
       }

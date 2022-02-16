@@ -25,24 +25,47 @@ extension MarbleDiagram {
       let state: ManagedCriticalState<State>
       let queue: WorkQueue
       let index: Int
+      var active: (Clock.Instant, [Result<String?, Error>])?
+      var eventIndex = 0
       
-      public mutating func next() async throws -> Element? {
-        let next = state.withCriticalRegion { state -> (Clock.Instant, Event)? in
-          guard state.emissions.count > 0 else {
-            return nil
-          }
-          return state.emissions.removeFirst()
-        }
-        guard let next = next else {
-          return nil
-        }
+      mutating func apply(when: Clock.Instant, results: [Result<String?, Error>]) async throws -> Element? {
         let token = queue.prepare()
+        if eventIndex + 1 >= results.count {
+          active = nil
+        }
+        defer {
+          if active != nil {
+            eventIndex += 1
+          } else {
+            eventIndex = 0
+          }
+        }
         return try await withTaskCancellationHandler { [queue] in
           queue.cancel(token)
         } operation: {
           try await withUnsafeThrowingContinuation { continuation in
-            queue.enqueue(Context.currentJob, deadline: next.0, continuation: continuation, next.1.result, index: index, token: token)
+            queue.enqueue(Context.currentJob, deadline: when, continuation: continuation, results[eventIndex], index: index, token: token)
           }
+        }
+      }
+      
+      public mutating func next() async throws -> Element? {
+        if let (when, results) = active {
+          return try await apply(when: when, results: results)
+        } else {
+          let next = state.withCriticalRegion { state -> (Clock.Instant, Event)? in
+            guard state.emissions.count > 0 else {
+              return nil
+            }
+            return state.emissions.removeFirst()
+          }
+          guard let next = next else {
+            return nil
+          }
+          let when = next.0
+          let results = next.1.results
+          active = (when, results)
+          return try await apply(when: when, results: results)
         }
       }
     }
@@ -51,8 +74,8 @@ extension MarbleDiagram {
       Iterator(state: state, queue: queue, index: index)
     }
     
-    func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) {
-      let emissions = Event.parse(dsl, theme: theme)
+    func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) throws {
+      let emissions = try Event.parse(dsl, theme: theme)
       state.withCriticalRegion { state in
         state.emissions = emissions
       }

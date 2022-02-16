@@ -15,7 +15,7 @@ extension MarbleDiagram {
     public var actual: [(Clock.Instant, Result<String?, Error>)]
   }
   
-  public struct ExpectationFailure: CustomDebugStringConvertible {
+  public struct ExpectationFailure: CustomStringConvertible {
     public enum Kind {
       case expectedFinishButGotValue(String)
       case expectedMismatch(String, String)
@@ -33,8 +33,6 @@ extension MarbleDiagram {
     }
     public var when: Clock.Instant
     public var kind: Kind
-    public var index: String.Index
-    public var output: String
     
     var reason: String {
       switch kind {
@@ -69,13 +67,6 @@ extension MarbleDiagram {
     
     public var description: String {
       return reason + " at tick \(when.when.rawValue - 1)"
-    }
-    
-    public var debugDescription: String {
-      let delta = output.distance(from: output.startIndex, to: index)
-      let padding = String(repeating: " ", count: delta)
-      return output + "\n" +
-             padding + "^----- " + reason
     }
   }
 }
