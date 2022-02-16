@@ -18,11 +18,13 @@ extension MarbleDiagram {
     }
     
     let state = ManagedCriticalState(State())
-    let clock: Clock
+    let queue: WorkQueue
+    let index: Int
     
     public struct Iterator: AsyncIteratorProtocol {
       let state: ManagedCriticalState<State>
-      let clock: Clock
+      let queue: WorkQueue
+      let index: Int
       
       public mutating func next() async throws -> Element? {
         let next = state.withCriticalRegion { state -> (Clock.Instant, Event)? in
@@ -34,13 +36,19 @@ extension MarbleDiagram {
         guard let next = next else {
           return nil
         }
-        try? await clock.sleep(until: next.0)
-        return try next.1.result.get()
+        let token = queue.prepare()
+        return try await withTaskCancellationHandler { [queue] in
+          queue.cancel(token)
+        } operation: {
+          try await withUnsafeThrowingContinuation { continuation in
+            queue.enqueue(Context.currentJob, deadline: next.0, continuation: continuation, next.1.result, index: index, token: token)
+          }
+        }
       }
     }
     
     public func makeAsyncIterator() -> Iterator {
-      Iterator(state: state, clock: clock)
+      Iterator(state: state, queue: queue, index: index)
     }
     
     func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) {
@@ -59,7 +67,7 @@ extension MarbleDiagram {
   
   public struct InputList: RandomAccessCollection, Sendable {
     let state = ManagedCriticalState([Input]())
-    let clock: Clock
+    let queue: WorkQueue
     
     public var startIndex: Int { return 0 }
     public var endIndex: Int {
@@ -71,7 +79,7 @@ extension MarbleDiagram {
         return state.withCriticalRegion { state in
           if position >= state.count {
             for _ in state.count...position {
-              state.append(Input(clock: clock))
+              state.append(Input(queue: queue, index: position))
             }
           }
           return state[position]

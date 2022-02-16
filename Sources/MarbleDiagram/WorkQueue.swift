@@ -12,6 +12,7 @@
 struct WorkQueue: Sendable {
   enum Item: CustomStringConvertible {
     case blocked(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<Void, Error>)
+    case emit(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<String?, Error>, Result<String?, Error>, Int)
     case work(Token, @Sendable () -> Void)
     case cancelled(Token)
     
@@ -19,6 +20,8 @@ struct WorkQueue: Sendable {
       switch self {
       case .blocked(_, _, let continuation):
         continuation.resume()
+      case .emit(_, _, let continuation, let result, _):
+        continuation.resume(with: result)
       case .work(_, let work):
         work()
       case .cancelled:
@@ -30,6 +33,8 @@ struct WorkQueue: Sendable {
       switch self {
       case .blocked(let token, let when, _):
         return "wakeup @ \(when) id \(token)"
+      case .emit(let token, let when, _, let result, _):
+        return "emit @ \(when) id \(token) result \(result)"
       case .work(let token, _):
         return "work id \(token)"
       case .cancelled(let token):
@@ -40,6 +45,7 @@ struct WorkQueue: Sendable {
     var token: Token {
       switch self {
       case .blocked(let token, _, _): return token
+      case .emit(let token, _, _, _, _): return token
       case .work(let token, _): return token
       case .cancelled(let token): return token
       }
@@ -57,6 +63,10 @@ struct WorkQueue: Sendable {
       case .blocked(let token, _, let continuation):
         return .work(token) {
           continuation.resume(throwing: CancellationError())
+        }
+      case .emit(let token, _, let continuation, _, _):
+        return .work(token) {
+          continuation.resume(returning: nil)
         }
       default: return self
       }
@@ -102,6 +112,15 @@ struct WorkQueue: Sendable {
                 jobsToRemove.insert(jobIndex)
               }
               break
+            case .emit(let token, let when, _, _, _):
+              if when <= now {
+                self.items.removeValue(forKey: token)
+                items.append(queue.removeFirst())
+              } else {
+                // this job is blocked by a wait
+                jobsToRemove.insert(jobIndex)
+              }
+              break
             case .work(let token, _):
               self.items.removeValue(forKey: token)
               items.append(queue.removeFirst())
@@ -135,8 +154,12 @@ struct WorkQueue: Sendable {
     state.withCriticalRegion { $0.now }
   }
   
-  struct Token: Hashable {
+  struct Token: Hashable, CustomStringConvertible {
     var generation: Int
+    
+    var description: String {
+      return generation.description
+    }
   }
   
   func prepare() -> Token {
@@ -186,6 +209,25 @@ struct WorkQueue: Sendable {
         state.items[token] = item
       } else {
         let item: Item = .blocked(token, deadline, continuation)
+        state.queues[job, default: []].append(item)
+        state.items[token] = item
+      }
+    }
+  }
+  
+  func enqueue(_ job: Job?, deadline: MarbleDiagram.Clock.Instant, continuation: UnsafeContinuation<String?, Error>, _ result: Result<String?, Error>, index: Int, token: Token) {
+    state.withCriticalRegion { state in
+      if state.queues[job] == nil, let job = job {
+        state.jobs.append(job)
+      }
+      if state.items[token]?.isCancelled == true {
+        let item: Item = .work(token, {
+          continuation.resume(throwing: CancellationError())
+        })
+        state.queues[job, default: []].append(item)
+        state.items[token] = item
+      } else {
+        let item: Item = .emit(token, deadline, continuation, result, index)
         state.queues[job, default: []].append(item)
         state.items[token] = item
       }

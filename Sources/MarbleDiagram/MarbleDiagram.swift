@@ -47,10 +47,9 @@ public struct MarbleDiagram : Sendable {
   
   internal init() {
     let queue = WorkQueue()
-    let clock = Clock(queue: queue)
     self.queue = queue
-    self.inputs = InputList(clock: clock)
-    self.clock = clock
+    self.inputs = InputList(queue: queue)
+    self.clock = Clock(queue: queue)
   }
 }
 
