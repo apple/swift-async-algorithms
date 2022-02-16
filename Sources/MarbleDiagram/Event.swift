@@ -33,9 +33,9 @@ extension MarbleDiagram {
       }
     }
     
-    static func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) -> [(ManualClock.Instant, Event)] {
-      var emissions = [(ManualClock.Instant, Event)]()
-      var when = ManualClock.Instant(0)
+    static func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) -> [(Clock.Instant, Event)] {
+      var emissions = [(Clock.Instant, Event)]()
+      var when = Clock.Instant(when: .steps(0))
       var string: String?
       
       for index in dsl.indices {

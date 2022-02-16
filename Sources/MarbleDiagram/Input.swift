@@ -14,18 +14,18 @@ extension MarbleDiagram {
     public typealias Element = String
     
     struct State {
-      var emissions = [(ManualClock.Instant, Event)]()
+      var emissions = [(Clock.Instant, Event)]()
     }
     
     let state = ManagedCriticalState(State())
-    let clock: ManualClock
+    let clock: Clock
     
     public struct Iterator: AsyncIteratorProtocol {
       let state: ManagedCriticalState<State>
-      let clock: ManualClock
+      let clock: Clock
       
       public mutating func next() async throws -> Element? {
-        let next = state.withCriticalRegion { state -> (ManualClock.Instant, Event)? in
+        let next = state.withCriticalRegion { state -> (Clock.Instant, Event)? in
           guard state.emissions.count > 0 else {
             return nil
           }
@@ -50,7 +50,7 @@ extension MarbleDiagram {
       }
     }
     
-    var end: ManualClock.Instant? {
+    var end: Clock.Instant? {
       return state.withCriticalRegion { state in
         state.emissions.map { $0.0 }.sorted().last
       }
@@ -59,7 +59,7 @@ extension MarbleDiagram {
   
   public struct InputList: RandomAccessCollection, Sendable {
     let state = ManagedCriticalState([Input]())
-    let clock: ManualClock
+    let clock: Clock
     
     public var startIndex: Int { return 0 }
     public var endIndex: Int {

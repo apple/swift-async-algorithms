@@ -25,16 +25,12 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
 }
 
 final class TaskDriver {
-  struct State {
-    var queue = [() -> Void]()
-    var executing = false
-  }
-  
   let work: (TaskDriver) -> Void
+  let queue: WorkQueue
   var thread: pthread_t?
-  let state = ManagedCriticalState(State())
   
-  init(_ work: @escaping (TaskDriver) -> Void) {
+  init(queue: WorkQueue, _ work: @escaping (TaskDriver) -> Void) {
+    self.queue = queue
     self.work = work
   }
   
@@ -52,26 +48,13 @@ final class TaskDriver {
     pthread_join(thread!, nil)
   }
   
-  func enqueue(_ job: JobRef, _ execute: @escaping () -> Void) {
-    state.withCriticalRegion { state in
-      state.queue.append(execute)
-    }
-  }
-  
-  func drain() -> Bool {
-    let items: [() -> Void] = state.withCriticalRegion { state in
-      defer { state.queue.removeAll() }
-      state.executing = true
-      return state.queue
-    }
-    
-    for item in items {
-      item()
-    }
-    
-    return state.withCriticalRegion { state in
-      state.executing = false
-      return state.queue.count > 0
+  func enqueue(_ job: JobRef) {
+    let job = Job(job)
+    queue.enqueue(MarbleDiagram.Context.currentJob) {
+      let previous = MarbleDiagram.Context.currentJob
+      MarbleDiagram.Context.currentJob = job
+      job.execute()
+      MarbleDiagram.Context.currentJob = previous
     }
   }
 }

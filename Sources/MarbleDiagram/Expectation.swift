@@ -10,6 +10,11 @@
 //===----------------------------------------------------------------------===//
 
 extension MarbleDiagram {
+  public struct ExpectationResult {
+    public var expected: [(Clock.Instant, Result<String?, Error>)]
+    public var actual: [(Clock.Instant, Result<String?, Error>)]
+  }
+  
   public struct ExpectationFailure: CustomDebugStringConvertible {
     public enum Kind {
       case expectedFinishButGotValue(String)
@@ -26,7 +31,7 @@ extension MarbleDiagram {
       case unexpectedFinish
       case unexpectedFailure(Error)
     }
-    public var when: ManualClock.Instant
+    public var when: Clock.Instant
     public var kind: Kind
     public var index: String.Index
     public var output: String
@@ -63,7 +68,7 @@ extension MarbleDiagram {
     }
     
     public var description: String {
-      return reason + " at tick \(when.rawValue - 1)"
+      return reason + " at tick \(when.when.rawValue - 1)"
     }
     
     public var debugDescription: String {

@@ -40,16 +40,17 @@ public struct MarbleDiagram : Sendable {
     Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
   }
   
-  fileprivate let manualClock: ManualClock
+  let queue: WorkQueue
+  
   public var inputs: InputList
+  public let clock: Clock
   
-  public var clock: Clock {
-    Clock(manualClock)
-  }
-  
-  internal init(_ clock: ManualClock) {
-    manualClock = clock
-    inputs = InputList(clock: clock)
+  internal init() {
+    let queue = WorkQueue()
+    let clock = Clock(queue: queue)
+    self.queue = queue
+    self.inputs = InputList(clock: clock)
+    self.clock = clock
   }
 }
 

@@ -17,11 +17,22 @@ extension XCTestCase {
   public func marbleDiagram<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(theme: Theme, @MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     let location = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
     let context = XCTSourceCodeContext(location: location)
-    for failure in MarbleDiagram.test(theme: theme, build) {
+    let (result, failures) = MarbleDiagram.test(theme: theme, build)
+    if failures.count > 0 {
+      print("Expected")
+      for (when, result) in result.expected {
+        print(when, result)
+      }
+      print("Actual")
+      for (when, result) in result.actual {
+        print(when, result)
+      }
+    }
+    for failure in failures {
       let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: failure.debugDescription, sourceCodeContext: context, associatedError: nil, attachments: [])
       record(issue)
-      print(failure.debugDescription)
     }
+    
   }
   
   public func marbleDiagram<Test: MarbleDiagramTest>(@MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {

@@ -49,33 +49,27 @@ extension MarbleDiagram {
       }
     }
     
-    static var clock: ManualClock?
+    static var clock: Clock?
     
     static let executor = ClockExecutor()
     
     static var driver: TaskDriver?
+    
+    static var currentJob: Job?
   }
   
   static func validate<Theme: MarbleDiagramTheme>(
     output: String,
     theme: Theme,
-    expected: [ManualClock.Instant : Result<String?, Error>],
-    actual: [(ManualClock.Instant, Result<String?, Error>)]
-  ) -> [ExpectationFailure] {
-#if false
-    // useful to debug the marble diagram itself
-    print("expected")
-    for (when, result) in expected.map({ $0 }).sorted(by: { lhs, rhs in
-      lhs.key < rhs.key
-    }) {
-      print(when.rawValue, result)
-    }
-    print("actual")
-    for (when, result) in actual {
-      print(when.rawValue, result)
-    }
-#endif
-    var processed = Set<ManualClock.Instant>()
+    expected: [Clock.Instant : Result<String?, Error>],
+    actual: [(Clock.Instant, Result<String?, Error>)]
+  ) -> (ExpectationResult, [ExpectationFailure]) {
+    let result = ExpectationResult(
+      expected: expected.map({ $0 }).sorted(by: { lhs, rhs in lhs.key < rhs.key}),
+      actual: actual
+    )
+    
+    var processed = Set<Clock.Instant>()
     var failures = [ExpectationFailure]()
     // reparse the output to fetch indicies
     let events = Event.parse(output, theme: theme).map { when, emission in
@@ -83,7 +77,7 @@ extension MarbleDiagram {
     }
     let times = events.map { $0.0 }.sorted()
     let parsedOutput = Dictionary(uniqueKeysWithValues: events)
-    func index(for when: ManualClock.Instant) -> String.Index {
+    func index(for when: Clock.Instant) -> String.Index {
       if let index = parsedOutput[when] {
         return index
       }
@@ -226,16 +220,15 @@ extension MarbleDiagram {
         failures.append(failure)
       }
     }
-    return failures
+    return (result, failures)
   }
   
   public static func test<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(
     theme: Theme,
     @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
-  ) -> [ExpectationFailure] {
-    let clock = ManualClock()
-    
-    var diagram = MarbleDiagram(clock)
+  ) -> (ExpectationResult, [ExpectationFailure]) {
+    var diagram = MarbleDiagram()
+    let clock = diagram.clock
     let test = build(&diagram)
     
     for (index, input) in diagram.inputs.enumerated() {
@@ -246,17 +239,15 @@ extension MarbleDiagram {
     let expected = Dictionary(uniqueKeysWithValues: parsedOutput.map { ($0, $1.result) })
     
     guard let end = (expected.keys + diagram.inputs.compactMap { $0.end }).max() else {
-      return []
+      return (ExpectationResult(expected: [], actual: []), [])
     }
 
-    let actual = ManagedCriticalState([(ManualClock.Instant, Result<String?, Error>)]())
+    let actual = ManagedCriticalState([(Clock.Instant, Result<String?, Error>)]())
     Context.clock = clock
     // This all needs to be isolated from potential Tasks (the caller function might be async!)
-    Context.driver = TaskDriver { driver in
+    Context.driver = TaskDriver(queue: diagram.queue) { driver in
       swift_task_enqueueGlobal_hook = { job, original in
-        Context.driver?.enqueue(job) {
-          _swiftJobRun(unsafeBitCast(job, to: UnownedJob.self), Context.executor.asUnownedSerialExecutor())
-        }
+        Context.driver?.enqueue(job)
       }
       
       let runner = Task {
@@ -280,21 +271,11 @@ extension MarbleDiagram {
       // If the driver ever becomes blocked on the clock, exit early out of that
       // drain, because the drain cant make any forward progress if it is blocked
       // by a needed clock advancement.
-      while driver.drain() {
-        if clock.hasSleepers {
-          break
-        }
-      }
+      diagram.queue.drain()
       // Next make sure to iterate a decent amount past the end of the maximum
       // scheduled things (that way we ensure any reasonable errors are caught)
-      for _ in 0..<(end.rawValue * 2) {
-        clock.advance()
-        // While the clock is not blocking any sleepers drain off any work.
-        while !clock.hasSleepers {
-          guard driver.drain() else {
-            break
-          }
-        }
+      for _ in 0..<(end.when.rawValue * 2) {
+        diagram.queue.advance()
       }
       
       runner.cancel()
@@ -316,7 +297,7 @@ extension MarbleDiagram {
   
   public static func test<Test: MarbleDiagramTest>(
     @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
-  ) -> [ExpectationFailure] {
+  ) -> (ExpectationResult, [ExpectationFailure]) {
     self.test(theme: .ascii, build)
   }
 }
