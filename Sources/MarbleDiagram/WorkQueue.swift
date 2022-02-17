@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 struct WorkQueue: Sendable {
-  enum Item: CustomStringConvertible {
+  enum Item: CustomStringConvertible, Comparable {
     case blocked(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<Void, Error>)
     case emit(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<String?, Error>, Result<String?, Error>, Int)
     case work(Token, @Sendable () -> Void)
@@ -32,13 +32,13 @@ struct WorkQueue: Sendable {
     var description: String {
       switch self {
       case .blocked(let token, let when, _):
-        return "wakeup @ \(when) id \(token)"
-      case .emit(let token, let when, _, let result, _):
-        return "emit @ \(when) id \(token) result \(result)"
+        return "wakeup #\(token) @\(when) "
+      case .emit(let token, let when, _, let result, let side):
+        return "emit #\(token) @\(when) result \(result) side \(side)"
       case .work(let token, _):
-        return "work id \(token)"
+        return "work #\(token)"
       case .cancelled(let token):
-        return "cancelled id \(token)"
+        return "cancelled #\(token)"
       }
     }
     
@@ -70,6 +70,23 @@ struct WorkQueue: Sendable {
         }
       default: return self
       }
+    }
+    
+    // the side order is repsected first since that is the logical flow of predictable events
+    // then the generation is taken into account
+    static func < (_ lhs: Item, _ rhs: Item) -> Bool {
+      switch (lhs, rhs) {
+      case (.emit(_, _, _, _, let lhs), .emit(_, _, _, _, let rhs)):
+        return lhs < rhs
+      default:
+        return lhs.token.generation < rhs.token.generation
+      }
+    }
+    
+    // all tokens are distinct so we know the generation of when it was enqueued
+    // always means distinct equality (for ordering)
+    static func == (_ lhs: Item, _ rhs: Item) -> Bool {
+      return lhs.token == rhs.token
     }
   }
   
@@ -250,10 +267,13 @@ struct WorkQueue: Sendable {
   func drain() {
     // keep draining until there is no recursive work to do
     while true {
-      let items: [Item] = state.withCriticalRegion { $0.drain() }
+      var items: [Item] = state.withCriticalRegion { $0.drain() }
       if items.count == 0 {
         break
       }
+      // ensure deterministic order of execution
+      // first by source order, then by enqueue order
+      items.sort()
       for item in items {
         item.run()
       }
@@ -262,13 +282,17 @@ struct WorkQueue: Sendable {
   
   func advance() {
     // drain off the advancement
-    let items: [Item] = state.withCriticalRegion { state in
+    var items: [Item] = state.withCriticalRegion { state in
       state.now = state.now.advanced(by: .steps(1))
       return state.drain()
     }
+    // ensure deterministic order of execution
+    // first by source order, then by enqueue order
+    items.sort()
     for item in items {
       item.run()
     }
+    
     // and cleanup any additional recursive items
     drain()
   }
