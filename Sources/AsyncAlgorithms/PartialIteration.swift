@@ -9,10 +9,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-enum PartialIteration<Iterator: AsyncIteratorProtocol, Partial: Sendable>: Sendable where Iterator: Sendable, Iterator.Element: Sendable {
+enum PartialIteration<Iterator: AsyncIteratorProtocol, Partial: Sendable>: CustomStringConvertible, Sendable where Iterator: Sendable, Iterator.Element: Sendable {
   case idle(Iterator)
   case pending(Task<Partial, Never>)
   case terminal
+  
+  var description: String {
+    switch self {
+    case .idle: return "idle"
+    case .pending: return "pending"
+    case .terminal: return "terminal"
+    }
+  }
   
   mutating func resolve(_ result: Result<Iterator.Element?, Error>, _ iterator: Iterator) rethrows -> Iterator.Element? {
     do {
