@@ -24,7 +24,7 @@ let package = Package(
       name: "AsyncAlgorithms",
       dependencies: ["ClockStub"]),
     .target(name: "ClockStub"),
-    .target(name: "MarbleDiagram", dependencies: ["CMarbleDiagram"]),
+    .target(name: "MarbleDiagram", dependencies: ["CMarbleDiagram", "ClockStub"]),
     .target(name: "CMarbleDiagram",
                 publicHeadersPath: "Headers",
                 cxxSettings: [
