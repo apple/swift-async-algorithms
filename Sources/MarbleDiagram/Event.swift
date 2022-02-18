@@ -33,12 +33,14 @@ extension MarbleDiagram {
     case value(String, String.Index)
     case failure(Error, String.Index)
     case finish(String.Index)
+    case cancel(String.Index)
     
     var results: [Result<String?, Error>] {
       switch self {
       case .value(let value, _): return [.success(value)]
       case .failure(let failure, _): return [.failure(failure)]
       case .finish: return [.success(nil)]
+      case .cancel: return []
       }
     }
     
@@ -47,6 +49,7 @@ extension MarbleDiagram {
       case .value(_, let index): return index
       case .failure(_, let index): return index
       case .finish(let index): return index
+      case .cancel(let index): return index
       }
     }
     
@@ -84,6 +87,15 @@ extension MarbleDiagram {
               when = when.advanced(by: .steps(1))
             }
             emissions.append((when, .finish(index)))
+          } else {
+            string?.append(ch)
+          }
+        case .cancel:
+          if string == nil {
+            if grouping == 0 {
+              when = when.advanced(by: .steps(1))
+            }
+            emissions.append((when, .cancel(index)))
           } else {
             string?.append(ch)
           }

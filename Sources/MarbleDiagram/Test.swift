@@ -217,6 +217,13 @@ extension MarbleDiagram {
     }
     
     let parsedOutput = try Event.parse(test.output, theme: theme)
+    let cancelEvents = Set(parsedOutput.filter { when, event in
+      switch event {
+      case .cancel: return true
+      default: return false
+      }
+    }.map { when, _ in return when })
+    
     var expected = [(Clock.Instant, Result<String?, Error>)]()
     for (when, event) in parsedOutput {
       for result in event.results {
@@ -262,6 +269,9 @@ extension MarbleDiagram {
       // Next make sure to iterate a decent amount past the end of the maximum
       // scheduled things (that way we ensure any reasonable errors are caught)
       for _ in 0..<(end.when.rawValue * 2) {
+        if cancelEvents.contains(diagram.queue.now.advanced(by: .steps(1))) {
+          runner.cancel()
+        }
         diagram.queue.advance()
       }
       

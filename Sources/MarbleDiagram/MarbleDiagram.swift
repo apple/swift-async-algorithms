@@ -14,6 +14,13 @@ import CMarableDiagram
 @resultBuilder
 public struct MarbleDiagram : Sendable {
   public static func buildBlock<Operation: AsyncSequence>(
+    _ sequence: Operation,
+    _ output: String
+  ) -> some MarbleDiagramTest where Operation.Element == String {
+    return Test(inputs: [], sequence: sequence, output: output)
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(
     _ input: String, 
     _ sequence: Operation, 
     _ output: String
