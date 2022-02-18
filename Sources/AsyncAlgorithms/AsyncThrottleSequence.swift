@@ -77,7 +77,7 @@ extension AsyncThrottleSequence: AsyncSequence {
           return nil
         }
         let reduction = await reducing(reduced, element)
-        if clock.now - start >= interval {
+        if start.duration(to: clock.now) >= interval {
           return reduction
         } else {
           reduced = reduction
