@@ -127,43 +127,83 @@ where
       switch state {
       // three idle
       case (.idle(let iterator1), .idle(let iterator2), .idle(let iterator3)):
-        return try await apply(first(iterator1), second(iterator2), third(iterator3))
+        let task1 = first(iterator1)
+        let task2 = second(iterator2)
+        let task3 = third(iterator3)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
       // two idle
       case (.idle(let iterator1), .idle(let iterator2), .pending(let task3)):
-        return try await apply(first(iterator1), second(iterator2), task3)
+        let task1 = first(iterator1)
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
       case (.idle(let iterator1), .pending(let task2), .idle(let iterator3)):
-        return try await apply(first(iterator1), task2, third(iterator3))
+        let task1 = first(iterator1)
+        let task3 = third(iterator3)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
       case (.pending(let task1), .idle(let iterator2), .idle(let iterator3)):
-        return try await apply(task1, second(iterator2), third(iterator3))
+        let task2 = second(iterator2)
+        let task3 = third(iterator3)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
         
       // 1 idle
       case (.idle(let iterator1), .pending(let task2), .pending(let task3)):
-        return try await apply(first(iterator1), task2, task3)
+        let task1 = first(iterator1)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
       case (.pending(let task1), .idle(let iterator2), .pending(let task3)):
-        return try await apply(task1, second(iterator2), task3)
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
       case (.pending(let task1), .pending(let task2), .idle(let iterator3)):
-        return try await apply(task1, task2, third(iterator3))
+        let task3 = third(iterator3)
+        state = (.pending(task1), .pending(task2), .pending(task3))
+        return try await apply(task1, task2, task3)
         
       // terminal degradations
       // 1 terminal
       case (.terminal, .idle(let iterator2), .idle(let iterator3)):
-        return try await apply(nil, second(iterator2), third(iterator3))
+        let task2 = second(iterator2)
+        let task3 = third(iterator3)
+        state = (.terminal, .pending(task2), .pending(task3))
+        return try await apply(nil, task2, task3)
       case (.terminal, .idle(let iterator2), .pending(let task3)):
-        return try await apply(nil, second(iterator2), task3)
+        let task2 = second(iterator2)
+        state = (.terminal, .pending(task2), .pending(task3))
+        return try await apply(nil, task2, task3)
       case (.terminal, .pending(let task2), .idle(let iterator3)):
-        return try await apply(nil, task2, third(iterator3))
+        let task3 = third(iterator3)
+        state = (.terminal, .pending(task2), .pending(task3))
+        return try await apply(nil, task2, task3)
       case (.idle(let iterator1), .terminal, .idle(let iterator3)):
-        return try await apply(first(iterator1), nil, third(iterator3))
+        let task1 = first(iterator1)
+        let task3 = third(iterator3)
+        state = (.pending(task1), .terminal, .pending(task3))
+        return try await apply(task1, nil, task3)
       case (.idle(let iterator1), .terminal, .pending(let task3)):
-        return try await apply(first(iterator1), nil, task3)
+        let task1 = first(iterator1)
+        state = (.pending(task1), .terminal, .pending(task3))
+        return try await apply(task1, nil, task3)
       case (.pending(let task1), .terminal, .idle(let iterator3)):
-        return try await apply(task1, nil, third(iterator3))
+        let task3 = third(iterator3)
+        state = (.pending(task1), .terminal, .pending(task3))
+        return try await apply(task1, nil, task3)
       case (.idle(let iterator1), .idle(let iterator2), .terminal):
-        return try await apply(first(iterator1), second(iterator2), nil)
+        let task1 = first(iterator1)
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2), .terminal)
+        return try await apply(task1, task2, nil)
       case (.idle(let iterator1), .pending(let task2), .terminal):
-        return try await apply(first(iterator1), task2, nil)
+        let task1 = first(iterator1)
+        state = (.pending(task1), .pending(task2), .terminal)
+        return try await apply(task1, task2, nil)
       case (.pending(let task1), .idle(let iterator2), .terminal):
-        return try await apply(task1, second(iterator2), nil)
+        let task2 = second(iterator2)
+        state = (.pending(task1), .pending(task2), .terminal)
+        return try await apply(task1, task2, nil)
         
       // 2 terminal
       // these can be permuted in place since they dont need to run two or more tasks at once
@@ -209,8 +249,21 @@ where
       // 3 terminal
       case (.terminal, .terminal, .terminal):
         return nil
-      default:
-        fatalError()
+      // partials
+      case (.pending(let task1), .pending(let task2), .pending(let task3)):
+        return try await apply(task1, task2, task3)
+      case (.pending(let task1), .pending(let task2), .terminal):
+        return try await apply(task1, task2, nil)
+      case (.pending(let task1), .terminal, .pending(let task3)):
+        return try await apply(task1, nil, task3)
+      case (.terminal, .pending(let task2), .pending(let task3)):
+        return try await apply(nil, task2, task3)
+      case (.pending(let task1), .terminal, .terminal):
+        return try await apply(task1, nil, nil)
+      case (.terminal, .pending(let task2), .terminal):
+        return try await apply(nil, task2, nil)
+      case (.terminal, .terminal, .pending(let task3)):
+        return try await apply(nil, nil, task3)
       }
     }
   }
