@@ -41,7 +41,7 @@ final class TestTimer: XCTestCase {
         try? await diagram.clock.sleep(until: diagram.clock.now.advanced(by: .steps(3)))
         return "x"
       }
-      "----x--x-[x;|]"
+      "----x--x-[;x|]"
     }
   }
 }
