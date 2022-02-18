@@ -9,8 +9,8 @@ Combines the latest values produced from two or more asynchronous sequences into
 let appleFeed = URL("http://www.example.com/ticker?symbol=AAPL").lines
 let nasdaqFeed = URL("http://www.example.com/ticker?symbol=^IXIC").lines
 
-for try await (apple, nasdaq) = combineLatest(appleFeed, nasdaqFeed) {
-  print("APPL: \(apple) NASDAQ: \(nasdaq)")
+for try await (apple, nasdaq) in combineLatest(appleFeed, nasdaqFeed) {
+  print("AAPL: \(apple) NASDAQ: \(nasdaq)")
 }
 ```
 
