@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 struct TaskSelectState<Success: Sendable, Failure: Error>: Sendable {
-  var continuation: UnsafeContinuation<Task<Success, Failure>, Never>?
+  var complete = false
   var tasks: [Task<Success, Failure>]? = []
   
   mutating func add(_ task: Task<Success, Failure>) -> Task<Success, Failure>? {
@@ -30,7 +30,7 @@ extension Task {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first task to complete from the running tasks
-  public static func select<Tasks: Sequence>(
+  public static func select<Tasks: Sequence & Sendable>(
     _ tasks: Tasks
   ) async -> Task<Success, Failure>
   where Tasks.Element == Task<Success, Failure> {
@@ -45,16 +45,16 @@ extension Task {
       }
     } operation: {
       await withUnsafeContinuation { continuation in
-        state.withCriticalRegion { state in
-          state.continuation = continuation
-        }
         for task in tasks {
           Task<Void, Never> {
             _ = await task.result
-            state.withCriticalRegion { state -> UnsafeResumption<Task<Success, Failure>, Never>? in
-              defer { state.continuation = nil }
-              return state.continuation.map { UnsafeResumption(continuation: $0, success: task) }
-            }?.resume()
+            let winner = state.withCriticalRegion { state -> Bool in
+              defer { state.complete = true }
+              return !state.complete
+            }
+            if winner {
+              continuation.resume(returning: task)
+            }
           }
           state.withCriticalRegion { state in
             state.add(task)

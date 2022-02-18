@@ -54,6 +54,22 @@ final class TestMarbleDiagram: XCTestCase {
     }
   }
   
+  func test_diagram_grouping_source() {
+    marbleDiagram {
+      "[abc]def|"
+      $0.inputs[0]
+      "[abc]def|"
+    }
+  }
+  
+  func test_diagram_groups_of_one() {
+    marbleDiagram {
+      " a  b  c def|"
+      $0.inputs[0]
+      "[a][b][c]def|"
+    }
+  }
+  
   func test_diagram_emoji() {
     struct EmojiTokens: MarbleDiagramTheme {
       func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
@@ -179,6 +195,33 @@ final class TestMarbleDiagram: XCTestCase {
       "a--b--^|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B---|"
+    }
+  }
+  
+  func test_diagram_parse_failure_unbalanced_group() {
+    expectFailures(["marble diagram unbalanced grouping"])
+    marbleDiagram {
+      " ab|"
+      $0.inputs[0]
+      "[ab|"
+    }
+  }
+  
+  func test_diagram_parse_failure_nested_group() {
+    expectFailures(["marble diagram nested grouping"])
+    marbleDiagram {
+      "  ab|"
+      $0.inputs[0]
+      "[[ab|"
+    }
+  }
+  
+  func test_diagram_parse_failure_step_in_group() {
+    expectFailures(["marble diagram step symbol in group"])
+    marbleDiagram {
+      "  ab|"
+      $0.inputs[0]
+      "[a-]b|"
     }
   }
 }

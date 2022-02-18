@@ -11,7 +11,6 @@
 
 import XCTest
 import AsyncAlgorithms
-import MarbleDiagram
 
 final class TestValidator: XCTestCase {
   func test_gate() async {
