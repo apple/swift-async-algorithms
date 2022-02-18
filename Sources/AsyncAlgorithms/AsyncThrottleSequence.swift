@@ -51,8 +51,6 @@ public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {
   }
 }
 
-extension AsyncThrottleSequence: Sendable where Base: Sendable, Element: Sendable { }
-
 extension AsyncThrottleSequence: AsyncSequence {
   public typealias Element = Reduced
   
@@ -90,3 +88,6 @@ extension AsyncThrottleSequence: AsyncSequence {
     Iterator(base.makeAsyncIterator(), interval: interval, clock: clock, reducing: reducing)
   }
 }
+
+extension AsyncThrottleSequence: Sendable where Base: Sendable, Element: Sendable { }
+extension AsyncThrottleSequence.Iterator: Sendable where Base.AsyncIterator: Sendable { }
