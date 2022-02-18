@@ -34,4 +34,14 @@ final class TestTimer: XCTestCase {
       "--x--x-[;|]"
     }
   }
+  
+  func test_tick2_event_skew3() {
+    marbleDiagram { diagram in
+      AsyncTimerSequence(interval: .steps(2), clock: diagram.clock).map { [diagram] (_) -> String in
+        try? await diagram.clock.sleep(until: diagram.clock.now.advanced(by: .steps(3)))
+        return "x"
+      }
+      "----x--x-[x;|]"
+    }
+  }
 }
