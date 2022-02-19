@@ -92,6 +92,14 @@ final class TestMarbleDiagram: XCTestCase {
     }
   }
   
+  func test_cancel_event() {
+    marbleDiagram {
+      "a--b- -  c--|"
+      $0.inputs[0]
+      "a--b-[;|]"
+    }
+  }
+  
   func test_diagram_failure_mismatch_value() {
     expectFailures(["expected \"X\" but got \"C\" at tick 6"])
     marbleDiagram {
