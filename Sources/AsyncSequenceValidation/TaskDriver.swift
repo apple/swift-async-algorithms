@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import CMarableDiagram
+import _CAsyncSequenceValidationSupport
 
 #if canImport(Darwin)
 @_implementationOnly import Darwin
@@ -40,7 +40,7 @@ final class TaskDriver {
   }
   
   func run() {
-    pthread_setname_np("Marble Diagram Clock Driver")
+    pthread_setname_np("Validation Diagram Clock Driver")
     work(self)
   }
   
@@ -50,11 +50,11 @@ final class TaskDriver {
   
   func enqueue(_ job: JobRef) {
     let job = Job(job)
-    queue.enqueue(MarbleDiagram.Context.currentJob) {
-      let previous = MarbleDiagram.Context.currentJob
-      MarbleDiagram.Context.currentJob = job
+    queue.enqueue(AsyncSequenceValidationDiagram.Context.currentJob) {
+      let previous = AsyncSequenceValidationDiagram.Context.currentJob
+      AsyncSequenceValidationDiagram.Context.currentJob = job
       job.execute()
-      MarbleDiagram.Context.currentJob = previous
+      AsyncSequenceValidationDiagram.Context.currentJob = previous
     }
   }
 }

@@ -1,7 +1,7 @@
-# Marble Diagram Testing
+# AsyncSequence Validation
 
 * Author(s): [Philippe Hausler](https://github.com/phausler)
-* Implementation: [MarbleDiagram](https://github.com/apple/swift-async-algorithms/tree/main/Sources/MarbleDiagram)
+* Implementation: [AsyncSequenceValidation](https://github.com/apple/swift-async-algorithms/tree/main/Sources/AsyncSequenceValidation)
 
 ## Introduction
 
@@ -14,19 +14,19 @@ Types that implement `AsyncSequence` can often be described in deterministic act
 By restricting the domain space of values to `String` we can describe the events as a domain specific language, and with monospaced characters that domain space can be used to show values over time for both the input to an `AsyncSequence` but also the expected output. 
 
 ```swift
-marbleDiagram {
+validate {
   "a--b--c---|"
   $0.inputs[0].map { $0.capitalized }
   "A--B--C---|"
 }
 ```
 
-This syntax can be accomplished with a confluence of utilizing some of the advanced features of XCTest, the concurrency runtime, and result builders. The diagram as listed flows as if each event that would propagate is a marble flowing along a track but also it shows the expression progressed over time; describing each event. 
+This syntax can be accomplished with a confluence of utilizing some of the advanced features of XCTest, the concurrency runtime, and result builders. The diagram as listed flows as if each event that would propagate is an event flowing along a column but also it shows the expression progressed over time; describing each event. 
 
 By utilizing result builders this same function can accommodate more than one input specification for testing things like `merge`.
 
 ```swift
-marbleDiagram {
+validate {
   "a-c--f-|"
   "-b-de-g|"
   merge($0.inputs[0], $0.inputs[1])
@@ -53,8 +53,8 @@ Because some events may take up more than one character and the alignment is imp
 Defining a custom theme can then be trivial since the list of expected interactions are well known. For example an emoji based diagram can be easily constructed:
 
 ```swift
-struct EmojiTokens: MarbleDiagramTheme {
-  func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
+struct EmojiTokens: AsyncSequenceValidationTheme {
+  func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token {
     switch character {
     case "➖": return .step
     case "❗️": return .error
@@ -65,7 +65,7 @@ struct EmojiTokens: MarbleDiagramTheme {
   }
 }
 
-marbleDiagram(theme: EmojiTokens()) {
+validate(theme: EmojiTokens()) {
   "➖🔴➖🟠➖🟡➖🟢➖❌"
   $0.inputs[0]
   "➖🔴➖🟠➖🟡➖🟢➖❌"
@@ -74,29 +74,29 @@ marbleDiagram(theme: EmojiTokens()) {
 
 ## Detailed Design
 
-The public interface for this system comes in two parts - the `MarbleDiagram` subsystem and the `XCTest` extensions. The most commonly interacted with and most approachable portion is the `XCTest` extension.
+The public interface for this system comes in two parts - the `AsyncSequenceValidationDiagram` subsystem and the `XCTest` extensions. The most commonly interacted with and most approachable portion is the `XCTest` extension.
 
 ```swift
 extension XCTestCase {
-  public func marbleDiagram<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(theme: Theme, @MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line)
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line)
   
-  public func marbleDiagram<Test: MarbleDiagramTest>(@MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line)
+  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line)
 }
 ```
 
 These two methods break down to usage like some of the previously used examples; however the reality of how it works is perhaps the more important portion. For example the code listed below has some interesting points of interest worth mentioning.
 
 ```swift
-marbleDiagram {
+validate {
   "a--b--c---|"
   $0.inputs[0].map { item in await Task { item.capitalized }.value }
   "A--B--C---|"
 }
 ``` 
 
-The progression of the input sequence can be derived from the `$0.inputs[0]`. This is an `AsyncSequence` with the `Element` type of `String` which at the given input emits an `"a"` at tick 0, a `"b"` at tick 3, a `"c"` at tick 6 and a finish event at tick 10. The output of the middle expression `$0.inputs[0].map { item in await Task { item.capitalized }.value }` is expected to emit an `"A"` at tick 0, a `"B"` at tick 3, a `"C"` at tick 6 and a finish event at tick 10. However careful readers may immediately recognize that the `map` function is asynchronous and schedules work on a separate task. Normally this would pose a distinct hazard at deterministic testing for timing of events, however the `marbleDiagram` utilizes a specialized hook into the Swift concurrency runtime to schedule the events stepwise and deterministically. This works in a two-fold manner; first it uses a custom `Clock` to schedule events, but also ties that clock into a task driver that ensures enqueued jobs are executed in lock step with that clock.
+The progression of the input sequence can be derived from the `$0.inputs[0]`. This is an `AsyncSequence` with the `Element` type of `String` which at the given input emits an `"a"` at tick 0, a `"b"` at tick 3, a `"c"` at tick 6 and a finish event at tick 10. The output of the middle expression `$0.inputs[0].map { item in await Task { item.capitalized }.value }` is expected to emit an `"A"` at tick 0, a `"B"` at tick 3, a `"C"` at tick 6 and a finish event at tick 10. However careful readers may immediately recognize that the `map` function is asynchronous and schedules work on a separate task. Normally this would pose a distinct hazard at deterministic testing for timing of events, however the `validate` utilizes a specialized hook into the Swift concurrency runtime to schedule the events stepwise and deterministically. This works in a two-fold manner; first it uses a custom `Clock` to schedule events, but also ties that clock into a task driver that ensures enqueued jobs are executed in lock step with that clock.
 
-The underpinnings to make that work are the actual `MarbleDiagram` subsystem. The XCTest interface does offer a considerably more simple surface area so the diagrams, for approachability, will be broken down into a few key sections. Those sections are the result builder, the diagram clock, the inputs, themes, and expectations/tests.
+The underpinnings to make that work are the actual `AsyncSequenceValidationDiagram` subsystem. The XCTest interface does offer a considerably more simple surface area so the diagrams, for approachability, will be broken down into a few key sections. Those sections are the result builder, the diagram clock, the inputs, themes, and expectations/tests.
 
 ### Result Builder
 
@@ -104,24 +104,24 @@ The result builder syntax allows for simple and concise diagrams to be built. Th
 
 ```swift
 @resultBuilder
-public struct MarbleDiagram : Sendable {
+public struct AsyncSequenceValidationDiagram : Sendable {
   public static func buildBlock<Operation: AsyncSequence>(
     _ sequence: Operation,
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String
   
   public static func buildBlock<Operation: AsyncSequence>(
     _ input: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String
   
   public static func buildBlock<Operation: AsyncSequence>(
     _ input1: String, 
     _ input2: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String 
   
   public static func buildBlock<Operation: AsyncSequence>(
     _ input1: String, 
@@ -129,25 +129,25 @@ public struct MarbleDiagram : Sendable {
     _ input3: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String
   
   public var inputs: InputList { get }
   public var clock: Clock { get }
 }
 ```
 
-The `MarbleDiagramTest`, `InputList` and `Clock` will be covered in subsequent sections.
+The `AsyncSequenceValidationTest`, `InputList` and `Clock` will be covered in subsequent sections.
 
-### Marble Diagram Clock
+### Validation Diagram Clock
 
-One of the key functionalities of the marble diagrams is being able to control time. For proper usage of this testing infrastructure all clock sources must be tied to the `MarbleDiagram.Clock` that is exposed on the diagram itself. This is the heartbeat of how each columnar input and expectation are produced and consumed. It measures time in an integral manner of `steps`. One step being advanced per event symbol; in the default ASCII diagrams that means `-`, `;`, `|`, `^` and any character value event, or in the case of quoted values like `"'foo'"`, or in grouped events like `"[ab]"`. 
+One of the key functionalities of the validation diagrams is being able to control time. For proper usage of this testing infrastructure all clock sources must be tied to the `AsyncSequenceValidationDiagram.Clock` that is exposed on the diagram itself. This is the heartbeat of how each columnar input and expectation are produced and consumed. It measures time in an integral manner of `steps`. One step being advanced per event symbol; in the default ASCII diagrams that means `-`, `;`, `|`, `^` and any character value event, or in the case of quoted values like `"'foo'"`, or in grouped events like `"[ab]"`. 
 
 ```swift
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct Clock { }
 }
 
-extension MarbleDiagram.Clock: Clock {
+extension AsyncSequenceValidationDiagram.Clock: Clock {
   public struct Step: DurationProtocol, Hashable, CustomStringConvertible {
     public static func + (lhs: Step, rhs: Step) -> Step
     public static func - (lhs: Step, rhs: Step) -> Step
@@ -177,14 +177,14 @@ extension MarbleDiagram.Clock: Clock {
 }
 ```
 
-Key notes: the `minimumResolution` of the `MarbleDiagram.Clock` is fixed at `.steps(1)`, and the tolerance to the `sleep` function is ignored. These two behaviors were chosen because there is no sub-step granularity besides the order of execution and any coalescing due to tolerance would detract from the explicit expectations of deterministic execution order.
+Key notes: the `minimumResolution` of the `AsyncSequenceValidationDiagram.Clock` is fixed at `.steps(1)`, and the tolerance to the `sleep` function is ignored. These two behaviors were chosen because there is no sub-step granularity besides the order of execution and any coalescing due to tolerance would detract from the explicit expectations of deterministic execution order.
 
 ### Inputs
 
-The inputs to the marble diagram are lazily constructed with the input parameters built by the result builder syntax. The inputs are `Sendable` `AsyncSequence` conforming types that have their `Element` defined as `String`. The elements produced as defined by the input specification in the result builder. This means that on each tick that an element is defined the next function will resume to return that element (or nil or thrown error depending on the input specification). The `InputList` grants access to the defined inputs lazily. 
+The inputs to the validation diagram are lazily constructed with the input parameters built by the result builder syntax. The inputs are `Sendable` `AsyncSequence` conforming types that have their `Element` defined as `String`. The elements produced as defined by the input specification in the result builder. This means that on each tick that an element is defined the next function will resume to return that element (or nil or thrown error depending on the input specification). The `InputList` grants access to the defined inputs lazily. 
 
 ```swift
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
     
@@ -201,7 +201,7 @@ extension MarbleDiagram {
 }
 ```
 
-Access to the marble diagram input list is done through calls such as `$0.inputs[0]` seen in other examples. This access fetches lazily the first input specification and creates an `Input` `AsyncSequence` out of that domain specific language symbology. 
+Access to the validation diagram input list is done through calls such as `$0.inputs[0]` seen in other examples. This access fetches lazily the first input specification and creates an `Input` `AsyncSequence` out of that domain specific language symbology. 
 
 ### Themes
 
@@ -220,15 +220,15 @@ Access to the marble diagram input list is done through calls such as `$0.inputs
 There are some diagram inputs specifications that are not valid. The three cases are; a step being specified in a group, a nested group, and an unbalanced nesting. Respectively examples of these invalid cases are `"[a-]b|"`, `"[[ab]]|"`, and `"[ab|"`.
 
 ```swift
-public protocol MarbleDiagramTheme {
-  func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token
+public protocol AsyncSequenceValidationTheme {
+  func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token
 }
 
-extension MarbleDiagramTheme where Self == MarbleDiagram.ASCIITheme {
-  public static var ascii: MarbleDiagram.ASCIITheme { get }
-}  
+extension AsyncSequenceValidationTheme where Self == AsyncSequenceValidationDiagram.ASCIITheme {
+  public static var ascii: AsyncSequenceValidationDiagram.ASCIITheme
+}
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public enum Token {
     case step
     case error
@@ -242,20 +242,20 @@ extension MarbleDiagram {
     case value(String)
   }
   
-  public struct ASCIITheme: MarbleDiagramTheme {
-    public func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token
+  public struct ASCIITheme: AsyncSequenceValidationTheme {
+    public func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token
   }
 }
 ```
 
 ### Expectations and Tests
 
-The heart of the marble diagrams is testing and validation. This set of interfaces are the primary mechanism in which the simplified XCTest extension rests upon. 
+This set of interfaces are the primary mechanism in which the simplified XCTest extension rests upon. 
 
 Expectations defined by the domain specific language symbology can be roughly expressed as expected results and actual results (this notably avoids cancellation and steps since those are better expressed through the failure reporting system). The expectation failures can express the combination of these expected and actual values; showing when the expectation failure occurred and the kind of expectation failure that happened along with the payload of those actual and expected values.
 
 ```swift
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct ExpectationResult {
     public var expected: [(Clock.Instant, Result<String?, Error>)]
     public var actual: [(Clock.Instant, Result<String?, Error>)]
@@ -284,24 +284,24 @@ extension MarbleDiagram {
 }
 ```
 
-The testing itself reduces down to two methods, one being a default theme parameter of `.ascii`. The test methods execute the marble diagram using a custom scheduling hook from the concurrency runtime such that all events are sequentially processed on a single cooperatively multitasking executed thread. That thread is responsible for ensuring the ordering of the events and the execution of each time delineation such that the order of emissions of any input events are sequential top to bottom: input 0 is emitted first, then input 1 etc. After the ordering of input events the jobs enqueued onto that task driver thread are executed in order of receipt. This ensures the overall order of execution is stable and deterministic but most importantly predictable.
+The testing itself reduces down to two methods, one being a default theme parameter of `.ascii`. The test methods execute the validation diagram using a custom scheduling hook from the concurrency runtime such that all events are sequentially processed on a single cooperatively multitasking executed thread. That thread is responsible for ensuring the ordering of the events and the execution of each time delineation such that the order of emissions of any input events are sequential top to bottom: input 0 is emitted first, then input 1 etc. After the ordering of input events the jobs enqueued onto that task driver thread are executed in order of receipt. This ensures the overall order of execution is stable and deterministic but most importantly predictable.
 
 ```swift
-public protocol MarbleDiagramTest: Sendable {
+public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [String] { get }
   var output: String { get }
   
   func test(_ event: (String) -> Void) async throws
 }
 
-extension MarbleDiagram {
-  public static func test<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(
+extension AsyncSequenceValidationDiagram {
+  public static func test<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(
     theme: Theme,
-    @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
+    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure])
   
-  public static func test<Test: MarbleDiagramTest>(
-    @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
+  public static func test<Test: AsyncSequenceValidationTest>(
+    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure])
 }
 ```
@@ -312,12 +312,16 @@ The emoji diagram theme could be made to be a built in system; it makes for real
 
 The testing infrastructure could support with minor alteration testing iteration beyond the terminal cases (either errors being thrown from the iterator or past the first nil return value from `next`). This could help enforce some of the semantical expectations of `AsyncSequence`.
 
-In addition to hooking into the runtime for execution of jobs, the deferred execution of jobs could also be hooked so that a time scale conversion could be made such that any sleep using any clock could map directly to the marble diagram internal clock ticks. 
+In addition to hooking into the runtime for execution of jobs, the deferred execution of jobs could also be hooked so that a time scale conversion could be made such that any sleep using any clock could map directly to the validation diagram internal clock ticks. 
 
 The testing infrastructure could also have support for testing for values that do not have specified order for a given tick. Some race conditions from external systems not under the control of the concurrency runtime may not be accountable. If that were to be a consideration, unordered group tokens could be added. For example the symbols `{` and `}` could be used to represent a group that is unordered. However, since there are not any cases that this really seems useful for the swift-async-algorithms package this is not a priority at this time.
 
 ## Alternatives Considered
 
-The marble diagram system could be retrofitted to accommodate other value types other than strings, however most use cases can easily be expressed in a readable form with minor adjustments to use strings. 
+The validation diagram system could be retrofitted to accommodate other value types other than strings, however most use cases can easily be expressed in a readable form with minor adjustments to use strings. 
 
 The builder functions could pass in N-ary variants of the diagram to enforce the inputs to be specific instead of accessed via the lazy `InputList`. As we may potentially add additional numbers of inputs in the future this seems like a less maintainable implementation even though it may offer slightly more safety and only marginally better spelling; i.e. `$0.inputs[0]` versus `$0.input0` etc.
+
+## Credits/Inspiration
+
+One major souce of inspriation for the validation diagram system is https://rxjs.dev/guide/testing/marble-testing and particularly the graphical representations from https://rxmarbles.com. Both of these were immensely useful to help discuss the expected behaviors of how asynchronous sequences should behave. 

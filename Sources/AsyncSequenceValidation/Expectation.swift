@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct ExpectationResult {
     public var expected: [(Clock.Instant, Result<String?, Error>)]
     public var actual: [(Clock.Instant, Result<String?, Error>)]

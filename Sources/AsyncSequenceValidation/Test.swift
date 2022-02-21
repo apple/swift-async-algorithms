@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import CMarableDiagram
+import _CAsyncSequenceValidationSupport
 
 @_silgen_name("swift_job_run")
 @usableFromInline
@@ -18,15 +18,15 @@ internal func _swiftJobRun(
   _ executor: UnownedSerialExecutor
 ) -> ()
 
-public protocol MarbleDiagramTest: Sendable {
+public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [String] { get }
   var output: String { get }
   
   func test(_ event: (String) -> Void) async throws
 }
 
-extension MarbleDiagram {
-  struct Test<Operation: AsyncSequence>: MarbleDiagramTest, @unchecked Sendable where Operation.Element == String {
+extension AsyncSequenceValidationDiagram {
+  struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
     let inputs: [String]
     let sequence: Operation
     let output: String
@@ -77,7 +77,7 @@ extension MarbleDiagram {
     }
   }
   
-  static func validate<Theme: MarbleDiagramTheme>(
+  static func validate<Theme: AsyncSequenceValidationTheme>(
     output: String,
     theme: Theme,
     expected: [(Clock.Instant, Result<String?, Error>)],
@@ -204,11 +204,11 @@ extension MarbleDiagram {
     return (result, failures)
   }
   
-  public static func test<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(
+  public static func test<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(
     theme: Theme,
-    @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
+    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
-    var diagram = MarbleDiagram()
+    var diagram = AsyncSequenceValidationDiagram()
     let clock = diagram.clock
     let test = build(&diagram)
     
@@ -292,8 +292,8 @@ extension MarbleDiagram {
       actual: actual.withCriticalRegion { $0 })
   }
   
-  public static func test<Test: MarbleDiagramTest>(
-    @MarbleDiagram _ build: (inout MarbleDiagram) -> Test
+  public static func test<Test: AsyncSequenceValidationTest>(
+    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
     try self.test(theme: .ascii, build)
   }

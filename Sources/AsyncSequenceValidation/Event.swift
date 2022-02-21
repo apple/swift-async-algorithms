@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   struct Failure: Error, Equatable { }
   
   enum ParseFailure: Error, CustomStringConvertible {
@@ -20,11 +20,11 @@ extension MarbleDiagram {
     var description: String {
       switch self {
       case .stepInGroup:
-        return "marble diagram step symbol in group"
+        return "validation diagram step symbol in group"
       case .nestedGroup:
-        return "marble diagram nested grouping"
+        return "validation diagram nested grouping"
       case .unbalancedNesting:
-        return "marble diagram unbalanced grouping"
+        return "validation diagram unbalanced grouping"
       }
     }
   }
@@ -53,7 +53,7 @@ extension MarbleDiagram {
       }
     }
     
-    static func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) throws -> [(Clock.Instant, Event)] {
+    static func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme) throws -> [(Clock.Instant, Event)] {
       var emissions = [(Clock.Instant, Event)]()
       var when = Clock.Instant(when: .steps(0))
       var string: String?

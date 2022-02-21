@@ -11,32 +11,32 @@
 
 import XCTest
 import AsyncAlgorithms
-import MarbleDiagram
+import AsyncSequenceValidation
 
 final class TestTimer: XCTestCase {
   func test_tick1() {
-    marbleDiagram {
+    validate {
       AsyncTimerSequence(interval: .steps(1), clock: $0.clock).map { _ in "x" }
       "xxxxxxx[;|]"
     }
   }
   
   func test_tick2() {
-    marbleDiagram {
+    validate {
       AsyncTimerSequence(interval: .steps(2), clock: $0.clock).map { _ in "x" }
       "-x-x-x-[;|]"
     }
   }
   
   func test_tick3() {
-    marbleDiagram {
+    validate {
       AsyncTimerSequence(interval: .steps(3), clock: $0.clock).map { _ in "x" }
       "--x--x-[;|]"
     }
   }
   
   func test_tick2_event_skew3() {
-    marbleDiagram { diagram in
+    validate { diagram in
       AsyncTimerSequence(interval: .steps(2), clock: diagram.clock).map { [diagram] (_) -> String in
         try? await diagram.clock.sleep(until: diagram.clock.now.advanced(by: .steps(3)))
         return "x"

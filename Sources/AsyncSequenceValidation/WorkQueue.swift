@@ -11,8 +11,8 @@
 
 struct WorkQueue: Sendable {
   enum Item: CustomStringConvertible, Comparable {
-    case blocked(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<Void, Error>)
-    case emit(Token, MarbleDiagram.Clock.Instant, UnsafeContinuation<String?, Error>, Result<String?, Error>, Int)
+    case blocked(Token, AsyncSequenceValidationDiagram.Clock.Instant, UnsafeContinuation<Void, Error>)
+    case emit(Token, AsyncSequenceValidationDiagram.Clock.Instant, UnsafeContinuation<String?, Error>, Result<String?, Error>, Int)
     case work(Token, @Sendable () -> Void)
     case cancelled(Token)
     
@@ -96,7 +96,7 @@ struct WorkQueue: Sendable {
     var jobs: [Job?] = [nil]
     var items = [Token : Item]()
     
-    var now = MarbleDiagram.Clock.Instant(when: .zero)
+    var now = AsyncSequenceValidationDiagram.Clock.Instant(when: .zero)
     var generation = 0
     
     mutating func drain() -> [Item] {
@@ -167,7 +167,7 @@ struct WorkQueue: Sendable {
   
   let state = ManagedCriticalState(State())
   
-  var now: MarbleDiagram.Clock.Instant {
+  var now: AsyncSequenceValidationDiagram.Clock.Instant {
     state.withCriticalRegion { $0.now }
   }
   
@@ -213,7 +213,7 @@ struct WorkQueue: Sendable {
     }
   }
   
-  func enqueue(_ job: Job?, deadline: MarbleDiagram.Clock.Instant, continuation: UnsafeContinuation<Void, Error>, token: Token) {
+  func enqueue(_ job: Job?, deadline: AsyncSequenceValidationDiagram.Clock.Instant, continuation: UnsafeContinuation<Void, Error>, token: Token) {
     state.withCriticalRegion { state in
       if state.queues[job] == nil, let job = job {
         state.jobs.append(job)
@@ -232,7 +232,7 @@ struct WorkQueue: Sendable {
     }
   }
   
-  func enqueue(_ job: Job?, deadline: MarbleDiagram.Clock.Instant, continuation: UnsafeContinuation<String?, Error>, _ result: Result<String?, Error>, index: Int, token: Token) {
+  func enqueue(_ job: Job?, deadline: AsyncSequenceValidationDiagram.Clock.Instant, continuation: UnsafeContinuation<String?, Error>, _ result: Result<String?, Error>, index: Int, token: Token) {
     state.withCriticalRegion { state in
       if state.queues[job] == nil, let job = job {
         state.jobs.append(job)

@@ -15,8 +15,8 @@ let package = Package(
       name: "AsyncAlgorithms",
       targets: ["AsyncAlgorithms"]),
     .library(name: "ClockStub", type: .static, targets: ["ClockStub"]),
-    .library(name: "MarbleDiagram", targets: ["MarbleDiagram"]),
-    .library(name: "CMarbleDiagram", type: .static, targets: ["CMarbleDiagram"])
+    .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
+    .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
   ],
   dependencies: [],
   targets: [
@@ -24,14 +24,10 @@ let package = Package(
       name: "AsyncAlgorithms",
       dependencies: ["ClockStub"]),
     .target(name: "ClockStub"),
-    .target(name: "MarbleDiagram", dependencies: ["CMarbleDiagram", "ClockStub"]),
-    .target(name: "CMarbleDiagram",
-                publicHeadersPath: "Headers",
-                cxxSettings: [
-                  .unsafeFlags(["-std=c++11"])
-                ]),
+    .target(name: "AsyncSequenceValidation", dependencies: ["_CAsyncSequenceValidationSupport", "ClockStub"]),
+    .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "MarbleDiagram"]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
   ]
 )
