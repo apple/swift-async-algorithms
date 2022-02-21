@@ -11,7 +11,7 @@ Types that implement `AsyncSequence` can often be described in deterministic act
 
 ## Proposed Solution
 
-By restricting the domain space of values to `String` we can describe the events as a domain specific language, and with monospaced characters that domain space can be used to show values over time for both the input to an `AsyncSequence` but also the  expected output. 
+By restricting the domain space of values to `String` we can describe the events as a domain specific language, and with monospaced characters that domain space can be used to show values over time for both the input to an `AsyncSequence` but also the expected output. 
 
 ```swift
 marbleDiagram {
