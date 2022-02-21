@@ -324,4 +324,4 @@ The builder functions could pass in N-ary variants of the diagram to enforce the
 
 ## Credits/Inspiration
 
-One major souce of inspriation for the validation diagram system is https://rxjs.dev/guide/testing/marble-testing and particularly the graphical representations from https://rxmarbles.com. Both of these were immensely useful to help discuss the expected behaviors of how asynchronous sequences should behave. 
+One major source of inspiration for the validation diagram system is https://rxjs.dev/guide/testing/marble-testing and particularly the graphical representations from https://rxmarbles.com. Both of these were immensely useful to help discuss the expected behaviors of how asynchronous sequences should behave. 
