@@ -34,7 +34,7 @@ marbleDiagram {
 }
 ```
 
-Normally testing this type of function would result in either limited expectations (to account for the potential of ordering) or be stochastic in nature. By having the explicit ordering of time defined by the diagram for both the input sequences and the expected correlative output sequence it makes the test for something, that easily could be non-deterministic, into something that is predictable and reliable. 
+Normally testing a function like `merge` would result in either limited expectations or be stochastic in nature. Those approaches are to account for the potential ordering not being deterministic. By taking the approach to have explicit ordering of time defined by the diagram it allows for the test to be predictable. That determinism is sourced directly from the input sequences and the expected correlative output sequence. In short, the syntax of the test inputs and expectations make the execution reliable.
 
 The syntax is trivially parsable (and consequently customizable). By default, the events require only a limited subset of characters for control; such as the advancing in time `-`, or the termination of a sequence by returning nil `|`. However some events may produce strings greater than just one character, other events may happen at the same time, and there is also the cancellation event. This all culminates into a test theme definition of:
 
@@ -313,6 +313,8 @@ The emoji diagram theme could be made to be a built in system; it makes for real
 The testing infrastructure could support with minor alteration testing iteration beyond the terminal cases (either errors being thrown from the iterator or past the first nil return value from `next`). This could help enforce some of the semantical expectations of `AsyncSequence`.
 
 In addition to hooking into the runtime for execution of jobs, the deferred execution of jobs could also be hooked so that a time scale conversion could be made such that any sleep using any clock could map directly to the marble diagram internal clock ticks. 
+
+The testing infrastructure could also have support for testing for values that do not have specified order for a given tick. Some race conditions from external systems not under the control of the concurrency runtime may not be accountable. If that were to be a consideration, unordered group tokens could be added. For example the symbols `{` and `}` could be used to represent a group that is unordered. However, since there are not any cases that this really seems useful for the swift-async-algorithms package this is not a priority at this time.
 
 ## Alternatives Considered
 
