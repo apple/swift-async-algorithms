@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
-import MarbleDiagram
+import AsyncSequenceValidation
 import AsyncAlgorithms
 
 func sumCharacters(_ array: [String]) -> String {
@@ -24,7 +24,7 @@ func concatCharacters(_ array: [String]) -> String {
 final class TestChunkSequence: XCTestCase {
 
   func test_signal_equalChunks() {
-    marbleDiagram {
+    validate {
       "ABC-    DEF-    GHI-     |"
       "---X    ---X    ---X    |"
       $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
@@ -33,7 +33,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signal_unequalChunks() {
-    marbleDiagram {
+    validate {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
       $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
@@ -42,7 +42,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signal_emptyChunks() {
-    marbleDiagram {
+    validate {
       "--1--|"
       "XX-XX|"
       $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
@@ -51,7 +51,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signal_error() {
-    marbleDiagram {
+    validate {
       "AB^"
       "---X|"
       $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
@@ -60,7 +60,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signal_unsignaledTrailingChunk() {
-    marbleDiagram {
+    validate {
       "111-111|"
       "---X---|"
       $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(sumCharacters)
@@ -69,7 +69,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signalAndCount_signalAlwaysPrevails() {
-    marbleDiagram {
+    validate {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
       $0.inputs[0].chunked(byCount: 42, andSignal: $0.inputs[1]).map(concatCharacters)
@@ -78,7 +78,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signalAndCount_countAlwaysPrevails() {
-    marbleDiagram {
+    validate {
       "AB   --A-B   -|"
       "--   X----   X|"
       $0.inputs[0].chunked(byCount: 2, andSignal: $0.inputs[1]).map(concatCharacters)
@@ -87,7 +87,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signalAndCount_countResetsAfterCount() {
-    marbleDiagram {
+    validate {
       "ABCDE      -ABCDE      |"
       "-----      ------      |"
       $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
@@ -96,7 +96,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signalAndCount_countResetsAfterSignal() {
-    marbleDiagram {
+    validate {
       "AB-   ABCDE      |"
       "--X   -----      |"
       $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
@@ -105,7 +105,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_signalAndCount_error() {
-    marbleDiagram {
+    validate {
       "ABC^"
       "----X|"
       $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
@@ -114,7 +114,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_count() {
-    marbleDiagram {
+    validate {
       "ABC    DEF    |"
       $0.inputs[0].chunks(ofCount: 3).map(concatCharacters)
       "--'ABC'--'DEF'|"
@@ -122,7 +122,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_count_nonuniformTiming() {
-    marbleDiagram {
+    validate {
       "A--B-C    --DE-F    |"
       $0.inputs[0].chunks(ofCount: 3).map(concatCharacters)
       "-----'ABC'-----'DEF'|"
@@ -130,7 +130,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_count_trailingChunk() {
-    marbleDiagram {
+    validate {
       "11111|"
       $0.inputs[0].chunks(ofCount: 3).map(sumCharacters)
       "--3--[2|]"
@@ -138,7 +138,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_count_error() {
-    marbleDiagram {
+    validate {
       "AB^"
       $0.inputs[0].chunks(ofCount: 3).map(concatCharacters)
       "--^"
@@ -146,7 +146,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_group() {
-    marbleDiagram {
+    validate {
       "ABC    def    GH   ij   Kl|"
       $0.inputs[0].chunked(by: { $0.first!.isUppercase == $1.first!.isUppercase }).map(concatCharacters)
       "---'ABC'--'def'-'GH'-'ij'K[l|]"
@@ -154,7 +154,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_group_singleValue() {
-    marbleDiagram {
+    validate {
       "A----|"
       $0.inputs[0].chunked(by: { $0.first!.isUppercase == $1.first!.isUppercase }).map(concatCharacters)
       "-----[A|]"
@@ -162,7 +162,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_group_singleGroup() {
-    marbleDiagram {
+    validate {
       "ABCDE|"
       $0.inputs[0].chunked(by: { _, _ in true }).map(concatCharacters)
       "-----['ABCDE'|]"
@@ -170,7 +170,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_group_error() {
-    marbleDiagram {
+    validate {
       "AB^"
       $0.inputs[0].chunked(by: { $0.first!.isUppercase == $1.first!.isUppercase }).map(concatCharacters)
       "--^"
@@ -178,7 +178,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_projection() {
-    marbleDiagram {
+    validate {
       "A'Aa''ab'    b'BB''bb'    'cc''CC'      |"
       $0.inputs[0].chunked(on: { $0.first!.lowercased() }).map { concatCharacters($0.1.map( {String($0.first!)} ) ) }
       "--   -   'AAa' -  -   'bBb'   -   ['cC'|]"
@@ -186,7 +186,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_projection_singleValue() {
-    marbleDiagram {
+    validate {
       "A----|"
       $0.inputs[0].chunked(on: { $0.first!.lowercased() }).map { concatCharacters($0.1.map( {String($0.first!)} ) ) }
       "-----[A|]"
@@ -194,7 +194,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_projection_singleGroup() {
-    marbleDiagram {
+    validate {
       "ABCDE|"
       $0.inputs[0].chunked(on: { _ in 42 }).map { concatCharacters($0.1.map( {String($0.first!)} ) ) }
       "-----['ABCDE'|]"
@@ -202,7 +202,7 @@ final class TestChunkSequence: XCTestCase {
   }
 
   func test_projection_error() {
-    marbleDiagram {
+    validate {
       "Aa^"
       $0.inputs[0].chunked(on: { $0.first!.lowercased() }).map { concatCharacters($0.1.map( {String($0.first!)} ) ) }
       "--^"
