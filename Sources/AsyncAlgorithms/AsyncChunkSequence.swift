@@ -37,27 +37,21 @@ extension AsyncSequence {
     chunked(bySignal: signal, collectedInto: [Element].self)
   }
 
-#if false
-  @inlinable
   public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byCount count: Int, andTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: count, signal: timer)
   }
 
-  @inlinable
   public func chunked<C: Clock>(byCount count: Int, andTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunked(byCount: count, andTime: timer, collectedInto: [Element].self)
   }
 
-  @inlinable
   public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: nil, signal: timer)
   }
 
-  @inlinable
   public func chunked<C: Clock>(byTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunked(byTime: timer, collectedInto: [Element].self)
   }
-#endif
 
   @inlinable
   public func chunked<Collected: RangeReplaceableCollection>(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool, collectedInto: Collected.Type) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {

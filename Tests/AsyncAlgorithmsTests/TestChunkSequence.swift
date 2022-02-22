@@ -113,6 +113,86 @@ final class TestChunkSequence: XCTestCase {
     }
   }
 
+  func test_time_equalChunks() {
+    validate {
+      "ABC-    DEF-    GHI-     |"
+      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(4), clock: $0.clock)).map(concatCharacters)
+      "---'ABC'---'DEF'---'GHI'|"
+    }
+  }
+
+  func test_time_unequalChunks() {
+    validate {
+      "AB------    A------- ABCDEFG-         |"
+      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "-------'AB' -------A -------'ABCDEFG'|"
+    }
+  }
+
+  func test_time_emptyChunks() {
+    validate {
+      "-- 1- --|"
+      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(2), clock: $0.clock)).map(concatCharacters)
+      "-- -1 --|"
+    }
+  }
+
+  func test_time_error() {
+    validate {
+      "AB^"
+      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(5), clock: $0.clock)).map(concatCharacters)
+      "--^"
+    }
+  }
+
+  func test_time_unsignaledTrailingChunk() {
+    validate {
+      "111-111|"
+      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(4), clock: $0.clock)).map(sumCharacters)
+      "---3---[3|]"
+    }
+  }
+
+  func test_timeAndCount_timeAlwaysPrevails() {
+    validate {
+      "AB------    A------- ABCDEFG-         |"
+      $0.inputs[0].chunked(byCount: 42, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "-------'AB' -------A -------'ABCDEFG'|"
+    }
+  }
+
+  func test_timeAndCount_countAlwaysPrevails() {
+    validate {
+      "AB   --A-B   -|"
+      $0.inputs[0].chunked(byCount: 2, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "-'AB'----'AB'-|"
+    }
+  }
+
+  func test_timeAndCount_countResetsAfterCount() {
+    validate {
+      "ABCDE      --- ABCDE      |"
+      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "----'ABCDE'--- ----'ABCDE'|"
+    }
+  }
+
+  func test_timeAndCount_countResetsAfterSignal() {
+    validate {
+      "AB------    ABCDE      |"
+      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "-------'AB' ----'ABCDE'|"
+    }
+  }
+
+  func test_timeAndCount_error() {
+    validate {
+      "ABC^"
+      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "---^"
+    }
+  }
+
   func test_count() {
     validate {
       "ABC    DEF    |"
