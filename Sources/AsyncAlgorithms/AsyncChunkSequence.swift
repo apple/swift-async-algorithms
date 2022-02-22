@@ -62,110 +62,58 @@ extension AsyncSequence {
   }
 }
 
-public struct AsyncChunksOfCountAndTriggerSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Trigger: AsyncSequence>: AsyncSequence where Collected.Element == Base.Element {
+public struct AsyncChunksOfCountAndTriggerSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Trigger: AsyncSequence>: AsyncSequence, Sendable
+where Collected.Element == Base.Element, Base: Sendable, Trigger: Sendable, Base.AsyncIterator: Sendable, Trigger.AsyncIterator: Sendable, Base.Element: Sendable, Trigger.Element: Sendable {
+
   public typealias Element = Collected
 
-  enum ChunkEvent<Element> {
-      case element(Element)
-      case marker(Bool)
-  }
-
-  enum Intermediate<Collected: RangeReplaceableCollection> {
-    case building(Collected)
-    case built(Collected)
-  }
-
-  typealias InternalSequence = AsyncCompactMapSequence<
-    AsyncExclusiveReductionsSequence<
-      AsyncPrefixWhileSequence<
-        AsyncMerge2Sequence<
-          AsyncChain2Sequence<
-            AsyncMapSequence<
-              Base,
-              ChunkEvent<Base.Element>>,
-            AsyncLazySequence<[ChunkEvent<Base.Element>]>>,
-          AsyncMapSequence<
-            Trigger,
-            ChunkEvent<Base.Element>>>>,
-      Intermediate<Collected>>,
-    Collected>
-
-  public struct Iterator: AsyncIteratorProtocol {
-
-    var _internal: InternalSequence.AsyncIterator
-
-    init(_ iterator: InternalSequence.AsyncIterator) {
-      self._internal = iterator
+  public struct Iterator: AsyncIteratorProtocol, Sendable {
+    let count: Int?
+    var state: Merge2StateMachine<Base, Trigger>
+    init(base: Base.AsyncIterator, count: Int?, trigger: Trigger.AsyncIterator) {
+      self.count = count
+      self.state = Merge2StateMachine(base, terminatesOnNil: true, trigger, terminatesOnNil: false)
     }
-
+    
     public mutating func next() async rethrows -> Collected? {
-      try await _internal.next()
+      var result : Collected?
+      while let next = try await state.next() {
+        switch next {
+          case .first(let element):
+            if result == nil {
+              result = Collected()
+            }
+            result!.append(element)
+            if result?.count == count {
+              return result
+            }
+          case .second(_):
+            if result != nil {
+              return result
+            }
+        }
+      }
+      return result
     }
   }
 
-  let _internal : InternalSequence
-
+  let base: Base
+  let trigger: Trigger
+  let count: Int?
   init(_ base: Base, count: Int?, trigger: Trigger) {
     if let count = count {
       precondition(count > 0)
     }
 
-    let baseEvents = chain(base.map { ChunkEvent<Base.Element>.element($0) }, [ChunkEvent<Base.Element>.marker(false), ChunkEvent<Base.Element>.marker(true)].async)
-    let triggerEvents = trigger.map { _ in ChunkEvent<Base.Element>.marker(false) }
-
-    _internal = try! merge(baseEvents, triggerEvents).prefix(while: {
-      switch $0 {
-        case .marker(let terminal):
-          return !terminal
-        default:
-          return true
-      }
-    }).reductions(into: Intermediate.building(Collected.init())) { result, either in
-      switch either {
-        case .element(let value):
-          switch result {
-            case .building(var elements):
-              elements.append(value)
-              if elements.count == count {
-                result = .built(elements)
-              } else {
-                result = .building(elements)
-              }
-            case .built(_):
-              var coll = Collected.init()
-              coll.append(value)
-              result = .building(coll)
-          }
-        case .marker:
-          switch result {
-            case .building(let elements):
-              if (elements.count > 0) {
-                result = .built(elements)
-              }
-            case .built(_):
-              result = .building(Collected.init())
-          }
-      }
-      print(result)
-    }.compactMap { intermediate -> Collected? in
-      switch intermediate {
-        case .built(let elements):
-          return elements
-        default: return nil
-      }
-    }
-
+    self.base = base
+    self.count = count
+    self.trigger = trigger
   }
 
   public func makeAsyncIterator() -> Iterator {
-    return Iterator(_internal.makeAsyncIterator())
+    return Iterator(base: base.makeAsyncIterator(), count: count, trigger: trigger.makeAsyncIterator())
   }
 }
-
-extension AsyncChunksOfCountAndTriggerSequence : Sendable where Base : Sendable, Base.Element : Sendable, Trigger : Sendable { }
-extension AsyncChunksOfCountAndTriggerSequence.Iterator : Sendable where Base.AsyncIterator : Sendable, Trigger.AsyncIterator : Sendable { }
-extension AsyncChunksOfCountAndTriggerSequence.ChunkEvent : Sendable where Element : Sendable { }
-extension AsyncChunksOfCountAndTriggerSequence.Intermediate : Sendable where Collected : Sendable { }
 
 public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
   public typealias Element = Collected
