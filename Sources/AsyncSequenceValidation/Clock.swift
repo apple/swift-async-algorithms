@@ -11,7 +11,7 @@
 
 import ClockStub
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct Clock {
     let queue: WorkQueue
     
@@ -21,7 +21,7 @@ extension MarbleDiagram {
   }
 }
 
-extension MarbleDiagram.Clock: Clock {
+extension AsyncSequenceValidationDiagram.Clock: Clock {
   public struct Step: DurationProtocol, Hashable, CustomStringConvertible {
     internal var rawValue: Int
     
@@ -104,7 +104,7 @@ extension MarbleDiagram.Clock: Clock {
       queue.cancel(token)
     } operation: {
       try await withUnsafeThrowingContinuation { continuation in
-        queue.enqueue(MarbleDiagram.Context.currentJob, deadline: deadline, continuation: continuation, token: token)
+        queue.enqueue(AsyncSequenceValidationDiagram.Context.currentJob, deadline: deadline, continuation: continuation, token: token)
       }
     }
   }

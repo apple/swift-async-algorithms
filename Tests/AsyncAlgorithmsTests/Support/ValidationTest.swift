@@ -11,14 +11,14 @@
 
 import XCTest
 import AsyncAlgorithms
-import MarbleDiagram
+import AsyncSequenceValidation
 
 extension XCTestCase {
-  public func marbleDiagram<Test: MarbleDiagramTest, Theme: MarbleDiagramTheme>(theme: Theme, @MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     let location = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
     let context = XCTSourceCodeContext(location: location)
     do {
-      let (result, failures) = try MarbleDiagram.test(theme: theme, build)
+      let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
       if failures.count > 0 {
         print("Expected")
         for (when, result) in result.expected {
@@ -39,7 +39,7 @@ extension XCTestCase {
     }
   }
   
-  public func marbleDiagram<Test: MarbleDiagramTest>(@MarbleDiagram _ build: (inout MarbleDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
-    marbleDiagram(theme: .ascii, build, file: file, line: line)
+  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+    validate(theme: .ascii, build, file: file, line: line)
   }
 }

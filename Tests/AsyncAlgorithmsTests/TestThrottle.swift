@@ -14,7 +14,7 @@ import AsyncAlgorithms
 
 final class TestThrottle: XCTestCase {
   func test_rate_0() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(0), clock: $0.clock)
       "abcdefghijk|"
@@ -22,7 +22,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_0_leading_edge() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(0), clock: $0.clock, latest: false)
       "abcdefghijk|"
@@ -30,7 +30,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_1() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
       "abcdefghijk|"
@@ -38,7 +38,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_1_leading_edge() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock, latest: false)
       "abcdefghijk|"
@@ -46,7 +46,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_2() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
       "-b-d-f-h-j-|"
@@ -54,7 +54,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_2_leading_edge() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
       "-a-c-e-g-i-|"
@@ -62,7 +62,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_3() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
       "--c--f--i--|"
@@ -70,7 +70,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_rate_3_leading_edge() {
-    marbleDiagram {
+    validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
       "--a--d--g--|"
@@ -78,7 +78,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_throwing() {
-    marbleDiagram {
+    validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
       "-b-d-f^"
@@ -86,7 +86,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_throwing_leading_edge() {
-    marbleDiagram {
+    validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
       "-a-c-e^"
@@ -94,7 +94,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_emission_2_rate_1() {
-    marbleDiagram {
+    validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
       "-a-b-c-d-e-f-g-h-i-j-k-|"
@@ -102,7 +102,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_emission_2_rate_2() {
-    marbleDiagram {
+    validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
       "-a-b-c-d-e-f-g-h-i-j-k-|"
@@ -110,7 +110,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_emission_3_rate_2() {
-    marbleDiagram {
+    validate {
       "--a--b--c--d--e--f--g|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
       "--a--b--c--d--e--f--g|"
@@ -118,7 +118,7 @@ final class TestThrottle: XCTestCase {
   }
   
   func test_emission_2_rate_3() {
-    marbleDiagram {
+    validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
       "---b---d---f---h---j---|"

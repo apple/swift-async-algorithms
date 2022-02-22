@@ -11,11 +11,11 @@
 
 import XCTest
 import AsyncAlgorithms
-import MarbleDiagram
+import AsyncSequenceValidation
 
-final class TestMarbleDiagram: XCTestCase {
+final class TestValidationDiagram: XCTestCase {
   func test_diagram() {
-    marbleDiagram {
+    validate {
       "a--b--c---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C---|"
@@ -23,7 +23,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_space_noop() {
-    marbleDiagram {
+    validate {
       "    a -- b --  c       ---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "    A- - B - - C   -  --  |     "
@@ -31,7 +31,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_string_input() {
-    marbleDiagram {
+    validate {
       "'foo''bar''baz'|"
       $0.inputs[0].map { $0.first.map { String($0) } ?? "X" }
       "fbb|"
@@ -39,7 +39,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_string_input_expectation() {
-    marbleDiagram {
+    validate {
       "'foo''bar''baz'|"
       $0.inputs[0]
       "'foo''bar''baz'|"
@@ -47,7 +47,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_string_dsl_contents() {
-    marbleDiagram {
+    validate {
       "'foo-''bar^''baz|'|"
       $0.inputs[0]
       "'foo-''bar^''baz|'|"
@@ -55,7 +55,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_grouping_source() {
-    marbleDiagram {
+    validate {
       "[abc]def|"
       $0.inputs[0]
       "[abc]def|"
@@ -63,7 +63,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_groups_of_one() {
-    marbleDiagram {
+    validate {
       " a  b  c def|"
       $0.inputs[0]
       "[a][b][c]def|"
@@ -71,8 +71,8 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_emoji() {
-    struct EmojiTokens: MarbleDiagramTheme {
-      func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
+    struct EmojiTokens: AsyncSequenceValidationTheme {
+      func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token {
         switch character {
         case "➖": return .step
         case "❗️": return .error
@@ -85,7 +85,7 @@ final class TestMarbleDiagram: XCTestCase {
       }
     }
     
-    marbleDiagram(theme: EmojiTokens()) {
+    validate(theme: EmojiTokens()) {
       "➖🔴➖🟠➖🟡➖🟢➖❌"
       $0.inputs[0]
       "➖🔴➖🟠➖🟡➖🟢➖❌"
@@ -93,7 +93,7 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_cancel_event() {
-    marbleDiagram {
+    validate {
       "a--b- -  c--|"
       $0.inputs[0]
       "a--b-[;|]"
@@ -102,7 +102,7 @@ final class TestMarbleDiagram: XCTestCase {
   
   func test_diagram_failure_mismatch_value() {
     expectFailures(["expected \"X\" but got \"C\" at tick 6"])
-    marbleDiagram {
+    validate {
       "a--b--c---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--X---|"
@@ -112,7 +112,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_value_for_finish() {
     expectFailures(["expected finish but got \"C\" at tick 6",
                     "unexpected finish at tick 10"])
-    marbleDiagram {
+    validate {
       "a--b--c---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--|"
@@ -122,7 +122,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_finish_for_value() {
     expectFailures(["expected \"C\" but got finish at tick 6",
                     "expected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b--|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -131,7 +131,7 @@ final class TestMarbleDiagram: XCTestCase {
   
   func test_diagram_failure_finish_for_error() {
     expectFailures(["expected failure but got finish at tick 6"])
-    marbleDiagram {
+    validate {
       "a--b--|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -140,7 +140,7 @@ final class TestMarbleDiagram: XCTestCase {
   
   func test_diagram_failure_error_for_finish() {
     expectFailures(["expected finish but got failure at tick 6"])
-    marbleDiagram {
+    validate {
       "a--b--^"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--|"
@@ -150,7 +150,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_value_for_error() {
     expectFailures(["expected failure but got \"C\" at tick 6",
                     "unexpected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b--c|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -160,7 +160,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_error_for_value() {
     expectFailures(["expected \"C\" but got failure at tick 6",
                     "expected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b--^"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -170,7 +170,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_expected_value() {
     expectFailures(["expected \"C\" at tick 6",
                     "unexpected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -180,7 +180,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_expected_failure() {
     expectFailures(["expected failure at tick 6",
                     "unexpected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -189,7 +189,7 @@ final class TestMarbleDiagram: XCTestCase {
   
   func test_diagram_failure_unexpected_value() {
     expectFailures(["unexpected \"C\" at tick 6"])
-    marbleDiagram {
+    validate {
       "a--b--c|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B---|"
@@ -199,7 +199,7 @@ final class TestMarbleDiagram: XCTestCase {
   func test_diagram_failure_unexpected_failure() {
     expectFailures(["unexpected failure at tick 6",
                     "expected finish at tick 7"])
-    marbleDiagram {
+    validate {
       "a--b--^|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B---|"
@@ -207,8 +207,8 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_unbalanced_group() {
-    expectFailures(["marble diagram unbalanced grouping"])
-    marbleDiagram {
+    expectFailures(["validation diagram unbalanced grouping"])
+    validate {
       " ab|"
       $0.inputs[0]
       "[ab|"
@@ -216,8 +216,8 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_nested_group() {
-    expectFailures(["marble diagram nested grouping"])
-    marbleDiagram {
+    expectFailures(["validation diagram nested grouping"])
+    validate {
       "  ab|"
       $0.inputs[0]
       "[[ab|"
@@ -225,8 +225,8 @@ final class TestMarbleDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_step_in_group() {
-    expectFailures(["marble diagram step symbol in group"])
-    marbleDiagram {
+    expectFailures(["validation diagram step symbol in group"])
+    validate {
       "  ab|"
       $0.inputs[0]
       "[a-]b|"

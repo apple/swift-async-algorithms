@@ -9,14 +9,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-import CMarableDiagram
+import _CAsyncSequenceValidationSupport
 
 @resultBuilder
-public struct MarbleDiagram : Sendable {
+public struct AsyncSequenceValidationDiagram : Sendable {
   public static func buildBlock<Operation: AsyncSequence>(
     _ sequence: Operation,
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String {
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
     return Test(inputs: [], sequence: sequence, output: output)
   }
   
@@ -24,7 +24,7 @@ public struct MarbleDiagram : Sendable {
     _ input: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String {
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
     return Test(inputs: [input], sequence: sequence, output: output)
   }
   
@@ -33,7 +33,7 @@ public struct MarbleDiagram : Sendable {
     _ input2: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String {
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
     Test(inputs: [input1, input2], sequence: sequence, output: output)
   }
   
@@ -43,7 +43,7 @@ public struct MarbleDiagram : Sendable {
     _ input3: String, 
     _ sequence: Operation, 
     _ output: String
-  ) -> some MarbleDiagramTest where Operation.Element == String {
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
     Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
   }
   

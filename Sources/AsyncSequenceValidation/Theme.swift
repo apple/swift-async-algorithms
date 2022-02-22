@@ -9,17 +9,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-public protocol MarbleDiagramTheme {
-  func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token
+public protocol AsyncSequenceValidationTheme {
+  func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token
 }
 
-extension MarbleDiagramTheme where Self == MarbleDiagram.ASCIITheme {
-  public static var ascii: MarbleDiagram.ASCIITheme {
-    return MarbleDiagram.ASCIITheme()
+extension AsyncSequenceValidationTheme where Self == AsyncSequenceValidationDiagram.ASCIITheme {
+  public static var ascii: AsyncSequenceValidationDiagram.ASCIITheme {
+    return AsyncSequenceValidationDiagram.ASCIITheme()
   }
 }
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public enum Token {
     case step
     case error
@@ -33,8 +33,8 @@ extension MarbleDiagram {
     case value(String)
   }
   
-  public struct ASCIITheme: MarbleDiagramTheme {
-    public func token(_ character: Character, inValue: Bool) -> MarbleDiagram.Token {
+  public struct ASCIITheme: AsyncSequenceValidationTheme {
+    public func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token {
       switch character {
       case "-": return .step
       case "^": return .error

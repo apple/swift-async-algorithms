@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-extension MarbleDiagram {
+extension AsyncSequenceValidationDiagram {
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
     
@@ -74,7 +74,7 @@ extension MarbleDiagram {
       Iterator(state: state, queue: queue, index: index)
     }
     
-    func parse<Theme: MarbleDiagramTheme>(_ dsl: String, theme: Theme) throws {
+    func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme) throws {
       let emissions = try Event.parse(dsl, theme: theme)
       state.withCriticalRegion { state in
         state.emissions = emissions
@@ -97,7 +97,7 @@ extension MarbleDiagram {
       state.withCriticalRegion { $0.count }
     }
     
-    public subscript(position: Int) -> MarbleDiagram.Input {
+    public subscript(position: Int) -> AsyncSequenceValidationDiagram.Input {
       get {
         return state.withCriticalRegion { state in
           if position >= state.count {

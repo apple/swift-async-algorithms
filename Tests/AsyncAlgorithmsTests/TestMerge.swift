@@ -124,7 +124,7 @@ final class TestMerge2: XCTestCase {
   }
   
   func test_diagram() {
-    marbleDiagram {
+    validate {
       "a-c-e-g-|"
       "-b-d-f-h"
       merge($0.inputs[0], $0.inputs[1])
@@ -311,7 +311,7 @@ final class TestMerge3: XCTestCase {
   }
   
   func test_diagram() {
-    marbleDiagram {
+    validate {
       "a---e---|"
       "-b-d-f-h|"
       "--c---g-|"
