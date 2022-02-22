@@ -21,23 +21,41 @@ extension AsyncSequence {
     chunks(ofCount: count, collectedInto: [Element].self)
   }
 
-  public func chunks<Trigger, Collected: RangeReplaceableCollection>(ofCount count: Int? = nil, delimitedBy trigger: Trigger, collectedInto: Collected.Type) -> AsyncChunksOfCountAndTriggerSequence<Self, Collected, Trigger> where Collected.Element == Element {
-    AsyncChunksOfCountAndTriggerSequence(self, count: count, trigger: trigger)
+  public func chunked<Signal, Collected: RangeReplaceableCollection>(byCount count: Int, andSignal signal: Signal, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+    AsyncChunksOfCountAndSignalSequence(self, count: count, signal: signal)
   }
 
-  public func chunks<Trigger>(ofCount count: Int? = nil, delimitedBy trigger: Trigger) -> AsyncChunksOfCountAndTriggerSequence<Self, [Element], Trigger> {
-    chunks(ofCount: count, delimitedBy: trigger, collectedInto: [Element].self)
+  public func chunked<Signal>(byCount count: Int, andSignal signal: Signal) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], Signal> {
+    chunked(byCount: count, andSignal: signal, collectedInto: [Element].self)
+  }
+
+  public func chunked<Signal, Collected: RangeReplaceableCollection>(bySignal signal: Signal, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+    AsyncChunksOfCountAndSignalSequence(self, count: nil, signal: signal)
+  }
+
+  public func chunked<Signal>(bySignal signal: Signal) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], Signal> {
+    chunked(bySignal: signal, collectedInto: [Element].self)
   }
 
 #if false
   @inlinable
-  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int? = nil, delimitedBy timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndTriggerSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
-    AsyncChunksOfCountAndTriggerSequence(self, count: count, trigger: timer)
+  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byCount count: Int, andTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+    AsyncChunksOfCountAndSignalSequence(self, count: count, signal: timer)
   }
 
   @inlinable
-  public func chunks<C: Clock>(ofCount count: Int? = nil, delimitedBy timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndTriggerSequence<Self, [Element], AsyncTimerSequence<C>> {
-    chunks(ofCount: count, delimitedBy: timer, collectedInto: [Element].self)
+  public func chunked<C: Clock>(byCount count: Int, andTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+    chunked(byCount: count, andTime: timer, collectedInto: [Element].self)
+  }
+
+  @inlinable
+  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+    AsyncChunksOfCountAndSignalSequence(self, count: nil, signal: timer)
+  }
+
+  @inlinable
+  public func chunked<C: Clock>(byTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+    chunked(byTime: timer, collectedInto: [Element].self)
   }
 #endif
 
@@ -62,17 +80,17 @@ extension AsyncSequence {
   }
 }
 
-public struct AsyncChunksOfCountAndTriggerSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Trigger: AsyncSequence>: AsyncSequence, Sendable
-where Collected.Element == Base.Element, Base: Sendable, Trigger: Sendable, Base.AsyncIterator: Sendable, Trigger.AsyncIterator: Sendable, Base.Element: Sendable, Trigger.Element: Sendable {
+public struct AsyncChunksOfCountAndSignalSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Signal: AsyncSequence>: AsyncSequence, Sendable
+where Collected.Element == Base.Element, Base: Sendable, Signal: Sendable, Base.AsyncIterator: Sendable, Signal.AsyncIterator: Sendable, Base.Element: Sendable, Signal.Element: Sendable {
 
   public typealias Element = Collected
 
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     let count: Int?
-    var state: Merge2StateMachine<Base, Trigger>
-    init(base: Base.AsyncIterator, count: Int?, trigger: Trigger.AsyncIterator) {
+    var state: Merge2StateMachine<Base, Signal>
+    init(base: Base.AsyncIterator, count: Int?, signal: Signal.AsyncIterator) {
       self.count = count
-      self.state = Merge2StateMachine(base, terminatesOnNil: true, trigger, terminatesOnNil: false)
+      self.state = Merge2StateMachine(base, terminatesOnNil: true, signal, terminatesOnNil: false)
     }
     
     public mutating func next() async rethrows -> Collected? {
@@ -98,20 +116,20 @@ where Collected.Element == Base.Element, Base: Sendable, Trigger: Sendable, Base
   }
 
   let base: Base
-  let trigger: Trigger
+  let signal: Signal
   let count: Int?
-  init(_ base: Base, count: Int?, trigger: Trigger) {
+  init(_ base: Base, count: Int?, signal: Signal) {
     if let count = count {
       precondition(count > 0)
     }
 
     self.base = base
     self.count = count
-    self.trigger = trigger
+    self.signal = signal
   }
 
   public func makeAsyncIterator() -> Iterator {
-    return Iterator(base: base.makeAsyncIterator(), count: count, trigger: trigger.makeAsyncIterator())
+    return Iterator(base: base.makeAsyncIterator(), count: count, signal: signal.makeAsyncIterator())
   }
 }
 

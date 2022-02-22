@@ -23,92 +23,92 @@ func concatCharacters(_ array: [String]) -> String {
 
 final class TestChunkSequence: XCTestCase {
 
-  func test_trigger_equalChunks() {
+  func test_signal_equalChunks() {
     marbleDiagram {
       "ABC-    DEF-    GHI-     |"
       "---X    ---X    ---X    |"
-      $0.inputs[0].chunks(delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
       "---'ABC'---'DEF'---'GHI'|"
     }
   }
 
-  func test_trigger_unequalChunks() {
+  func test_signal_unequalChunks() {
     marbleDiagram {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
-      $0.inputs[0].chunks(delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
       "--'AB'-A--------'ABCDEFGH'|"
     }
   }
 
-  func test_trigger_emptyChunks() {
+  func test_signal_emptyChunks() {
     marbleDiagram {
       "--1--|"
       "XX-XX|"
-      $0.inputs[0].chunks(delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
       "---1-|"
     }
   }
 
-  func test_trigger_error() {
+  func test_signal_error() {
     marbleDiagram {
       "AB^"
       "---X|"
-      $0.inputs[0].chunks(delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
       "--^"
     }
   }
 
-  func test_trigger_untriggeredTrailingChunk() {
+  func test_signal_unsignaledTrailingChunk() {
     marbleDiagram {
       "111-111|"
       "---X---|"
-      $0.inputs[0].chunks(delimitedBy: $0.inputs[1]).map(sumCharacters)
+      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(sumCharacters)
       "---3---[3|]"
     }
   }
 
-  func test_triggerAndCount_triggerAlwaysPrevails() {
+  func test_signalAndCount_signalAlwaysPrevails() {
     marbleDiagram {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
-      $0.inputs[0].chunks(ofCount: 42, delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(byCount: 42, andSignal: $0.inputs[1]).map(concatCharacters)
       "--'AB'-A--------'ABCDEFGH'|"
     }
   }
 
-  func test_triggerAndCount_countAlwaysPrevails() {
+  func test_signalAndCount_countAlwaysPrevails() {
     marbleDiagram {
       "AB   --A-B   -|"
       "--   X----   X|"
-      $0.inputs[0].chunks(ofCount: 2, delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(byCount: 2, andSignal: $0.inputs[1]).map(concatCharacters)
       "-'AB'----'AB'-|"
     }
   }
 
-  func test_triggerAndCount_countResetsAfterCount() {
+  func test_signalAndCount_countResetsAfterCount() {
     marbleDiagram {
       "ABCDE      -ABCDE      |"
       "-----      ------      |"
-      $0.inputs[0].chunks(ofCount: 5, delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
       "----'ABCDE'-----'ABCDE'|"
     }
   }
 
-  func test_triggerAndCount_countResetsAfterTrigger() {
+  func test_signalAndCount_countResetsAfterSignal() {
     marbleDiagram {
       "AB-   ABCDE      |"
       "--X   -----      |"
-      $0.inputs[0].chunks(ofCount: 5, delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
       "--'AB'----'ABCDE'|"
     }
   }
 
-  func test_triggerAndCount_error() {
+  func test_signalAndCount_error() {
     marbleDiagram {
       "ABC^"
       "----X|"
-      $0.inputs[0].chunks(ofCount: 5, delimitedBy: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
       "---^"
     }
   }
