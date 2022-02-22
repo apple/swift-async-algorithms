@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-enum PartialIteration<Iterator: AsyncIteratorProtocol, Partial: Sendable>: CustomStringConvertible, Sendable where Iterator: Sendable, Iterator.Element: Sendable {
+enum PartialIteration<Iterator: AsyncIteratorProtocol, Partial: Sendable>: CustomStringConvertible {
   case idle(Iterator)
   case pending(Task<Partial, Never>)
   case terminal
@@ -43,3 +43,5 @@ enum PartialIteration<Iterator: AsyncIteratorProtocol, Partial: Sendable>: Custo
     self = .terminal
   }
 }
+
+extension PartialIteration: Sendable where Iterator: Sendable, Iterator.Element: Sendable { }
