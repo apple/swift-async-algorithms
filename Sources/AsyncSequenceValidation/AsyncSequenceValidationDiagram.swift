@@ -13,38 +13,21 @@ import _CAsyncSequenceValidationSupport
 
 @resultBuilder
 public struct AsyncSequenceValidationDiagram : Sendable {
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ sequence: Operation,
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    return Test(inputs: [], sequence: sequence, output: output)
+  public struct AccumulatedInputs {
+    var inputs: [Specification] = []
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    return Test(inputs: [input], sequence: sequence, output: output)
+  public struct AccumulatedInputsWithOperation<Operation: AsyncSequence> where Operation.Element == String {
+    var inputs: [Specification]
+    var operation: Operation
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String, 
-    _ input2: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2], sequence: sequence, output: output)
+  public static func buildBlock(_ input: String, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputs {
+    AccumulatedInputs(inputs: [Specification(specification: input, file: file, line: line)])
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String, 
-    _ input2: String, 
-    _ input3: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
+  public static func buildBlock<Operation: AsyncSequence>(_ operation: Operation, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputsWithOperation<Operation> where Operation.Element == String {
+    AccumulatedInputsWithOperation(inputs: [], operation: operation)
   }
 
   public static func buildBlock<Operation: AsyncSequence>(
@@ -58,6 +41,18 @@ public struct AsyncSequenceValidationDiagram : Sendable {
     Test(inputs: [input1, input2, input3, input4], sequence: sequence, output: output)
   }
   
+  public static func buildBlock(combining input: String, into accumulated: AccumulatedInputs, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputs {
+    AccumulatedInputs(inputs: accumulated.inputs + [Specification(specification: input, file: file, line: line)])
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(combining operation: Operation, into accumulated: AccumulatedInputs, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputsWithOperation<Operation> {
+    AccumulatedInputsWithOperation(inputs: accumulated.inputs, operation: operation)
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(combining output: String, into accumulated: AccumulatedInputsWithOperation<Operation>, file: StaticString = #file, line: UInt = #line) -> some AsyncSequenceValidationTest {
+    Test(inputs: accumulated.inputs, sequence: accumulated.operation, output: Specification(specification: output, file: file, line: line))
+  }
+
   let queue: WorkQueue
   
   public var inputs: InputList

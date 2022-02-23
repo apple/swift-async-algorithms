@@ -14,9 +14,7 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 
 extension XCTestCase {
-  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
-    let location = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
-    let context = XCTSourceCodeContext(location: location)
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     do {
       let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
       if failures.count > 0 {
@@ -26,16 +24,20 @@ extension XCTestCase {
         print(result.reconstituteActual(theme: theme))
       }
       for failure in failures {
+        let location = XCTSourceCodeLocation(filePath: failure.specification.file.description, lineNumber: Int(failure.specification.line))
+        let context = XCTSourceCodeContext(location: location)
         let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
         record(issue)
       }
     } catch {
+      let location = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
+      let context = XCTSourceCodeContext(location: location)
       let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
       record(issue)
     }
   }
   
-  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, build, file: file, line: line)
   }
 }

@@ -10,6 +10,12 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequenceValidationDiagram {
+  public struct Specification {
+    public let specification: String
+    public let file: StaticString
+    public let line: UInt
+  }
+  
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
     
