@@ -20,6 +20,15 @@ final class TestDebounce: XCTestCase {
       "------d----e-----g-|"
     }
   }
+
+  func test_delayingValues_dangling_last() {
+    validate {
+      "abcd----e---f-g-|"
+      $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
+      "------d----e----|"
+    }
+  }
+
   
   func test_finishDoesntDebounce() {
     validate {

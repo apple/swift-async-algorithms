@@ -81,6 +81,7 @@ extension AsyncDebounceSequence: AsyncSequence {
         case .produce(let result, let iter):
           lastResult = result
           last = clock.now
+          sleep.cancel()
           self.iterator = iter
           switch result {
           case .success(let value):
