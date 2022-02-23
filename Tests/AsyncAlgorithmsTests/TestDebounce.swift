@@ -11,11 +11,10 @@
 
 import XCTest
 import AsyncAlgorithms
-import MarbleDiagram
 
 final class TestDebounce: XCTestCase {
   func test_delayingValues() {
-    marbleDiagram {
+    validate {
       "abcd----e---f-g----|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
       "------d----e-----g-|"
@@ -23,7 +22,7 @@ final class TestDebounce: XCTestCase {
   }
   
   func test_finishDoesntDebounce() {
-    marbleDiagram {
+    validate {
       "a|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
       "-|"
@@ -31,7 +30,7 @@ final class TestDebounce: XCTestCase {
   }
   
   func test_throwDoesntDebounce() {
-    marbleDiagram {
+    validate {
       "a^"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
       "-^"
@@ -39,7 +38,7 @@ final class TestDebounce: XCTestCase {
   }
   
   func test_noValues() {
-    marbleDiagram {
+    validate {
       "----|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
       "----|"

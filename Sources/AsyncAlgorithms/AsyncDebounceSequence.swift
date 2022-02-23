@@ -15,8 +15,8 @@ extension AsyncSequence {
   }
 }
 
-public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>
-  where Base.AsyncIterator: Sendable, Base.Element: Sendable {
+public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
+  where Base.AsyncIterator: Sendable, Base.Element: Sendable, Base: Sendable {
   let base: Base
   let interval: C.Instant.Duration
   let tolerance: C.Instant.Duration?
@@ -33,7 +33,7 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>
 extension AsyncDebounceSequence: AsyncSequence {
   public typealias Element = Base.Element
   
-  public struct Iterator: AsyncIteratorProtocol {
+  public struct Iterator: AsyncIteratorProtocol, Sendable {
     enum Partial: Sendable {
       case sleep
       case produce(Result<Base.Element?, Error>, Base.AsyncIterator)
