@@ -239,7 +239,7 @@ struct WorkQueue: Sendable {
       }
       if state.items[token]?.isCancelled == true {
         let item: Item = .work(token, {
-          continuation.resume(throwing: CancellationError())
+          continuation.resume(returning: nil) // the input sequences should not throw cancellation errors
         })
         state.queues[job, default: []].append(item)
         state.items[token] = item

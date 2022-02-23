@@ -32,8 +32,20 @@ extension AsyncSequenceValidationDiagram {
     let output: String
     
     func test(_ event: (String) -> Void) async throws {
-      for try await item in sequence {
-        event(item)
+      var iterator = sequence.makeAsyncIterator()
+      do {
+        while let item = try await iterator.next() {
+          event(item)
+        }
+        do {
+          if let pastEnd = try await iterator.next(){
+            Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotValueAfterIteration(pastEnd)))
+          }
+        } catch {
+          Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotFailureAfterIteration(error)))
+        }
+      } catch {
+        throw error
       }
     }
   }
@@ -56,6 +68,8 @@ extension AsyncSequenceValidationDiagram {
     static var driver: TaskDriver?
     
     static var currentJob: Job?
+    
+    static var specificationFailures = [ExpectationFailure]()
   }
   
   enum ActualResult {
@@ -84,7 +98,8 @@ extension AsyncSequenceValidationDiagram {
     actual: [(Clock.Instant, Result<String?, Error>)]
   ) -> (ExpectationResult, [ExpectationFailure]) {
     let result = ExpectationResult(expected: expected, actual: actual)
-    var failures = [ExpectationFailure]()
+    var failures = Context.specificationFailures
+    Context.specificationFailures.removeAll()
     
     let actualTimes = actual.map { when, _ in when }
     let expectedTimes = expected.map { when, _ in when }
@@ -238,6 +253,7 @@ extension AsyncSequenceValidationDiagram {
 
     let actual = ManagedCriticalState([(Clock.Instant, Result<String?, Error>)]())
     Context.clock = clock
+    Context.specificationFailures.removeAll()
     // This all needs to be isolated from potential Tasks (the caller function might be async!)
     Context.driver = TaskDriver(queue: diagram.queue) { driver in
       swift_task_enqueueGlobal_hook = { job, original in

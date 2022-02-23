@@ -232,4 +232,22 @@ final class TestValidationDiagram: XCTestCase {
       "[a-]b|"
     }
   }
+  
+  func test_diagram_specification_produce_past_end() {
+    expectFailures(["specification violation got \"d\" after iteration terminated at tick 9"])
+    validate {
+      "a--b--c--|"
+      $0.inputs[0].violatingSpecification(returningPastEndIteration: "d")
+      "a--b--c--|"
+    }
+  }
+  
+  func test_diagram_specification_throw_past_end() {
+    expectFailures(["specification violation got failure after iteration terminated at tick 9"])
+    validate {
+      "a--b--c--|"
+      $0.inputs[0].violatingSpecification(throwingPastEndIteration: Failure())
+      "a--b--c--|"
+    }
+  }
 }
