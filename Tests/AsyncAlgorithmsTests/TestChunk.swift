@@ -21,7 +21,7 @@ func concatCharacters(_ array: [String]) -> String {
   return array.joined()
 }
 
-final class TestChunkSequence: XCTestCase {
+final class TestChunk: XCTestCase {
 
   func test_signal_equalChunks() {
     validate {
