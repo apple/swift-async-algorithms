@@ -30,10 +30,12 @@ extension Task {
   /// - Parameters:
   ///   - tasks: The running tasks to obtain a result from
   /// - Returns: The first task to complete from the running tasks
-  public static func select<Tasks: Sequence & Sendable>(
-    _ tasks: Tasks
-  ) async -> Task<Success, Failure>
-  where Tasks.Element == Task<Success, Failure> {
+  public static func select(
+    _ tasks: [Task<Success, Failure>]
+  ) async -> Task<Success, Failure> {
+    if tasks.count == 1 {
+      return tasks.first!
+    }
     let state = ManagedCriticalState(TaskSelectState<Success, Failure>())
     return await withTaskCancellationHandler {
       let tasks = state.withCriticalRegion { state -> [Task<Success, Failure>] in

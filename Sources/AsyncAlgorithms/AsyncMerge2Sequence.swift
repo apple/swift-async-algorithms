@@ -52,31 +52,57 @@ where
       } else if case .terminal = state.0, case .terminal = state.1 {
         return nil
       }
-      let tasks = [state.0.task {
-        .first($0, $1)
-      }, state.1.task {
-        .second($0, $1)
-      }]
-      switch await Task.select(tasks.compactMap({ $0 })).value {
-      case .first(let result, let iterator):
+      if case .idle(var iterator) = state.0, case .terminal = state.1 {
         do {
-          guard let value = try state.0.resolve(result, iterator) else {
-            return try await next()
+          if let value = try await iterator.next() {
+            state.0 = .idle(iterator)
+            return value
           }
-          return value
+          state.0 = .terminal
+          return nil
         } catch {
-          state.1.cancel()
+          state.0 = .terminal
           throw error
         }
-      case .second(let result, let iterator):
+      } else if case .terminal = state.0, case .idle(var iterator) = state.1 {
         do {
-          guard let value = try state.1.resolve(result, iterator) else {
-            return try await next()
+          if let value = try await iterator.next() {
+            state.1 = .idle(iterator)
+            return value
           }
-          return value
+          state.1 = .terminal
+          return nil
         } catch {
-          state.0.cancel()
+          state.1 = .terminal
           throw error
+        }
+      } else {
+        let tasks = [state.0.task {
+          .first($0, $1)
+        }, state.1.task {
+          .second($0, $1)
+        }]
+        switch await Task.select(tasks.compactMap({ $0 })).value {
+        case .first(let result, let iterator):
+          do {
+            guard let value = try state.0.resolve(result, iterator) else {
+              return try await next()
+            }
+            return value
+          } catch {
+            state.1.cancel()
+            throw error
+          }
+        case .second(let result, let iterator):
+          do {
+            guard let value = try state.1.resolve(result, iterator) else {
+              return try await next()
+            }
+            return value
+          } catch {
+            state.0.cancel()
+            throw error
+          }
         }
       }
     }
