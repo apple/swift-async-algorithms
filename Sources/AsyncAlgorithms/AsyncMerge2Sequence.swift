@@ -33,12 +33,10 @@ where
   public typealias Element = Base1.Element
   /// An iterator for `AsyncMerge2Sequence`
   public struct Iterator: AsyncIteratorProtocol, Sendable {
-    enum Partial: Sendable {
-      case first(Result<Element?, Error>, Base1.AsyncIterator)
-      case second(Result<Element?, Error>, Base2.AsyncIterator)
-    }
-    
-    var state: (PartialIteration<Base1.AsyncIterator, Partial>, PartialIteration<Base2.AsyncIterator, Partial>)
+    var state: (
+      PartialIterationState<Base1.AsyncIterator, Partial2<Base1.AsyncIterator, Base2.AsyncIterator>>,
+      PartialIterationState<Base2.AsyncIterator, Partial2<Base1.AsyncIterator, Base2.AsyncIterator>>
+    )
     
     init(_ iterator1: Base1.AsyncIterator, _ iterator2: Base2.AsyncIterator) {
       state = (.idle(iterator1), .idle(iterator2))
@@ -49,39 +47,19 @@ where
         state.0.cancel()
         state.1.cancel()
         return nil
-      } else if case .terminal = state.0, case .terminal = state.1 {
-        return nil
       }
-      if case .idle(var iterator) = state.0, case .terminal = state.1 {
-        do {
-          if let value = try await iterator.next() {
-            state.0 = .idle(iterator)
-            return value
-          }
-          state.0 = .terminal
-          return nil
-        } catch {
-          state.0 = .terminal
-          throw error
-        }
-      } else if case .terminal = state.0, case .idle(var iterator) = state.1 {
-        do {
-          if let value = try await iterator.next() {
-            state.1 = .idle(iterator)
-            return value
-          }
-          state.1 = .terminal
-          return nil
-        } catch {
-          state.1 = .terminal
-          throw error
-        }
-      } else {
-        let tasks = [state.0.task {
-          .first($0, $1)
-        }, state.1.task {
-          .second($0, $1)
-        }]
+      switch state {
+      case (.idle(let iterator), .terminal):
+        return try await state.0.iterate(iterator)
+      case (.terminal, .idle(let iterator)):
+        return try await state.1.iterate(iterator)
+      case (.terminal, .terminal):
+        return nil
+      default:
+        let tasks = [
+          state.0.task(),
+          state.1.task()
+        ]
         switch await Task.select(tasks.compactMap({ $0 })).value {
         case .first(let result, let iterator):
           do {
