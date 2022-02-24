@@ -51,31 +51,69 @@ public struct AsyncChunksOfCountAndSignalSequence<Base: AsyncSequence, Collected
 
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     let count: Int?
-    var state: Merge2StateMachine<Base, Signal>
+    var state: (PartialIterationState<Base.AsyncIterator, Partial2<Base.AsyncIterator, Signal.AsyncIterator>>, PartialIterationState<Signal.AsyncIterator, Partial2<Base.AsyncIterator, Signal.AsyncIterator>>)
+    
     init(base: Base.AsyncIterator, count: Int?, signal: Signal.AsyncIterator) {
       self.count = count
-      self.state = Merge2StateMachine(base, terminatesOnNil: true, signal)
+      self.state = (.idle(base), .idle(signal))
     }
     
     public mutating func next() async rethrows -> Collected? {
-      var result : Collected?
-      while let next = try await state.next() {
-        switch next {
-          case .first(let element):
-            if result == nil {
-              result = Collected()
+      if Task.isCancelled {
+        state.0.cancel()
+        state.1.cancel()
+        return nil
+      }
+      switch state {
+      case (.idle, .terminal):
+        state.0.cancel()
+        return nil
+      case (.terminal, .idle):
+        state.1.cancel()
+        return nil
+      case (.terminal, .terminal):
+        return nil
+      default:
+        var collected: Collected?
+        while true {
+          let tasks = [
+            state.0.task(),
+            state.1.task()
+          ]
+          switch await Task.select(tasks.compactMap({ $0 })).value {
+          case .first(let result, let iterator):
+            do {
+              guard let element = try state.0.resolve(result, iterator) else {
+                state.1.cancel()
+                return collected
+              }
+              if collected == nil {
+                collected = Collected()
+              }
+              collected!.append(element)
+              if collected?.count == count {
+                return collected
+              }
+            } catch {
+              state.1.cancel()
+              throw error
             }
-            result!.append(element)
-            if result?.count == count {
-              return result
+          case .second(let result, let iterator):
+            do {
+              guard try state.1.resolve(result, iterator) != nil else {
+                state.0.cancel()
+                return collected
+              }
+              if collected != nil {
+                return collected
+              }
+            } catch {
+              state.0.cancel()
+              throw error
             }
-          case .second(_):
-            if result != nil {
-              return result
-            }
+          }
         }
       }
-      return result
     }
   }
 
