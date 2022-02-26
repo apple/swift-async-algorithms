@@ -24,6 +24,7 @@ final class TestBuffer: XCTestCase {
       apply(&value)
     }
   }
+  
   func test_buffering() async {
     var gated = GatedSequence([1, 2, 3, 4, 5])
     let sequence = gated.buffer()
@@ -49,5 +50,90 @@ final class TestBuffer: XCTestCase {
     XCTAssertEqual(value, nil)
     value = await iterator.next()
     XCTAssertEqual(value, nil)
+  }
+  
+  func test_buffer_delegation() async {
+    actor BufferDelegate: AsyncBuffer {
+      var buffer = [Int]()
+      var pushed = [Int]()
+      
+      func push(_ element: Int) async {
+        buffer.append(element)
+        pushed.append(element)
+      }
+      
+      func pop() async -> Int? {
+        if buffer.count > 0 {
+          return buffer.removeFirst()
+        }
+        return nil
+      }
+    }
+    let delegate = BufferDelegate()
+    var gated = GatedSequence([1, 2, 3, 4, 5])
+    let sequence = gated.buffer {
+      delegate
+    }
+    var iterator = sequence.makeAsyncIterator()
+    
+    gated.advance()
+    var value = await iterator.next()
+    var pushed = await delegate.pushed
+    XCTAssertEqual(pushed, [1])
+    XCTAssertEqual(value, 1)
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    value = await iterator.next()
+    XCTAssertEqual(value, 2)
+    value = await iterator.next()
+    pushed = await delegate.pushed
+    XCTAssertEqual(pushed, [1, 2, 3, 4])
+    XCTAssertEqual(value, 3)
+    value = await iterator.next()
+    pushed = await delegate.pushed
+    XCTAssertEqual(pushed, [1, 2, 3, 4])
+    XCTAssertEqual(value, 4)
+    gated.advance()
+    gated.advance()
+    value = await iterator.next()
+    pushed = await delegate.pushed
+    XCTAssertEqual(pushed, [1, 2, 3, 4, 5])
+    XCTAssertEqual(value, 5)
+    value = await iterator.next()
+    XCTAssertEqual(value, nil)
+    value = await iterator.next()
+    XCTAssertEqual(value, nil)
+  }
+  
+  func test_byteBuffer() async {
+    actor ByteBuffer: AsyncBuffer {
+      var buffer: Data?
+      
+      func push(_ element: UInt8) async {
+        if buffer == nil {
+          buffer = Data()
+        }
+        buffer?.append(element)
+      }
+      
+      func pop() async -> Data? {
+        defer { buffer = nil }
+        return buffer
+      }
+    }
+    
+    var data = Data()
+    for _ in 0..<4096 {
+      data.append(UInt8.random(in: 0..<UInt8.max))
+    }
+    let buffered = data.async.buffer {
+      ByteBuffer()
+    }
+    var collected = Data()
+    for await segment in buffered {
+      collected.append(contentsOf: segment)
+    }
+    XCTAssertEqual(data, collected)
   }
 }

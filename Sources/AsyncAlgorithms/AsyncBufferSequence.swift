@@ -155,7 +155,7 @@ internal struct AsyncBufferState<Input, Output> : Sendable {
 }
 
 @rethrows
-public protocol AsyncBuffer: Sendable {
+public protocol AsyncBuffer: Actor {
   associatedtype Input
   associatedtype Output
 
