@@ -51,8 +51,7 @@ where
         return nil
       } else if case .terminal = state.0, case .terminal = state.1 {
         return nil
-      }
-      if case .idle(var iterator) = state.0, case .terminal = state.1 {
+      } else if case .idle(var iterator) = state.0, case .terminal = state.1 {
         do {
           if let value = try await iterator.next() {
             state.0 = .idle(iterator)

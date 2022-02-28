@@ -50,32 +50,85 @@ public struct AsyncChunksOfCountAndSignalSequence<Base: AsyncSequence, Collected
   public typealias Element = Collected
 
   public struct Iterator: AsyncIteratorProtocol, Sendable {
+    enum Partial: Sendable {
+      case base(Result<Base.Element?, Error>, Base.AsyncIterator)
+      case signal(Result<Signal.Element?, Error>, Signal.AsyncIterator)
+    }
+    
     let count: Int?
-    var state: Merge2StateMachine<Base, Signal>
+    
+    var state: (PartialIteration<Base.AsyncIterator, Partial>, PartialIteration<Signal.AsyncIterator, Partial>)
+    
     init(base: Base.AsyncIterator, count: Int?, signal: Signal.AsyncIterator) {
       self.count = count
-      self.state = Merge2StateMachine(base, terminatesOnNil: true, signal)
+      self.state = (.idle(base), .idle(signal))
     }
     
     public mutating func next() async rethrows -> Collected? {
-      var result : Collected?
-      while let next = try await state.next() {
-        switch next {
-          case .first(let element):
-            if result == nil {
-              result = Collected()
+      var collected: Collected?
+      while true  {
+        if Task.isCancelled {
+          state.0.cancel()
+          state.1.cancel()
+          return nil
+        }
+        switch state {
+        case (.terminal, _): fallthrough
+        case (_, .terminal):
+          return nil
+        default:
+          let baseTask = state.0.task {
+            .base($0, $1)
+          }
+          let signalTask = state.1.task {
+            .signal($0, $1)
+          }
+          switch await Task.select([baseTask, signalTask].compactMap({ $0 })).value {
+          case .base(let result, let iterator):
+            do {
+              state.0 = .idle(iterator)
+              guard let element = try result.get() else {
+                signalTask?.cancel()
+                state = (.terminal, .terminal)
+                return collected
+              }
+              if collected == nil {
+                collected = Collected()
+              }
+              collected?.append(element)
+              if collected?.count == count {
+                return collected
+              }
+            } catch {
+              signalTask?.cancel()
+              state = (.terminal, .terminal)
+              try result._rethrowError()
             }
-            result!.append(element)
-            if result?.count == count {
-              return result
+            if collected == nil {
+              collected = Collected()
             }
-          case .second(_):
-            if result != nil {
-              return result
+            
+          case .signal(let result, let iterator):
+            state.1 = .idle(iterator)
+            switch result {
+            case .success(let signal):
+              if signal != nil {
+                if collected != nil {
+                  return collected
+                }
+              } else {
+                baseTask?.cancel()
+                state = (.terminal, .terminal)
+                return collected
+              }
+            case .failure:
+              baseTask?.cancel()
+              state = (.terminal, .terminal)
+              try result._rethrowError()
             }
+          }
         }
       }
-      return result
     }
   }
 
