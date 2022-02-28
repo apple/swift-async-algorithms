@@ -87,9 +87,8 @@ public struct AsyncChunksOfCountAndSignalSequence<Base: AsyncSequence, Collected
           case .base(let result, let iterator):
             do {
               state.0 = .idle(iterator)
-              guard let element = try result.get() else {
-                signalTask?.cancel()
-                state = (.terminal, .terminal)
+              guard let element = try state.0.resolve(result, iterator) else {
+                state.1.cancel()
                 return collected
               }
               if collected == nil {
@@ -100,31 +99,21 @@ public struct AsyncChunksOfCountAndSignalSequence<Base: AsyncSequence, Collected
                 return collected
               }
             } catch {
-              signalTask?.cancel()
-              state = (.terminal, .terminal)
-              try result._rethrowError()
+              state.1.cancel()
+              throw error
             }
-            if collected == nil {
-              collected = Collected()
-            }
-            
           case .signal(let result, let iterator):
-            state.1 = .idle(iterator)
-            switch result {
-            case .success(let signal):
-              if signal != nil {
-                if collected != nil {
-                  return collected
-                }
-              } else {
-                baseTask?.cancel()
-                state = (.terminal, .terminal)
+            do {
+              guard try state.1.resolve(result, iterator) != nil else {
+                state.0.cancel()
                 return collected
               }
-            case .failure:
-              baseTask?.cancel()
-              state = (.terminal, .terminal)
-              try result._rethrowError()
+              if collected != nil {
+                return collected
+              }
+            } catch {
+              state.0.cancel()
+              throw error
             }
           }
         }
