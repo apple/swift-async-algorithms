@@ -35,11 +35,13 @@ where
   public typealias Element = Base1.Element
   /// An iterator for `AsyncMerge3Sequence`
   public struct Iterator: AsyncIteratorProtocol, Sendable {
-    var state: (
-      PartialIterationState<Base1.AsyncIterator, Partial3<Base1.AsyncIterator, Base2.AsyncIterator, Base3.AsyncIterator>>,
-      PartialIterationState<Base2.AsyncIterator, Partial3<Base1.AsyncIterator, Base2.AsyncIterator, Base3.AsyncIterator>>,
-      PartialIterationState<Base3.AsyncIterator, Partial3<Base1.AsyncIterator, Base2.AsyncIterator, Base3.AsyncIterator>>
-    )
+    enum Partial: Sendable {
+      case first(Result<Element?, Error>, Base1.AsyncIterator)
+      case second(Result<Element?, Error>, Base2.AsyncIterator)
+      case third(Result<Element?, Error>, Base3.AsyncIterator)
+    }
+    
+    var state: (PartialIteration<Base1.AsyncIterator, Partial>, PartialIteration<Base2.AsyncIterator, Partial>, PartialIteration<Base3.AsyncIterator, Partial>)
     
     init(_ iterator1: Base1.AsyncIterator, _ iterator2: Base2.AsyncIterator, _ iterator3: Base3.AsyncIterator) {
       state = (.idle(iterator1), .idle(iterator2), .idle(iterator3))
@@ -49,57 +51,51 @@ where
       if Task.isCancelled {
         state.0.cancel()
         state.1.cancel()
+        state.2.cancel()
+        return nil
+      } else if case .terminal = state.0, case .terminal = state.1, case .terminal = state.2 {
         return nil
       }
-      switch state {
-      case (.idle(let iterator), .terminal, .terminal):
-        return try await state.0.iterate(iterator)
-      case (.terminal, .idle(let iterator), .terminal):
-        return try await state.1.iterate(iterator)
-      case (.terminal, .terminal, .idle(let iterator)):
-        return try await state.2.iterate(iterator)
-      case (.terminal, .terminal, .terminal):
-        return nil
-      default:
-        let tasks = [
-          state.0.task(),
-          state.1.task(),
-          state.2.task()
-        ]
-        switch await Task.select(tasks.compactMap({ $0 })).value {
-        case .first(let result, let iterator):
-          do {
-            guard let value = try state.0.resolve(result, iterator) else {
-              return try await next()
-            }
-            return value
-          } catch {
-            state.1.cancel()
-            state.2.cancel()
-            throw error
+      let tasks = [state.0.task {
+        .first($0, $1)
+      }, state.1.task {
+        .second($0, $1)
+      }, state.2.task {
+        .third($0, $1)
+      }]
+      switch await Task.select(tasks.compactMap({ $0 })).value {
+      case .first(let result, let iterator):
+        do {
+          guard let value = try state.0.resolve(result, iterator) else {
+            return try await next()
           }
-        case .second(let result, let iterator):
-          do {
-            guard let value = try state.1.resolve(result, iterator) else {
-              return try await next()
-            }
-            return value
-          } catch {
-            state.0.cancel()
-            state.2.cancel()
-            throw error
+          return value
+        } catch {
+          state.1.cancel()
+          state.2.cancel()
+          throw error
+        }
+      case .second(let result, let iterator):
+        do {
+          guard let value = try state.1.resolve(result, iterator) else {
+            return try await next()
           }
-        case .third(let result, let iterator):
-          do {
-            guard let value = try state.2.resolve(result, iterator) else {
-              return try await next()
-            }
-            return value
-          } catch {
-            state.0.cancel()
-            state.1.cancel()
-            throw error
+          return value
+        } catch {
+          state.0.cancel()
+          state.2.cancel()
+          throw error
+        }
+      case .third(let result, let iterator):
+        do {
+          guard let value = try state.2.resolve(result, iterator) else {
+            return try await next()
           }
+          return value
+        } catch {
+          state.0.cancel()
+          state.1.cancel()
+          throw error
         }
       }
     }
