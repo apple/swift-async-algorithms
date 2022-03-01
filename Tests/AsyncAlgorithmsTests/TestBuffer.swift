@@ -27,7 +27,7 @@ final class TestBuffer: XCTestCase {
   
   func test_buffering() async {
     var gated = GatedSequence([1, 2, 3, 4, 5])
-    let sequence = gated.buffer()
+    let sequence = gated.buffer(policy: .unbounded)
     var iterator = sequence.makeAsyncIterator()
     
     gated.advance()

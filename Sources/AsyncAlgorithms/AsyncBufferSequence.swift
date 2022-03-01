@@ -182,7 +182,7 @@ extension AsyncSequence where Element: Sendable {
     AsyncBufferSequence(self, createBuffer: createBuffer)
   }
   
-  public func buffer(bufferingPolicy limit: AsyncLimitBuffer<Element>.Policy = .unbounded) -> AsyncBufferSequence<Self, AsyncLimitBuffer<Element>> {
+  public func buffer(policy limit: AsyncLimitBuffer<Element>.Policy) -> AsyncBufferSequence<Self, AsyncLimitBuffer<Element>> {
     buffer {
       AsyncLimitBuffer(policy: limit)
     }
