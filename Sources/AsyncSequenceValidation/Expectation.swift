@@ -30,6 +30,9 @@ extension AsyncSequenceValidationDiagram {
       case unexpectedValue(String)
       case unexpectedFinish
       case unexpectedFailure(Error)
+      
+      case specificationViolationGotValueAfterIteration(String)
+      case specificationViolationGotFailureAfterIteration(Error)
     }
     public var when: Clock.Instant
     public var kind: Kind
@@ -62,6 +65,10 @@ extension AsyncSequenceValidationDiagram {
         return "unexpected finish"
       case .unexpectedFailure:
         return "unexpected failure"
+      case .specificationViolationGotValueAfterIteration(let actual):
+        return "specification violation got \"\(actual)\" after iteration terminated"
+      case .specificationViolationGotFailureAfterIteration(let error):
+        return "specification violation got failure after iteration terminated"
       }
     }
     
