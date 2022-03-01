@@ -9,8 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-internal struct AsyncBufferState<Input, Output> : Sendable {
-  enum Continuation: CustomStringConvertible {
+actor AsyncBufferState<Input: Sendable, Output: Sendable> {
+  enum Continuation: Sendable, CustomStringConvertible {
     case idle
     case placeholder
     case pending(UnsafeContinuation<Result<Output?, Error>, Never>)
@@ -19,71 +19,54 @@ internal struct AsyncBufferState<Input, Output> : Sendable {
     var description: String {
       switch self {
       case .idle: return "idle"
-      case .placeholder:
-        return "placeholder"
-      case .resolved:
-        return "resolved"
-      case .pending:
-        return "pending"
+      case .placeholder: return "placeholder"
+      case .resolved: return "resolved"
+      case .pending: return "pending"
       }
     }
   }
   
-  struct State {
-    var pending = Continuation.idle
-    var generation = 0
-    var finished = false
-    var failure: Error?
-  }
-  
-  let state = ManagedCriticalState(State())
+  var pending = Continuation.idle
+  var finished = false
+  var failure: Error?
   
   init() { }
   
   func drain<Buffer: AsyncBuffer>(buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
-    let pending = state.withCriticalRegion { $0.pending }
     switch pending {
     case .idle:
       return
     case .pending(let continuation):
       do {
         if let value = try await buffer.pop() {
-          state.withCriticalRegion { $0.pending = .idle }
+          pending = .idle
           continuation.resume(returning: .success(value))
         } else {
-          state.withCriticalRegion { state in
-            if let error = state.failure {
-              state.failure = nil
-              state.pending = .resolved(.failure(error))
-            } else if state.finished {
-              state.pending = .resolved(.success(nil))
-            }
+          if let error = failure {
+            failure = nil
+            pending = .resolved(.failure(error))
+          } else if finished {
+            pending = .resolved(.success(nil))
           }
         }
       } catch {
-        state.withCriticalRegion { $0.pending = .idle }
+        pending = .idle
         continuation.resume(returning: .failure(error))
       }
     case .placeholder:
       do {
         if let value = try await buffer.pop() {
-          state.withCriticalRegion { state in
-            state.pending = .resolved(.success(value))
-          }
+          pending = .resolved(.success(value))
         } else {
-          state.withCriticalRegion { state in
-            if let error = state.failure {
-              state.failure = nil
-              state.pending = .resolved(.failure(error))
-            } else if state.finished {
-              state.pending = .resolved(.success(nil))
-            }
+          if let error = failure {
+            failure = nil
+            pending = .resolved(.failure(error))
+          } else if finished {
+            pending = .resolved(.success(nil))
           }
         }
       } catch {
-        state.withCriticalRegion { state in
-          state.pending = .resolved(.failure(error))
-        }
+        pending = .resolved(.failure(error))
       }
     case .resolved:
       break
@@ -96,58 +79,49 @@ internal struct AsyncBufferState<Input, Output> : Sendable {
   }
   
   func fail<Buffer: AsyncBuffer>(_ error: Error, buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
-    state.withCriticalRegion { state in
-      state.finished = true
-      state.failure = error
-    }
+    finished = true
+    failure = error
     await drain(buffer: buffer)
   }
   
   func finish<Buffer: AsyncBuffer>(buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
-    state.withCriticalRegion { state in
-      state.finished = true
-    }
+    finished = true
     await drain(buffer: buffer)
   }
   
   func next<Buffer: AsyncBuffer>(buffer: Buffer) async throws -> Buffer.Output? where Buffer.Input == Input, Buffer.Output == Output {
-    state.withCriticalRegion { $0.pending = .placeholder }
+    pending = .placeholder
     do {
       if let value = try await buffer.pop() {
-        state.withCriticalRegion { $0.pending = .idle }
+        pending = .idle
         return value
       }
     } catch {
-      state.withCriticalRegion { $0.pending = .idle }
+      pending = .idle
       await fail(error, buffer: buffer)
       throw error
     }
     var other: UnsafeContinuation<Result<Output?, Error>, Never>?
     let result: Result<Output?, Error> = await withUnsafeContinuation { continuation in
-      state.withCriticalRegion { state -> UnsafeResumption<Result<Output?, Error>, Never>? in
-        if let error = state.failure {
-          state.failure = nil
-          return UnsafeResumption(continuation: continuation, success: .failure(error))
-        } else if state.finished {
-          return UnsafeResumption(continuation: continuation, success: .success(nil))
-        } else {
-          switch state.pending {
-          case .placeholder:
-            state.pending = .pending(continuation)
-            return nil
-          case .resolved(let result):
-            state.pending = .idle
-            return UnsafeResumption(continuation: continuation, success: result)
-          case .idle:
-            state.pending = .pending(continuation)
-            return nil
-          case .pending(let existing):
-            other = existing
-            state.pending = .pending(continuation)
-            return nil
-          }
+      if let error = failure {
+        failure = nil
+        continuation.resume(returning: .failure(error))
+      } else if finished {
+        continuation.resume(returning: .success(nil))
+      } else {
+        switch pending {
+        case .placeholder:
+          pending = .pending(continuation)
+        case .resolved(let result):
+          pending = .idle
+          continuation.resume(returning: result)
+        case .idle:
+          pending = .pending(continuation)
+        case .pending(let existing):
+          other = existing
+          pending = .pending(continuation)
         }
-      }?.resume()
+      }
     }
     other?.resume(returning: result)
     return try result._rethrowGet()
@@ -156,15 +130,15 @@ internal struct AsyncBufferState<Input, Output> : Sendable {
 
 @rethrows
 public protocol AsyncBuffer: Actor {
-  associatedtype Input
-  associatedtype Output
+  associatedtype Input: Sendable
+  associatedtype Output: Sendable
 
   func push(_ element: Input) async
   func pop() async throws -> Output?
 }
 
 public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
-  public enum Policy : Sendable {
+  public enum Policy: Sendable {
     case unbounded
     case bufferingOldest(Int)
     case bufferingNewest(Int)
@@ -234,11 +208,11 @@ extension AsyncBufferSequence: AsyncSequence {
       let buffer: Buffer
       let state: AsyncBufferState<Buffer.Input, Buffer.Output>
       
-      init(_ iterator: Base.AsyncIterator, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
+      init(_ envelope: Envelope<Base.AsyncIterator>, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
         self.buffer = buffer
         self.state = state
         task = Task {
-          var iter = iterator
+          var iter = envelope.contents
           do {
             while let item = try await iter.next() {
               await state.enqueue(item, buffer: buffer)
@@ -280,7 +254,7 @@ extension AsyncBufferSequence: AsyncSequence {
       switch state {
       case .idle(let iterator, let createBuffer):
         let bufferState = AsyncBufferState<Base.Element, Buffer.Output>()
-        let buffer = Active(iterator, buffer: createBuffer(), state: bufferState)
+        let buffer = Active(Envelope(iterator), buffer: createBuffer(), state: bufferState)
         state = .active(buffer)
         return try await buffer.next()
       case .active(let buffer):

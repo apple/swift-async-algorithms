@@ -108,16 +108,16 @@ final class TestBuffer: XCTestCase {
   
   func test_byteBuffer() async {
     actor ByteBuffer: AsyncBuffer {
-      var buffer: Data?
+      var buffer: [UInt8]?
       
       func push(_ element: UInt8) async {
         if buffer == nil {
-          buffer = Data()
+          buffer = [UInt8]()
         }
         buffer?.append(element)
       }
       
-      func pop() async -> Data? {
+      func pop() async -> [UInt8]? {
         defer { buffer = nil }
         return buffer
       }
