@@ -148,6 +148,13 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   let policy: Policy
   
   init(policy: Policy) {
+    // limits should always be greater than 0 items
+    switch policy {
+    case .bufferingNewest(let limit):
+      precondition(limit > 0)
+    case .bufferingOldest(let limit):
+      precondition(limit > 0)
+    }
     self.policy = policy
   }
   
@@ -161,8 +168,10 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
       }
     case .bufferingNewest(let limit):
       if buffer.count < limit {
+        // there is space available
         buffer.append(element)
-      } else if buffer.count > 0 {
+      } else {
+        // no space is available and this should make some room
         buffer.removeFirst()
         buffer.append(element)
       }

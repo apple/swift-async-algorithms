@@ -13,18 +13,6 @@ import XCTest
 import AsyncAlgorithms
 
 final class TestBuffer: XCTestCase {
-  actor Isolated<T> {
-    var value: T
-    
-    init(_ value: T) {
-      self.value = value
-    }
-    
-    func update(_ apply: @Sendable (inout T) -> Void) async {
-      apply(&value)
-    }
-  }
-  
   func test_buffering() async {
     var gated = GatedSequence([1, 2, 3, 4, 5])
     let sequence = gated.buffer(policy: .unbounded)
