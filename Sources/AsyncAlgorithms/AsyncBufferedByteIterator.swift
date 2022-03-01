@@ -66,6 +66,7 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
 
 @frozen @usableFromInline
 internal struct _AsyncBytesBuffer: @unchecked Sendable {
+  @usableFromInline
   final class Storage {
     fileprivate let readFunction: @Sendable (UnsafeMutableRawBufferPointer) async throws -> Int
     fileprivate let buffer: UnsafeMutableRawBufferPointer
@@ -88,7 +89,7 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
     }
   }
   
-  var storage: AnyObject? = nil
+  @usableFromInline internal var storage: Storage
   @usableFromInline internal var nextPointer: UnsafeRawPointer
   @usableFromInline internal var endPointer: UnsafeRawPointer
   
@@ -104,7 +105,6 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
   
   @inline(never) @usableFromInline
   internal mutating func reloadBufferAndNext() async throws -> UInt8? {
-    let storage = self.storage as! Storage
     if storage.finished {
       return nil
     }
