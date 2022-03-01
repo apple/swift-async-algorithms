@@ -15,6 +15,10 @@
 
 - [`async`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Lazy.md): Create an asynchronous sequence composed from a synchronous sequence.
 
+#### Performance optimized asynchronous iterators
+
+- [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
+
 #### Other useful asynchronous sequences
 - [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Remove nil values from an asynchronous sequence.
