@@ -11,36 +11,36 @@
 
 extension AsyncSequence {
 
-  public func chunked<Signal, Collected: RangeReplaceableCollection>(byCount count: Int, andSignal signal: Signal, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunks<Signal, Collected: RangeReplaceableCollection>(ofCount count: Int, or signal: Signal, into: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: count, signal: signal)
   }
 
-  public func chunked<Signal>(byCount count: Int, andSignal signal: Signal) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], Signal> {
-    chunked(byCount: count, andSignal: signal, collectedInto: [Element].self)
+  public func chunks<Signal>(ofCount count: Int, or signal: Signal) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], Signal> {
+    chunks(ofCount: count, or: signal, into: [Element].self)
   }
 
-  public func chunked<Signal, Collected: RangeReplaceableCollection>(bySignal signal: Signal, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunked<Signal, Collected: RangeReplaceableCollection>(by signal: Signal, into: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: nil, signal: signal)
   }
 
   public func chunked<Signal>(bySignal signal: Signal) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], Signal> {
-    chunked(bySignal: signal, collectedInto: [Element].self)
+    chunked(by: signal, into: [Element].self)
   }
 
-  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byCount count: Int, andTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int, or timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: count, signal: timer)
   }
 
-  public func chunked<C: Clock>(byCount count: Int, andTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
-    chunked(byCount: count, andTime: timer, collectedInto: [Element].self)
+  public func chunks<C: Clock>(ofCount count: Int, or timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+    chunks(ofCount: count, or: timer, into: [Element].self)
   }
 
-  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(byTime timer: AsyncTimerSequence<C>, collectedInto: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(by timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountAndSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountAndSignalSequence(self, count: nil, signal: timer)
   }
 
-  public func chunked<C: Clock>(byTime timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
-    chunked(byTime: timer, collectedInto: [Element].self)
+  public func chunked<C: Clock>(by timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountAndSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+    chunked(by: timer, into: [Element].self)
   }
 
 }

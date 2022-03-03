@@ -12,13 +12,13 @@
 extension AsyncSequence {
 
   @inlinable
-  public func chunks<Collected: RangeReplaceableCollection>(ofCount count: Int, collectedInto: Collected.Type) -> AsyncChunksOfCountSequence<Self, Collected> where Collected.Element == Element {
+  public func chunks<Collected: RangeReplaceableCollection>(ofCount count: Int, into: Collected.Type) -> AsyncChunksOfCountSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunksOfCountSequence(self, count: count)
   }
 
   @inlinable
   public func chunks(ofCount count: Int) -> AsyncChunksOfCountSequence<Self, [Element]> {
-    chunks(ofCount: count, collectedInto: [Element].self)
+    chunks(ofCount: count, into: [Element].self)
   }
 
 }
