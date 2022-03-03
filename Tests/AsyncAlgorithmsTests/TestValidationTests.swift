@@ -77,10 +77,23 @@ final class TestValidationDiagram: XCTestCase {
         case "➖": return .step
         case "❗️": return .error
         case "❌": return .finish
-        case "➡️": return .beginValue
-        case "⬅️": return .endValue
         case " ": return .skip
         default: return .value(String(character))
+        }
+      }
+      
+      func description(for token: AsyncSequenceValidationDiagram.Token) -> String {
+        switch token {
+        case .step: return "➖"
+        case .error: return "❗️"
+        case .finish: return "❌"
+        case .cancel: return ""
+        case .beginValue: return ""
+        case .endValue: return ""
+        case .beginGroup: return ""
+        case .endGroup: return ""
+        case .skip: return " "
+        case .value(let value): return value
         }
       }
     }

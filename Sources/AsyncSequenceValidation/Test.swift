@@ -221,11 +221,15 @@ extension AsyncSequenceValidationDiagram {
   
   public static func test<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(
     theme: Theme,
-    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
+    @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
-    var diagram = AsyncSequenceValidationDiagram()
+    let diagram = AsyncSequenceValidationDiagram()
     let clock = diagram.clock
-    let test = build(&diagram)
+    let test = build(diagram)
+    for index in 0..<test.inputs.count {
+      // fault in all inputs
+      _ = diagram.inputs[index]
+    }
     
     for (index, input) in diagram.inputs.enumerated() {
       try input.parse(test.inputs[index], theme: theme)
@@ -309,7 +313,7 @@ extension AsyncSequenceValidationDiagram {
   }
   
   public static func test<Test: AsyncSequenceValidationTest>(
-    @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test
+    @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
     try self.test(theme: .ascii, build)
   }
