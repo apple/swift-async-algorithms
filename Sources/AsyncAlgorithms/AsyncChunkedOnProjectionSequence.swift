@@ -12,13 +12,13 @@
 extension AsyncSequence {
 
   @inlinable
-  public func chunked<Subject : Equatable, Collected: RangeReplaceableCollection>(on projection: @escaping @Sendable (Element) -> Subject, collectedInto: Collected.Type) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
+  public func chunked<Subject : Equatable, Collected: RangeReplaceableCollection>(on projection: @escaping @Sendable (Element) -> Subject, into: Collected.Type) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
     AsyncChunkedOnProjectionSequence(self, projection: projection)
   }
 
   @inlinable
   public func chunked<Subject : Equatable>(on projection: @escaping @Sendable (Element) -> Subject) -> AsyncChunkedOnProjectionSequence<Self, Subject, [Element]> {
-    chunked(on: projection, collectedInto: [Element].self)
+    chunked(on: projection, into: [Element].self)
   }
 
 }

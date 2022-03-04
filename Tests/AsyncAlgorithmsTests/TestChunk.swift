@@ -72,7 +72,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
-      $0.inputs[0].chunked(byCount: 42, andSignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 42, or: $0.inputs[1]).map(concatCharacters)
       "--'AB'-A--------'ABCDEFGH'|"
     }
   }
@@ -81,7 +81,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB   --A-B   -|"
       "--   X----   X|"
-      $0.inputs[0].chunked(byCount: 2, andSignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 2, or: $0.inputs[1]).map(concatCharacters)
       "-'AB'----'AB'-|"
     }
   }
@@ -90,7 +90,7 @@ final class TestChunk: XCTestCase {
     validate {
       "ABCDE      -ABCDE      |"
       "-----      ------      |"
-      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: $0.inputs[1]).map(concatCharacters)
       "----'ABCDE'-----'ABCDE'|"
     }
   }
@@ -99,7 +99,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB-   ABCDE      |"
       "--X   -----      |"
-      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: $0.inputs[1]).map(concatCharacters)
       "--'AB'----'ABCDE'|"
     }
   }
@@ -108,7 +108,7 @@ final class TestChunk: XCTestCase {
     validate {
       "ABC^"
       "----X|"
-      $0.inputs[0].chunked(byCount: 5, andSignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: $0.inputs[1]).map(concatCharacters)
       "---^"
     }
   }
@@ -116,7 +116,7 @@ final class TestChunk: XCTestCase {
   func test_time_equalChunks() {
     validate {
       "ABC-    DEF-    GHI-     |"
-      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(4), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(4), clock: $0.clock)).map(concatCharacters)
       "---'ABC'---'DEF'---'GHI'|"
     }
   }
@@ -124,7 +124,7 @@ final class TestChunk: XCTestCase {
   func test_time_unequalChunks() {
     validate {
       "AB------    A------- ABCDEFG-         |"
-      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "-------'AB' -------A -------'ABCDEFG'|"
     }
   }
@@ -132,7 +132,7 @@ final class TestChunk: XCTestCase {
   func test_time_emptyChunks() {
     validate {
       "-- 1- --|"
-      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(2), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock)).map(concatCharacters)
       "-- -1 --|"
     }
   }
@@ -140,7 +140,7 @@ final class TestChunk: XCTestCase {
   func test_time_error() {
     validate {
       "AB^"
-      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(5), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(5), clock: $0.clock)).map(concatCharacters)
       "--^"
     }
   }
@@ -148,7 +148,7 @@ final class TestChunk: XCTestCase {
   func test_time_unsignaledTrailingChunk() {
     validate {
       "111-111|"
-      $0.inputs[0].chunked(byTime: AsyncTimerSequence(interval: .steps(4), clock: $0.clock)).map(sumCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(4), clock: $0.clock)).map(sumCharacters)
       "---3---[3|]"
     }
   }
@@ -156,7 +156,7 @@ final class TestChunk: XCTestCase {
   func test_timeAndCount_timeAlwaysPrevails() {
     validate {
       "AB------    A------- ABCDEFG-         |"
-      $0.inputs[0].chunked(byCount: 42, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 42, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "-------'AB' -------A -------'ABCDEFG'|"
     }
   }
@@ -164,7 +164,7 @@ final class TestChunk: XCTestCase {
   func test_timeAndCount_countAlwaysPrevails() {
     validate {
       "AB   --A-B   -|"
-      $0.inputs[0].chunked(byCount: 2, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "-'AB'----'AB'-|"
     }
   }
@@ -172,7 +172,7 @@ final class TestChunk: XCTestCase {
   func test_timeAndCount_countResetsAfterCount() {
     validate {
       "ABCDE      --- ABCDE      |"
-      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "----'ABCDE'--- ----'ABCDE'|"
     }
   }
@@ -180,7 +180,7 @@ final class TestChunk: XCTestCase {
   func test_timeAndCount_countResetsAfterSignal() {
     validate {
       "AB------    ABCDE      |"
-      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "-------'AB' ----'ABCDE'|"
     }
   }
@@ -188,7 +188,7 @@ final class TestChunk: XCTestCase {
   func test_timeAndCount_error() {
     validate {
       "ABC^"
-      $0.inputs[0].chunked(byCount: 5, andTime: AsyncTimerSequence(interval: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
       "---^"
     }
   }
