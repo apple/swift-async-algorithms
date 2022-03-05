@@ -67,7 +67,7 @@ extension AsyncSequenceValidationDiagram {
         return "unexpected failure"
       case .specificationViolationGotValueAfterIteration(let actual):
         return "specification violation got \"\(actual)\" after iteration terminated"
-      case .specificationViolationGotFailureAfterIteration(let error):
+      case .specificationViolationGotFailureAfterIteration:
         return "specification violation got failure after iteration terminated"
       }
     }

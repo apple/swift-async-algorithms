@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+@preconcurrency import XCTest
 import AsyncAlgorithms
 
 extension Sequence where Element: Sequence, Element.Element: Equatable & Sendable {
