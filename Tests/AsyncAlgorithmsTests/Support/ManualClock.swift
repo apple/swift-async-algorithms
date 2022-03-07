@@ -9,8 +9,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ClockStub
-
 public struct ManualClock: Clock {
   public struct Step: DurationProtocol {
     fileprivate var rawValue: Int

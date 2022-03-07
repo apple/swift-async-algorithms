@@ -11,7 +11,7 @@
 
 import AsyncAlgorithms
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
   public typealias Element = Value
