@@ -13,7 +13,7 @@ public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence, Base3: Asy
   AsyncCombineLatest3Sequence(base1, base2, base3)
 }
 
-public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>
+public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
   where
     Base1: Sendable, Base2: Sendable, Base3: Sendable,
     Base1.Element: Sendable, Base2.Element: Sendable, Base3.Element: Sendable,
@@ -32,7 +32,7 @@ public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequ
 extension AsyncCombineLatest3Sequence: AsyncSequence {
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)
   
-  public struct Iterator: AsyncIteratorProtocol {
+  public struct Iterator: AsyncIteratorProtocol, Sendable {
     var iterator: AsyncCombineLatest2Sequence<AsyncCombineLatest2Sequence<Base1, Base2>, Base3>.Iterator
     
     init(_ base1: Base1.AsyncIterator, _ base2: Base2.AsyncIterator, _ base3: Base3.AsyncIterator) {

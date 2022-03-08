@@ -20,7 +20,7 @@ extension AsyncSequenceValidationTheme where Self == AsyncSequenceValidationDiag
 }
 
 extension AsyncSequenceValidationDiagram {
-  public enum Token {
+  public enum Token: Sendable {
     case step
     case error
     case finish
@@ -33,7 +33,7 @@ extension AsyncSequenceValidationDiagram {
     case value(String)
   }
   
-  public struct ASCIITheme: AsyncSequenceValidationTheme {
+  public struct ASCIITheme: AsyncSequenceValidationTheme, Sendable {
     public func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token {
       switch character {
       case "-": return .step

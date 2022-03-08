@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+@preconcurrency import XCTest
 import AsyncAlgorithms
 
 final class TestValidator: XCTestCase {
