@@ -9,25 +9,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-public final class AsyncThrowingSubject<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
+public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
   public struct Iterator: AsyncIteratorProtocol, Sendable {
-    let subject: AsyncThrowingSubject<Element, Failure>
+    let channel: AsyncThrowingChannel<Element, Failure>
     var active: Bool = true
     
-    init(_ subject: AsyncThrowingSubject<Element, Failure>) {
-      self.subject = subject
+    init(_ channel: AsyncThrowingChannel<Element, Failure>) {
+      self.channel = channel
     }
     
     public mutating func next() async throws -> Element? {
       guard active else {
         return nil
       }
-      let generation = subject.establish()
+      let generation = channel.establish()
       do {
-        let value: Element? = try await withTaskCancellationHandler { [subject] in
-            subject.cancel(generation)
+        let value: Element? = try await withTaskCancellationHandler { [channel] in
+          channel.cancel(generation)
         } operation: {
-          try await subject.next(generation)
+          try await channel.next(generation)
         }
         
         if let value = value {

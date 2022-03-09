@@ -9,24 +9,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-public final class AsyncSubject<Element: Sendable>: AsyncSequence, Sendable {
+public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   public struct Iterator: AsyncIteratorProtocol, Sendable {
-    let subject: AsyncSubject<Element>
+    let channel: AsyncChannel<Element>
     var active: Bool = true
     
-    init(_ subject: AsyncSubject<Element>) {
-      self.subject = subject
+    init(_ channel: AsyncChannel<Element>) {
+      self.channel = channel
     }
     
     public mutating func next() async -> Element? {
       guard active else {
         return nil
       }
-      let generation = subject.establish()
-      let value: Element? = await withTaskCancellationHandler { [subject] in
-          subject.cancel(generation)
+      let generation = channel.establish()
+      let value: Element? = await withTaskCancellationHandler { [channel] in
+        channel.cancel(generation)
       } operation: {
-        await subject.next(generation)
+        await channel.next(generation)
       }
       
       if let value = value {

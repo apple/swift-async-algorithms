@@ -12,13 +12,13 @@
 extension AsyncSequence {
 
   @inlinable
-  public func chunked<Collected: RangeReplaceableCollection>(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool, collectedInto: Collected.Type) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
+  public func chunked<Collected: RangeReplaceableCollection>(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool, into: Collected.Type) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunkedByGroupSequence(self, grouping: belongInSameGroup)
   }
 
   @inlinable
   public func chunked(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, [Element]> {
-    chunked(by: belongInSameGroup, collectedInto: [Element].self)
+    chunked(by: belongInSameGroup, into: [Element].self)
   }
 
 }

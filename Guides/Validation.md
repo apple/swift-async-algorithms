@@ -47,6 +47,7 @@ The syntax is trivially parsable (and consequently customizable). By default, th
 |   `[`   | Begin group       | `"[ab]-"`  |
 |   `]`   | End group         | `"[ab]-"`  |
 |   `'`   | Begin/End Value   | `"'foo'-"` |
+|   `,`   | Delay next        | `",[a,]b"` |
 
 Because some events may take up more than one character and the alignment is important to the visual progression of events, spaces are not counted as part of the parsed events. A space means that no time is advanced and not event is produced or expected. This means that the string `"a -    -b- -"` is equivalent to `"a--b--"`.
 
@@ -59,6 +60,9 @@ struct EmojiTokens: AsyncSequenceValidationTheme {
     case "➖": return .step
     case "❗️": return .error
     case "❌": return .finish
+    case "➡️": return .beginValue
+    case "⬅️": return .endValue
+    case "⏳": return .delayNext
     case " ": return .skip
     default: return .value(String(character))
     }
@@ -214,6 +218,7 @@ Access to the validation diagram input list is done through calls such as `$0.in
 |   `[`   | `.beginGroup`             | Begin group       | `"[ab]-"`  |
 |   `]`   | `.endGroup`               | End group         | `"[ab]-"`  |
 |   `'`   | `.beginValue` `.endValue` | Begin/End Value   | `"'foo'-"` |
+|   `,`   | `.delayNext`              | Delay next        | `",[a,]b"` |
 |   ` `   | `.skip`                   | Skip/Ignore       | `"a b- |"` |
 |         | `.value`                  | Values.           | `"ab-|"`   |
 
@@ -234,6 +239,7 @@ extension AsyncSequenceValidationDiagram {
     case error
     case finish
     case cancel
+    case delayNext
     case beginValue
     case endValue
     case beginGroup
