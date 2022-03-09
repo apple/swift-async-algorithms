@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 import _CAsyncSequenceValidationSupport
+import ClockStub
 
 @_silgen_name("swift_job_run")
 @usableFromInline
@@ -22,7 +23,7 @@ public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [String] { get }
   var output: String { get }
   
-  func test(_ event: (String) -> Void) async throws
+  func test<C: ClockStub.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws
 }
 
 extension AsyncSequenceValidationDiagram {
@@ -31,11 +32,18 @@ extension AsyncSequenceValidationDiagram {
     let sequence: Operation
     let output: String
     
-    func test(_ event: (String) -> Void) async throws {
+    func test<C: ClockStub.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
-        while let item = try await iterator.next() {
-          event(item)
+        for tick in activeTicks {
+          if tick != clock.now {
+            try await clock.sleep(until: tick, tolerance: nil)
+          }
+          if let item = try await iterator.next() {
+            event(item)
+          } else {
+            break
+          }
         }
         do {
           if let pastEnd = try await iterator.next(){
@@ -238,6 +246,16 @@ extension AsyncSequenceValidationDiagram {
       default: return false
       }
     }.map { when, _ in return when })
+
+    let activeTicks = parsedOutput.reduce(into: [Clock.Instant.init(when: .zero)]) { events, thisEvent in
+      switch thisEvent {
+        case (let when, .delayNext(_)):
+          events.removeLast()
+          events.append(when.advanced(by: .steps(1)))
+        case (let when, _):
+          events.append(when)
+      }
+    }
     
     var expected = [(Clock.Instant, Result<String?, Error>)]()
     for (when, event) in parsedOutput {
@@ -262,7 +280,7 @@ extension AsyncSequenceValidationDiagram {
       
       let runner = Task {
         do {
-          try await test.test { event in
+          try await test.test(with: clock, activeTicks: activeTicks) { event in
             actual.withCriticalRegion { values in
               values.append((clock.now, .success(event)))
             }
