@@ -79,6 +79,7 @@ final class TestValidationDiagram: XCTestCase {
         case "❌": return .finish
         case "➡️": return .beginValue
         case "⬅️": return .endValue
+        case "⏳": return .delayNext
         case " ": return .skip
         default: return .value(String(character))
         }
@@ -249,5 +250,68 @@ final class TestValidationDiagram: XCTestCase {
       $0.inputs[0].violatingSpecification(throwingPastEndIteration: Failure())
       "a--b--c--|"
     }
+  }
+
+  func test_delayNext() {
+    validate {
+      "xxx---   |"
+      $0.inputs[0]
+      "x,,,,[xx]|"
+    }
+  }
+
+  func test_delayNext_initialDelay() {
+    validate {
+      "xxx    |"
+      $0.inputs[0]
+      ",,[xxx]|"
+    }
+  }
+
+  func test_delayNext_into_emptyTick() {
+    validate {
+      "xx|"
+      LaggingAsyncSequence($0.inputs[0], delayBy: .steps(3), using: $0.clock)
+      ",,,---x--[x|]"
+    }
+  }
+
+  func test_values_one_at_a_time_after_delay() {
+    validate {
+      "xxx|"
+      $0.inputs[0]
+      ",,,[x,][x,][x,]|"
+    }
+  }
+}
+
+struct LaggingAsyncSequence<Base: AsyncSequence, C: Clock> : AsyncSequence {
+  typealias Element = Base.Element
+
+  struct Iterator : AsyncIteratorProtocol {
+    var base: Base.AsyncIterator
+    let delay: C.Instant.Duration
+    let clock: C
+    mutating func next() async throws -> Element? {
+      if let value = try await base.next() {
+        try await clock.sleep(until: clock.now.advanced(by: delay), tolerance: nil)
+        return value
+      } else {
+        return nil
+      }
+    }
+  }
+
+  func makeAsyncIterator() -> Iterator {
+    return Iterator(base: base.makeAsyncIterator(), delay: delay, clock: clock)
+  }
+
+  let base: Base
+  let delay: C.Instant.Duration
+  let clock: C
+  init(_ base: Base, delayBy delay: C.Instant.Duration, using clock: C) {
+    self.base = base
+    self.delay = delay
+    self.clock = clock
   }
 }

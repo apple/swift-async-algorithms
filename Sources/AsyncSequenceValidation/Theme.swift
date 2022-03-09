@@ -25,6 +25,7 @@ extension AsyncSequenceValidationDiagram {
     case error
     case finish
     case cancel
+    case delayNext
     case beginValue
     case endValue
     case beginGroup
@@ -40,6 +41,7 @@ extension AsyncSequenceValidationDiagram {
       case "^": return .error
       case "|": return .finish
       case ";": return .cancel
+      case ",": return .delayNext
       case "'": return inValue ? .endValue : .beginValue
       case "[": return .beginGroup
       case "]": return .endGroup
