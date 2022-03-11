@@ -9,8 +9,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ClockStub
-
 extension AsyncSequenceValidationDiagram {
   public struct Clock {
     let queue: WorkQueue

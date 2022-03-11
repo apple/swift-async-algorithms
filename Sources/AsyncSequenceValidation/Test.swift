@@ -10,7 +10,6 @@
 //===----------------------------------------------------------------------===//
 
 import _CAsyncSequenceValidationSupport
-import ClockStub
 
 @_silgen_name("swift_job_run")
 @usableFromInline
@@ -23,7 +22,7 @@ public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [String] { get }
   var output: String { get }
   
-  func test<C: ClockStub.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws
+  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws
 }
 
 extension AsyncSequenceValidationDiagram {
@@ -32,7 +31,7 @@ extension AsyncSequenceValidationDiagram {
     let sequence: Operation
     let output: String
     
-    func test<C: ClockStub.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws {
+    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {

@@ -14,7 +14,6 @@ let package = Package(
     .library(
       name: "AsyncAlgorithms",
       targets: ["AsyncAlgorithms"]),
-    .library(name: "ClockStub", type: .static, targets: ["ClockStub"]),
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
     .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
   ],
@@ -22,12 +21,27 @@ let package = Package(
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: ["ClockStub"]),
-    .target(name: "ClockStub"),
-    .target(name: "AsyncSequenceValidation", dependencies: ["_CAsyncSequenceValidationSupport", "ClockStub"]),
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
+    .target(
+      name: "AsyncSequenceValidation",
+      dependencies: ["_CAsyncSequenceValidationSupport"],
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
   ]
 )
