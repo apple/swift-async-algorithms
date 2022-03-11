@@ -10,17 +10,15 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-
   @inlinable
-  public func chunked<Subject : Equatable, Collected: RangeReplaceableCollection>(on projection: @escaping @Sendable (Element) -> Subject, into: Collected.Type) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
+  public func chunked<Subject : Equatable, Collected: RangeReplaceableCollection>(into: Collected.Type, on projection: @escaping @Sendable (Element) -> Subject) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
     AsyncChunkedOnProjectionSequence(self, projection: projection)
   }
 
   @inlinable
   public func chunked<Subject : Equatable>(on projection: @escaping @Sendable (Element) -> Subject) -> AsyncChunkedOnProjectionSequence<Self, Subject, [Element]> {
-    chunked(on: projection, into: [Element].self)
+    chunked(into: [Element].self, on: projection)
   }
-
 }
 
 public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equatable, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
