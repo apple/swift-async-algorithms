@@ -67,17 +67,14 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
 @frozen @usableFromInline
 internal struct _AsyncBytesBuffer: @unchecked Sendable {
   @usableFromInline
-  final class Storage {
-    fileprivate let readFunction: @Sendable (UnsafeMutableRawBufferPointer) async throws -> Int
+  final class Storage: Sendable {
+    
     fileprivate let buffer: UnsafeMutableRawBufferPointer
-    fileprivate var finished = false
     
     init(
-      capacity: Int,
-      readFunction: @Sendable @escaping (UnsafeMutableRawBufferPointer) async throws -> Int
+      capacity: Int
     ) {
       precondition(capacity > 0)
-      self.readFunction = readFunction
       buffer = UnsafeMutableRawBufferPointer.allocate(
         byteCount: capacity,
         alignment: MemoryLayout<AnyObject>.alignment
@@ -89,15 +86,18 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
     }
   }
   
+  @usableFromInline internal let readFunction: @Sendable (UnsafeMutableRawBufferPointer) async throws -> Int
   @usableFromInline internal var storage: Storage
   @usableFromInline internal var nextPointer: UnsafeRawPointer
   @usableFromInline internal var endPointer: UnsafeRawPointer
+  @usableFromInline internal var finished = false
   
   @usableFromInline init(
     capacity: Int,
     readFunction: @Sendable @escaping (UnsafeMutableRawBufferPointer) async throws -> Int
   ) {
-    let s = Storage(capacity: capacity, readFunction: readFunction)
+    let s = Storage(capacity: capacity)
+    self.readFunction = readFunction
     storage = s
     nextPointer = UnsafeRawPointer(s.buffer.baseAddress!)
     endPointer = nextPointer
@@ -105,21 +105,21 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
   
   @inline(never) @usableFromInline
   internal mutating func reloadBufferAndNext() async throws -> UInt8? {
-    if storage.finished {
+    if finished {
       return nil
     }
     try Task.checkCancellation()
     do {
-      let readSize: Int = try await storage.readFunction(storage.buffer)
+      let readSize: Int = try await readFunction(storage.buffer)
       if readSize == 0 {
-        storage.finished = true
+        finished = true
         nextPointer = endPointer
         return nil
       }
       nextPointer = UnsafeRawPointer(storage.buffer.baseAddress!)
       endPointer = nextPointer + readSize
     } catch {
-      storage.finished = true
+      finished = true
       nextPointer = endPointer
       throw error
     }
