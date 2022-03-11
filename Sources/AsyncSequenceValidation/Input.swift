@@ -21,7 +21,7 @@ extension AsyncSequenceValidationDiagram {
     let queue: WorkQueue
     let index: Int
     
-    public struct Iterator: AsyncIteratorProtocol {
+    public struct Iterator: AsyncIteratorProtocol, Sendable {
       let state: ManagedCriticalState<State>
       let queue: WorkQueue
       let index: Int

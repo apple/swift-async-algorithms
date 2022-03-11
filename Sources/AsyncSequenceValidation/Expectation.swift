@@ -10,13 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequenceValidationDiagram {
-  public struct ExpectationResult {
+  public struct ExpectationResult: Sendable {
     public var expected: [(Clock.Instant, Result<String?, Error>)]
     public var actual: [(Clock.Instant, Result<String?, Error>)]
   }
   
-  public struct ExpectationFailure: CustomStringConvertible {
-    public enum Kind {
+  public struct ExpectationFailure: Sendable, CustomStringConvertible {
+    public enum Kind: Sendable {
       case expectedFinishButGotValue(String)
       case expectedMismatch(String, String)
       case expectedValueButGotFinished(String)
