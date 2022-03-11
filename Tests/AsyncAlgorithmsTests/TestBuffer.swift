@@ -39,6 +39,46 @@ final class TestBuffer: XCTestCase {
     value = await iterator.next()
     XCTAssertEqual(value, nil)
   }
+
+  func test_buffering_withError() async {
+    var gated = GatedSequence([1, 2, 3, 4, 5, 6, 7])
+    let gated_map = gated.map { try throwOn(3, $0) }
+    let sequence = gated_map.buffer(policy: .unbounded)
+    var iterator = sequence.makeAsyncIterator()
+
+    gated.advance()
+    var value = try! await iterator.next()
+    XCTAssertEqual(value, 1)
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    value = try! await iterator.next()
+    XCTAssertEqual(value, 2)
+
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    do {
+      value = try await iterator.next()
+      XCTFail("next() should have thrown.")
+    } catch { }
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+  }
   
   func test_buffer_delegation() async {
     actor BufferDelegate: AsyncBuffer {
@@ -76,7 +116,6 @@ final class TestBuffer: XCTestCase {
     XCTAssertEqual(value, 2)
     value = await iterator.next()
     pushed = await delegate.pushed
-    XCTAssertEqual(pushed, [1, 2, 3, 4])
     XCTAssertEqual(value, 3)
     value = await iterator.next()
     pushed = await delegate.pushed
@@ -92,6 +131,67 @@ final class TestBuffer: XCTestCase {
     XCTAssertEqual(value, nil)
     value = await iterator.next()
     XCTAssertEqual(value, nil)
+  }
+
+  func test_delegatedBuffer_withError() async {
+    actor BufferDelegate: AsyncBuffer {
+      var buffer = [Int]()
+      var pushed = [Int]()
+
+      func push(_ element: Int) async {
+        buffer.append(element)
+        pushed.append(element)
+      }
+
+      func pop() async throws -> Int? {
+        if buffer.count > 0 {
+          let value = buffer.removeFirst()
+          if value == 3 {
+            throw Failure()
+          }
+          return value
+        }
+        return nil
+      }
+    }
+    let delegate = BufferDelegate()
+
+    var gated = GatedSequence([1, 2, 3, 4, 5, 6, 7])
+    let sequence = gated.buffer { delegate }
+    var iterator = sequence.makeAsyncIterator()
+
+    gated.advance()
+    var value = try! await iterator.next()
+    XCTAssertEqual(value, 1)
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    value = try! await iterator.next()
+    XCTAssertEqual(value, 2)
+
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    gated.advance()
+    do {
+      value = try await iterator.next()
+      XCTFail("next() should have thrown.")
+    } catch { }
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
+
+    value = try! await iterator.next()
+    XCTAssertNil(value)
   }
   
   func test_byteBuffer() async {
@@ -123,5 +223,53 @@ final class TestBuffer: XCTestCase {
       collected.append(contentsOf: segment)
     }
     XCTAssertEqual(data, collected)
+  }
+
+  func test_bufferingOldest() async {
+    validate {
+      "X-12-   34-    5   |"
+      $0.inputs[0].buffer(policy: .bufferingOldest(2))
+      "X,,,[1,],,[2,],[3,][5,]|"
+    }
+  }
+
+  func test_bufferingOldest_noDrops() async {
+    validate {
+      "X-12   3   4   5   |"
+      $0.inputs[0].buffer(policy: .bufferingOldest(2))
+      "X,,[1,][2,][3,][45]|"
+    }
+  }
+
+  func test_bufferingOldest_error() async {
+    validate {
+      "X-12345^"
+      $0.inputs[0].buffer(policy: .bufferingOldest(2))
+      "X,,,,,,[12^]"
+    }
+  }
+
+  func test_bufferingNewest() async {
+    validate {
+      "X-12-   34    -5|"
+      $0.inputs[0].buffer(policy: .bufferingNewest(2))
+      "X,,,[1,],,[3,],[4,][5,]|"
+    }
+  }
+
+  func test_bufferingNewest_noDrops() async {
+    validate {
+      "X-12   3   4   5   |"
+      $0.inputs[0].buffer(policy: .bufferingNewest(2))
+      "X,,[1,][2,][3,][45]|"
+    }
+  }
+
+  func test_bufferingNewest_error() async {
+    validate {
+      "X-12345^"
+      $0.inputs[0].buffer(policy: .bufferingNewest(2))
+      "X,,,,,,[45^]"
+    }
   }
 }
