@@ -73,13 +73,12 @@ extension AsyncTimerSequence {
   }
 }
 
-/*
+
 extension AsyncTimerSequence where C == SuspendingClock {
   public static func repeating(every interval: Duration, tolerance: Duration? = nil) -> AsyncTimerSequence<SuspendingClock> {
     return AsyncTimerSequence(interval: interval, tolerance: tolerance, clock: SuspendingClock())
   }
 }
-*/
 
 extension AsyncTimerSequence: Sendable { }
 extension AsyncTimerSequence.Iterator: Sendable { }

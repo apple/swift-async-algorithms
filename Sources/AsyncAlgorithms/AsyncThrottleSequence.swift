@@ -14,11 +14,9 @@ extension AsyncSequence {
     AsyncThrottleSequence(self, interval: interval, clock: clock, reducing: reducing)
   }
   
-  /*
   public func throttle<Reduced>(for interval: Duration, reducing: @Sendable @escaping (Reduced?, Element) async -> Reduced) -> AsyncThrottleSequence<Self, ContinuousClock, Reduced> {
     throttle(for: interval, clock: .continuous, reducing: reducing)
   }
-  */
   
   public func throttle<C: Clock>(for interval: C.Instant.Duration, clock: C, latest: Bool = true) -> AsyncThrottleSequence<Self, C, Element> {
     throttle(for: interval, clock: clock) { previous, element in
@@ -30,11 +28,9 @@ extension AsyncSequence {
     }
   }
   
-  /*
   public func throttle(for interval: Duration, latest: Bool = true) -> AsyncThrottleSequence<Self, ContinuousClock, Element> {
     throttle(for: interval, clock: .continuous, latest: latest)
   }
-   */
 }
 
 public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {

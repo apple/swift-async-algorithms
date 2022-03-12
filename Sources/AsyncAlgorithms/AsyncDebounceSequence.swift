@@ -13,6 +13,10 @@ extension AsyncSequence {
   public func debounce<C: Clock>(for interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncDebounceSequence<Self, C> {
     AsyncDebounceSequence(self, interval: interval, tolerance: tolerance, clock: clock)
   }
+  
+  public func debounce(for interval: Duration, tolerance: Duration? = nil) -> AsyncDebounceSequence<Self, ContinuousClock> {
+    debounce(for: interval, tolerance: tolerance, clock: .continuous)
+  }
 }
 
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
