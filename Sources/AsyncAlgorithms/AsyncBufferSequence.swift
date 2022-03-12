@@ -193,7 +193,7 @@ extension AsyncSequence where Element: Sendable {
   }
 }
 
-public struct AsyncBufferSequence<Base: AsyncSequence, Buffer: AsyncBuffer> where Base.Element == Buffer.Input {
+public struct AsyncBufferSequence<Base: AsyncSequence, Buffer: AsyncBuffer> where Base.Element == Buffer.Input, Base.AsyncIterator: Sendable {
   let base: Base
   let createBuffer: @Sendable () -> Buffer
   
@@ -202,6 +202,9 @@ public struct AsyncBufferSequence<Base: AsyncSequence, Buffer: AsyncBuffer> wher
     self.createBuffer = createBuffer
   }
 }
+
+extension AsyncBufferSequence: Sendable where Base: Sendable, Base.AsyncIterator: Sendable, Base.Element: Sendable { }
+extension AsyncBufferSequence.Iterator: Sendable where Base: Sendable, Base.AsyncIterator: Sendable, Base.Element: Sendable { }
 
 extension AsyncBufferSequence: AsyncSequence {
   public typealias Element = Buffer.Output
@@ -212,11 +215,11 @@ extension AsyncBufferSequence: AsyncSequence {
       let buffer: Buffer
       let state: AsyncBufferState<Buffer.Input, Buffer.Output>
       
-      init(_ envelope: Envelope<Base.AsyncIterator>, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
+      init(_ iterator: Base.AsyncIterator, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
         self.buffer = buffer
         self.state = state
         task = Task {
-          var iter = envelope.contents
+          var iter = iterator
           do {
             while let item = try await iter.next() {
               await state.enqueue(item, buffer: buffer)
@@ -259,7 +262,7 @@ extension AsyncBufferSequence: AsyncSequence {
       switch state {
       case .idle(let iterator, let createBuffer):
         let bufferState = AsyncBufferState<Base.Element, Buffer.Output>()
-        let buffer = Active(Envelope(iterator), buffer: createBuffer(), state: bufferState)
+        let buffer = Active(iterator, buffer: createBuffer(), state: bufferState)
         state = .active(buffer)
         return try await buffer.next()
       case .active(let buffer):
