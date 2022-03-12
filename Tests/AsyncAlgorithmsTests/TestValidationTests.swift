@@ -84,6 +84,22 @@ final class TestValidationDiagram: XCTestCase {
         default: return .value(String(character))
         }
       }
+      
+      func description(for token: AsyncSequenceValidationDiagram.Token) -> String {
+        switch token {
+        case .step: return "➖"
+        case .error: return "❗️"
+        case .finish: return "❌"
+        case .cancel: return ""
+        case .delayNext: return "⏳"
+        case .beginValue: return "➡️"
+        case .endValue: return "⬅️"
+        case .beginGroup: return ""
+        case .endGroup: return ""
+        case .skip: return " "
+        case .value(let value): return value
+        }
+      }
     }
     
     validate(theme: EmojiTokens()) {

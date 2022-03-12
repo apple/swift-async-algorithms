@@ -46,6 +46,17 @@ public struct AsyncSequenceValidationDiagram : Sendable {
   ) -> some AsyncSequenceValidationTest where Operation.Element == String {
     Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
   }
+
+  public static func buildBlock<Operation: AsyncSequence>(
+    _ input1: String,
+    _ input2: String,
+    _ input3: String,
+    _ input4: String,
+    _ sequence: Operation,
+    _ output: String
+  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    Test(inputs: [input1, input2, input3, input4], sequence: sequence, output: output)
+  }
   
   let queue: WorkQueue
   
