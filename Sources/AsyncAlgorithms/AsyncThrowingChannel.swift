@@ -46,15 +46,24 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   struct Awaiting: Hashable {
     var generation: Int
     var continuation: UnsafeContinuation<Element?, Error>?
+    let cancelled: Bool
     
     init(generation: Int, continuation: UnsafeContinuation<Element?, Error>) {
       self.generation = generation
       self.continuation = continuation
+      cancelled = false
     }
     
     init(placeholder generation: Int) {
       self.generation = generation
       self.continuation = nil
+      cancelled = false
+    }
+    
+    init(cancelled generation: Int) {
+      self.generation = generation
+      self.continuation = nil
+      cancelled = true
     }
     
     func hash(into hasher: inout Hasher) {
@@ -77,6 +86,9 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
         let continuation = awaiting.remove(Awaiting(placeholder: generation))?.continuation
         self = .awaiting(awaiting)
         return continuation
+      case .idle:
+        self = .awaiting([Awaiting(cancelled: generation)])
+        return nil
       default:
         return nil
       }
@@ -108,6 +120,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   
   func next(_ generation: Int) async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
+      var cancelled = false
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
         switch state.emission {
         case .idle:
@@ -122,11 +135,17 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           }
           return UnsafeResumption(continuation: send, success: continuation)
         case .awaiting(var nexts):
-          nexts.insert(Awaiting(generation: generation, continuation: continuation))
+          if nexts.update(with: Awaiting(generation: generation, continuation: continuation)) != nil {
+            nexts.remove(Awaiting(placeholder: generation))
+            cancelled = true
+          }
           state.emission = .awaiting(nexts)
           return nil
         }
       }?.resume()
+      if cancelled {
+        continuation.resume(returning: nil)
+      }
     }
   }
   
