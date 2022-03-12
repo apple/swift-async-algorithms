@@ -10,9 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 @preconcurrency import XCTest
-@testable import AsyncAlgorithms
+import AsyncAlgorithms
 
-final class TestTaskFirst: XCTestCase {
+final class TestTaskSelect: XCTestCase {
   func test_first() async {
     let firstValue = await Task.select(Task {
       return 1
