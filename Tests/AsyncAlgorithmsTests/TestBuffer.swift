@@ -225,6 +225,212 @@ final class TestBuffer: XCTestCase {
     XCTAssertEqual(data, collected)
   }
 
+  func test_multi_tasks() async {
+    var values = GatedSequence(Array(0 ... 10))
+    let bufferSeq = values.buffer(policy: .unbounded)
+    var iter_ = bufferSeq.makeAsyncIterator()
+
+    // Initiate the sequence's operation and creation of its Task and actor before sharing its iterator.
+    values.advance()
+    let _ = await iter_.next()
+
+    let iter = iter_
+
+    let task1 = Task<[Int], Never> {
+      var result = [Int]()
+      var iter1 = iter
+      while let val = await iter1.next() {
+        result.append(val)
+      }
+      return result
+    }
+
+    let task2 = Task<[Int], Never> {
+      var result = [Int]()
+      var iter2 = iter
+      while let val = await iter2.next() {
+        result.append(val)
+      }
+      return result
+    }
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+    values.advance()
+
+    let task1Results = await task1.value
+    let task2Results = await task2.value
+
+    XCTAssertEqual(task1Results.sorted(), task1Results)
+    XCTAssertEqual(task2Results.sorted(), task2Results)
+
+    let combined = (task1Results + task2Results).sorted()
+    XCTAssertEqual(combined, Array(1 ... 10))
+  }
+
+  func test_multi_tasks_error() async {
+    var values = GatedSequence(Array(0 ... 10))
+    let mapSeq = values.map { try throwOn(7, $0) }
+    let bufferSeq = mapSeq.buffer(policy: .unbounded)
+    var iter_ = bufferSeq.makeAsyncIterator()
+
+    // Initiate the sequence's operation and creation of its Task and actor before sharing its iterator.
+    values.advance()
+    let _ = try! await iter_.next()
+
+    let iter = iter_
+
+    let task1 = Task<([Int], Error?), Never> {
+      var result = [Int]()
+      var err: Error?
+      var iter1 = iter
+      do {
+        while let val = try await iter1.next() {
+          result.append(val)
+        }
+      } catch {
+        err = error
+      }
+      return (result, err)
+    }
+
+    let task2 = Task<([Int], Error?), Never> {
+      var result = [Int]()
+      var err: Error?
+      var iter2 = iter
+      do {
+        while let val = try await iter2.next() {
+          result.append(val)
+        }
+      } catch {
+        err = error
+      }
+      return (result, err)
+    }
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+
+    let task1Results = await task1.value
+    let task2Results = await task2.value
+
+    XCTAssertEqual(task1Results.0.sorted(), task1Results.0)
+    XCTAssertEqual(task2Results.0.sorted(), task2Results.0)
+
+    let combined = (task1Results.0 + task2Results.0).sorted()
+    XCTAssertEqual(combined, Array(1 ... 6))
+
+    XCTAssertEqual(1, [task1Results, task2Results].compactMap{ $0.1 }.count)
+  }
+
+  func test_multi_tasks_delegateBufferError() async {
+    actor BufferDelegate: AsyncBuffer {
+      var buffer = [Int]()
+      var pushed = [Int]()
+
+      func push(_ element: Int) async {
+        buffer.append(element)
+        pushed.append(element)
+      }
+
+      func pop() async throws -> Int? {
+        if buffer.count > 0 {
+          let value = buffer.removeFirst()
+          if value == 7 {
+            throw Failure()
+          }
+          return value
+        }
+        return nil
+      }
+    }
+    let delegate = BufferDelegate()
+
+    var values = GatedSequence(Array(0 ... 10))
+    let bufferSeq = values.buffer { delegate }
+    var iter_ = bufferSeq.makeAsyncIterator()
+
+    // Initiate the sequence's operation and creation of its Task and actor before sharing its iterator.
+    values.advance()
+    let _ = try! await iter_.next()
+
+    let iter = iter_
+
+    let task1 = Task<([Int], Error?), Never> {
+      var result = [Int]()
+      var err: Error?
+      var iter1 = iter
+      do {
+        while let val = try await iter1.next() {
+          result.append(val)
+        }
+      } catch {
+        err = error
+      }
+      return (result, err)
+    }
+
+    let task2 = Task<([Int], Error?), Never> {
+      var result = [Int]()
+      var err: Error?
+      var iter2 = iter
+      do {
+        while let val = try await iter2.next() {
+          result.append(val)
+        }
+      } catch {
+        err = error
+      }
+      return (result, err)
+    }
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+    values.advance()
+    values.advance()
+
+    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    values.advance()
+
+    let task1Results = await task1.value
+    let task2Results = await task2.value
+
+    XCTAssertEqual(task1Results.0.sorted(), task1Results.0)
+    XCTAssertEqual(task2Results.0.sorted(), task2Results.0)
+
+    let combined = (task1Results.0 + task2Results.0).sorted()
+    XCTAssertEqual(combined, Array(1 ... 6))
+
+    XCTAssertEqual(1, [task1Results, task2Results].compactMap{ $0.1 }.count)
+  }
+
   func test_bufferingOldest() async {
     validate {
       "X-12-   34-    5   |"

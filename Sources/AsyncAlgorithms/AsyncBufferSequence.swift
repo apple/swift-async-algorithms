@@ -10,18 +10,6 @@
 //===----------------------------------------------------------------------===//
 
 actor AsyncBufferState<Input: Sendable, Output: Sendable> {
-  enum ContinuationState: Sendable, CustomStringConvertible {
-    case idle
-    case pending(UnsafeContinuation<Result<Output?, Error>, Never>)
-    
-    var description: String {
-      switch self {
-        case .idle: return "idle"
-        case .pending: return "pending"
-      }
-    }
-  }
-
   enum TerminationState: Sendable, CustomStringConvertible {
     case running
     case baseFailure(Error) // An error from the base sequence has occurred. We need to process any buffered items before throwing the error. We can rely on it not emitting any more items.
@@ -38,40 +26,36 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
     }
   }
   
-  var state = ContinuationState.idle
+  var pending = [UnsafeContinuation<Result<Output?, Error>, Never>]()
   var terminationState = TerminationState.running
 
   init() { }
   
   func drain<Buffer: AsyncBuffer>(buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
-    switch state {
-    case .idle:
+    guard pending.count > 0 else {
       return
-    case .pending(let continuation):
-      do {
-        // This transition is simple. If we discount concurrent calls to `next()`, the `pending` state implies that there is no activity from `next()` and therefore no possibility of state change.
-        if let value = try await buffer.pop() {
-          continuation.resume(returning: .success(value))
-        } else {
-          switch terminationState {
-            case .running:
-              break
-            case .baseFailure(let error):
-              // Now that there are no more items in the buffer, we can finally report the base sequence's error and enter terminal state.
-              terminationState = .terminal
-              continuation.resume(returning: .failure(error))
-            case .terminal, .baseTermination:
-              terminationState = .terminal
-              continuation.resume(returning: .success(nil))
-          }
+    }
+
+    do {
+      if let value = try await buffer.pop() {
+        pending.removeFirst().resume(returning: .success(value))
+      } else {
+        switch terminationState {
+          case .running:
+            // There's no value to report, because it was probably grabbed by next() before we could grab it. The pending continuation was either resumed by next() directly, or will be by a future enqueued value or base termination/failure.
+            break
+          case .baseFailure(let error):
+            // Now that there are no more items in the buffer, we can finally report the base sequence's error and enter terminal state.
+            pending.removeFirst().resume(returning: .failure(error))
+            self.terminate()
+          case .terminal, .baseTermination:
+            self.terminate()
         }
-        state = .idle
-      } catch {
-        // Errors thrown by the buffer immediately terminate the sequence.
-        state = .idle
-        terminationState = .terminal
-        continuation.resume(returning: .failure(error))
       }
+    } catch {
+      // Errors thrown by the buffer immediately terminate the sequence.
+      pending.removeFirst().resume(returning: .failure(error))
+      self.terminate()
     }
   }
 
@@ -91,19 +75,32 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
     }
     await drain(buffer: buffer)
   }
-  
+
+  func terminate() {
+    terminationState = .terminal
+    for continuation in pending {
+      continuation.resume(returning: .success(nil))
+    }
+    pending = []
+  }
+
   func next<Buffer: AsyncBuffer>(buffer: Buffer) async throws -> Buffer.Output? where Buffer.Input == Input, Buffer.Output == Output {
     if case .terminal = terminationState {
       return nil
     }
 
     do {
-      if let value = try await buffer.pop() {
-        return value
+      while let value = try await buffer.pop() {
+        if let continuation = pending.first {
+          pending.removeFirst()
+          continuation.resume(returning: .success(value))
+        } else {
+          return value
+        }
       }
     } catch {
       // Errors thrown by the buffer immediately terminate the sequence.
-      terminationState = .terminal
+      self.terminate()
       throw error
     }
 
@@ -111,15 +108,15 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
       case .running:
         break
       case .baseFailure(let error):
-        terminationState = .terminal
+        self.terminate()
         throw error
       case .baseTermination, .terminal:
-        terminationState = .terminal
+        self.terminate()
         return nil
     }
 
     let result: Result<Output?, Error> = await withUnsafeContinuation { continuation in
-      state = .pending(continuation)
+      pending.append(continuation)
     }
     return try result._rethrowGet()
   }
