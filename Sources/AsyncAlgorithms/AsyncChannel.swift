@@ -86,7 +86,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   let state = ManagedCriticalState(State())
   
-  public init(_ elementType: Element.Type = Element.self) { }
+  public init(element elementType: Element.Type = Element.self) { }
   
   func establish() -> Int {
     state.withCriticalRegion { state in
