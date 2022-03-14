@@ -80,7 +80,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     case pending([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>])
     case awaiting(Set<Awaiting>)
     
-    mutating func remove(_ generation: Int) -> UnsafeContinuation<Element?, Error>? {
+    mutating func cancel(_ generation: Int) -> UnsafeContinuation<Element?, Error>? {
       switch self {
       case .awaiting(var awaiting):
         let continuation = awaiting.remove(Awaiting(placeholder: generation))?.continuation
@@ -114,7 +114,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   
   func cancel(_ generation: Int) {
     state.withCriticalRegion { state in
-      state.emission.remove(generation)
+      state.emission.cancel(generation)
     }?.resume(returning: nil)
   }
   

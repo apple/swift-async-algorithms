@@ -75,7 +75,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     case pending([UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>])
     case awaiting(Set<Awaiting>)
     
-    mutating func remove(_ generation: Int) -> UnsafeContinuation<Element?, Never>? {
+    mutating func cancel(_ generation: Int) -> UnsafeContinuation<Element?, Never>? {
       switch self {
       case .awaiting(var awaiting):
         let continuation = awaiting.remove(Awaiting(placeholder: generation))?.continuation
@@ -109,7 +109,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   func cancel(_ generation: Int) {
     state.withCriticalRegion { state in
-      state.emission.remove(generation)
+      state.emission.cancel(generation)
     }?.resume(returning: nil)
   }
   
