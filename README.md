@@ -20,18 +20,24 @@
 - [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
 #### Other useful asynchronous sequences
-- [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
-- [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Remove nil values from an asynchronous sequence.
-- [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Remove sequentially adjacent duplicate values.
+- [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Joined.md): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
+- [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
+- [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
 - [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
+
+#### Asynchronous Sequences that transact in time
+
+- [`debounce(for:tolerance:clock:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Debounce.md): Emit values after a quiessence period has been reached.
+- [`throttle(for:clock:reducing:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Throttle.md): Ensure a minimum interval has elapsed between events.
+- [`AsyncTimerSequence`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Timer.md): Emit the value of now at a given interval repeatedly.
 
 #### Obtaining all values from an asynchronous sequence
 
-- [`RangeReplaceableCollection.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Creates a new instance of a collection containing the elements of an asynchronous sequence.
-- [`Dictionary.init(uniqueKeysWithValues:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
-- [`Dictionary.init(_:uniquingKeysWith:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Creates a new dictionary from the key-value pairs in the given asynchronous sequence, using a combining closure to determine the value for any duplicate keys.
-- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/):   /// Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
-- [`SetAlgebra.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/): Creates a new set from an asynchronous sequence of items.
+- [`RangeReplaceableCollection.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new instance of a collection containing the elements of an asynchronous sequence.
+- [`Dictionary.init(uniqueKeysWithValues:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
+- [`Dictionary.init(_:uniquingKeysWith:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence, using a combining closure to determine the value for any duplicate keys.
+- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md):   /// Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
+- [`SetAlgebra.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new set from an asynchronous sequence of items.
   
 
 #### Task management
