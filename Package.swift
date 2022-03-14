@@ -31,7 +31,8 @@ let package = Package(
       dependencies: ["_CAsyncSequenceValidationSupport"],
       swiftSettings: [
         .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking"
+          "-Xfrontend", "-disable-availability-checking",
+          "-Xfrontend", "-enable-experimental-pairwise-build-block"
         ])
       ]),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
@@ -40,7 +41,8 @@ let package = Package(
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
       swiftSettings: [
         .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking"
+          "-Xfrontend", "-disable-availability-checking",
+          "-Xfrontend", "-enable-experimental-pairwise-build-block"
         ])
       ]),
   ]

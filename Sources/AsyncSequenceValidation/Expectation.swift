@@ -11,7 +11,12 @@
 
 extension AsyncSequenceValidationDiagram {
   public struct ExpectationResult: Sendable {
-    public var expected: [(Clock.Instant, Result<String?, Error>)]
+    public struct Event: Sendable {
+      public var when: Clock.Instant
+      public var result: Result<String?, Error>
+      public var offset: String.Index
+    }
+    public var expected: [Event]
     public var actual: [(Clock.Instant, Result<String?, Error>)]
     
     func reconstitute<Theme: AsyncSequenceValidationTheme>(_ result: Result<String?, Error>, theme: Theme) -> String {
@@ -61,7 +66,9 @@ extension AsyncSequenceValidationDiagram {
       var events = [Clock.Instant : [Result<String?, Error>]]()
       var end: Clock.Instant = Clock.Instant(when: .zero)
       
-      for (when, result) in expected {
+      for expectation in expected {
+        let when = expectation.when
+        let result = expectation.result
         events[when, default: []].append(result)
         if when > end {
           end = when
@@ -107,6 +114,16 @@ extension AsyncSequenceValidationDiagram {
     }
     public var when: Clock.Instant
     public var kind: Kind
+    
+    public var specification: Specification?
+    public var index: String.Index?
+    
+    init(when: Clock.Instant, kind: Kind, specification: Specification? = nil, index: String.Index? = nil) {
+      self.when = when
+      self.kind = kind
+      self.specification = specification
+      self.index = index
+    }
     
     var reason: String {
       switch kind {

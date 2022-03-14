@@ -10,6 +10,16 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequenceValidationDiagram {
+  public struct Specification: Sendable {
+    public let specification: String
+    public let location: SourceLocation
+    
+    init(specification: String, location: SourceLocation) {
+      self.specification = specification
+      self.location = location
+    }
+  }
+  
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
     
@@ -74,8 +84,8 @@ extension AsyncSequenceValidationDiagram {
       Iterator(state: state, queue: queue, index: index)
     }
     
-    func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme) throws {
-      let emissions = try Event.parse(dsl, theme: theme)
+    func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme, location: SourceLocation) throws {
+      let emissions = try Event.parse(dsl, theme: theme, location: location)
       state.withCriticalRegion { state in
         state.emissions = emissions
       }

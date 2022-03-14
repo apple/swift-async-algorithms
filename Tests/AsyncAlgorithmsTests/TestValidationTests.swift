@@ -232,6 +232,15 @@ final class TestValidationDiagram: XCTestCase {
     }
   }
   
+  func test_diagram_parse_failure_unbalanced_group_input() {
+    expectFailures(["validation diagram unbalanced grouping"])
+    validate {
+      "[ab|"
+      $0.inputs[0]
+      " ab|"
+    }
+  }
+  
   func test_diagram_parse_failure_nested_group() {
     expectFailures(["validation diagram nested grouping"])
     validate {
@@ -241,12 +250,30 @@ final class TestValidationDiagram: XCTestCase {
     }
   }
   
+  func test_diagram_parse_failure_nested_group_input() {
+    expectFailures(["validation diagram nested grouping"])
+    validate {
+      "[[ab|"
+      $0.inputs[0]
+      "  ab|"
+    }
+  }
+  
   func test_diagram_parse_failure_step_in_group() {
     expectFailures(["validation diagram step symbol in group"])
     validate {
       "  ab|"
       $0.inputs[0]
       "[a-]b|"
+    }
+  }
+  
+  func test_diagram_parse_failure_step_in_group_input() {
+    expectFailures(["validation diagram step symbol in group"])
+    validate {
+      "[a-]b|"
+      $0.inputs[0]
+      "  ab|"
     }
   }
   

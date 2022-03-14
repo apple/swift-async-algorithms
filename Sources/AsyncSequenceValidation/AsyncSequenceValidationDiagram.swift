@@ -13,49 +13,46 @@ import _CAsyncSequenceValidationSupport
 
 @resultBuilder
 public struct AsyncSequenceValidationDiagram : Sendable {
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ sequence: Operation,
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    return Test(inputs: [], sequence: sequence, output: output)
+  public struct Component<T> {
+    var component: T
+    var location: SourceLocation
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    return Test(inputs: [input], sequence: sequence, output: output)
+  public struct AccumulatedInputs {
+    var inputs: [Specification] = []
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String, 
-    _ input2: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2], sequence: sequence, output: output)
+  public struct AccumulatedInputsWithOperation<Operation: AsyncSequence> where Operation.Element == String {
+    var inputs: [Specification]
+    var operation: Operation
   }
   
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String, 
-    _ input2: String, 
-    _ input3: String, 
-    _ sequence: Operation, 
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2, input3], sequence: sequence, output: output)
+  public static func buildExpression(_ expr: String, file: StaticString = #file, line: UInt = #line) -> Component<String> {
+    Component(component: expr, location: SourceLocation(file: file, line: line))
   }
-
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String,
-    _ input2: String,
-    _ input3: String,
-    _ input4: String,
-    _ sequence: Operation,
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2, input3, input4], sequence: sequence, output: output)
+  
+  public static func buildExpression<S: AsyncSequence>(_ expr: S, file: StaticString = #file, line: UInt = #line) -> Component<S> {
+    Component(component: expr, location: SourceLocation(file: file, line: line))
+  }
+  
+  public static func buildPartialBlock(first input: Component<String>) -> AccumulatedInputs {
+    return AccumulatedInputs(inputs: [Specification(specification: input.component, location: input.location)])
+  }
+  
+  public static func buildPartialBlock<Operation: AsyncSequence>(first operation: Component<Operation>) -> AccumulatedInputsWithOperation<Operation> where Operation.Element == String {
+    return AccumulatedInputsWithOperation(inputs: [], operation: operation.component)
+  }
+  
+  public static func buildPartialBlock(accumulated: AccumulatedInputs, next input: Component<String>) -> AccumulatedInputs {
+    return AccumulatedInputs(inputs: accumulated.inputs + [Specification(specification: input.component, location: input.location)])
+  }
+  
+  public static func buildPartialBlock<Operation: AsyncSequence>(accumulated: AccumulatedInputs, next operation: Component<Operation>) -> AccumulatedInputsWithOperation<Operation> {
+    return AccumulatedInputsWithOperation(inputs: accumulated.inputs, operation: operation.component)
+  }
+  
+  public static func buildPartialBlock<Operation: AsyncSequence>(accumulated: AccumulatedInputsWithOperation<Operation>, next output: Component<String>) -> some AsyncSequenceValidationTest {
+    return Test(inputs: accumulated.inputs, sequence: accumulated.operation, output: Specification(specification: output.component, location: output.location))
   }
   
   let queue: WorkQueue

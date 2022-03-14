@@ -19,19 +19,19 @@ internal func _swiftJobRun(
 ) -> ()
 
 public protocol AsyncSequenceValidationTest: Sendable {
-  var inputs: [String] { get }
-  var output: String { get }
+  var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
+  var output: AsyncSequenceValidationDiagram.Specification { get }
   
-  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws
+  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
 extension AsyncSequenceValidationDiagram {
   struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
-    let inputs: [String]
+    let inputs: [Specification]
     let sequence: Operation
-    let output: String
+    let output: Specification
     
-    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws {
+    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {
@@ -46,10 +46,18 @@ extension AsyncSequenceValidationDiagram {
         }
         do {
           if let pastEnd = try await iterator.next(){
-            Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotValueAfterIteration(pastEnd)))
+            let failure = ExpectationFailure(
+              when: Context.clock!.now,
+              kind: .specificationViolationGotValueAfterIteration(pastEnd),
+              specification: output)
+            Context.specificationFailures.append(failure)
           }
         } catch {
-          Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotFailureAfterIteration(error)))
+          let failure = ExpectationFailure(
+            when: Context.clock!.now,
+            kind: .specificationViolationGotFailureAfterIteration(error),
+            specification: output)
+          Context.specificationFailures.append(failure)
         }
       } catch {
         throw error
@@ -99,9 +107,10 @@ extension AsyncSequenceValidationDiagram {
   }
   
   static func validate<Theme: AsyncSequenceValidationTheme>(
-    output: String,
+    inputs: [Specification],
+    output: Specification,
     theme: Theme,
-    expected: [(Clock.Instant, Result<String?, Error>)],
+    expected: [ExpectationResult.Event],
     actual: [(Clock.Instant, Result<String?, Error>)]
   ) -> (ExpectationResult, [ExpectationFailure]) {
     let result = ExpectationResult(expected: expected, actual: actual)
@@ -109,13 +118,13 @@ extension AsyncSequenceValidationDiagram {
     Context.specificationFailures.removeAll()
     
     let actualTimes = actual.map { when, _ in when }
-    let expectedTimes = expected.map { when, _ in when }
+    let expectedTimes = expected.map { $0.when }
     
-    var expectedMap = [Clock.Instant: [Result<String?, Error>]]()
+    var expectedMap = [Clock.Instant: [ExpectationResult.Event]]()
     var actualMap = [Clock.Instant: [Result<String?, Error>]]()
     
-    for (when, result) in expected {
-      expectedMap[when, default: []].append(result)
+    for event in expected {
+      expectedMap[event.when, default: []].append(event)
     }
     
     for (when, result) in actual {
@@ -128,27 +137,32 @@ extension AsyncSequenceValidationDiagram {
       let actualResults = actualMap[when] ?? []
       var expectedIterator = expectedResults.makeIterator()
       var actualIterator = actualResults.makeIterator()
-      while let expectedResult = expectedIterator.next() {
+      while let expectedEvent = expectedIterator.next() {
         let actualResult = ActualResult(actualIterator.next())
-        switch (expectedResult, actualResult) {
+        switch (expectedEvent.result, actualResult) {
         case (.success(let expected), .success(let actual)):
           switch (expected, actual) {
           case (.some(let expected), .some(let actual)):
             if expected != actual {
               let failure = ExpectationFailure(
                 when: when,
-                kind: .expectedMismatch(expected, actual))
+                kind: .expectedMismatch(expected, actual),
+                specification: output,
+                index: expectedEvent.offset)
               failures.append(failure)
             }
           case (.none, .some(let actual)):
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFinishButGotValue(actual))
+              kind: .expectedFinishButGotValue(actual),
+              specification: output)
             failures.append(failure)
           case (.some(let expected), .none):
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedValueButGotFinished(expected))
+              kind: .expectedValueButGotFinished(expected),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           case (.none, .none):
             break
@@ -157,12 +171,16 @@ extension AsyncSequenceValidationDiagram {
           if let expected = expected {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedValueButGotFailure(expected, actual))
+              kind: .expectedValueButGotFailure(expected, actual),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           } else {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFinishButGotFailure(actual))
+              kind: .expectedFinishButGotFailure(actual),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           }
         case (.success(let expected), .none):
@@ -170,24 +188,32 @@ extension AsyncSequenceValidationDiagram {
           case .some(let expected):
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedValue(expected))
+              kind: .expectedValue(expected),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           case .none:
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFinish)
+              kind: .expectedFinish,
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           }
         case (.failure(let expected), .success(let actual)):
           if let actual = actual {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFailureButGotValue(expected, actual))
+              kind: .expectedFailureButGotValue(expected, actual),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           } else {
             let failure = ExpectationFailure(
               when: when,
-              kind: .expectedFailureButGotFinish(expected))
+              kind: .expectedFailureButGotFinish(expected),
+              specification: output,
+              index: expectedEvent.offset)
             failures.append(failure)
           }
         case (.failure, .failure):
@@ -195,7 +221,9 @@ extension AsyncSequenceValidationDiagram {
         case (.failure(let expected), .none):
           let failure = ExpectationFailure(
             when: when,
-            kind: .expectedFailure(expected))
+            kind: .expectedFailure(expected),
+            specification: output,
+            index: expectedEvent.offset)
           failures.append(failure)
         }
       }
@@ -206,18 +234,21 @@ extension AsyncSequenceValidationDiagram {
           case .some(let actual):
             let failure = ExpectationFailure(
               when: when,
-              kind: .unexpectedValue(actual))
+              kind: .unexpectedValue(actual),
+              specification: output)
             failures.append(failure)
           case .none:
             let failure = ExpectationFailure(
               when: when,
-              kind: .unexpectedFinish)
+              kind: .unexpectedFinish,
+              specification: output)
             failures.append(failure)
           }
         case .failure(let actual):
           let failure = ExpectationFailure(
             when: when,
-            kind: .unexpectedFailure(actual))
+            kind: .unexpectedFailure(actual),
+            specification: output)
           failures.append(failure)
         }
       }
@@ -239,10 +270,11 @@ extension AsyncSequenceValidationDiagram {
     }
     
     for (index, input) in diagram.inputs.enumerated() {
-      try input.parse(test.inputs[index], theme: theme)
+      let inputSpecification = test.inputs[index]
+      try input.parse(inputSpecification.specification, theme: theme, location: inputSpecification.location)
     }
     
-    let parsedOutput = try Event.parse(test.output, theme: theme)
+    let parsedOutput = try Event.parse(test.output.specification, theme: theme, location: test.output.location)
     let cancelEvents = Set(parsedOutput.filter { when, event in
       switch event {
       case .cancel: return true
@@ -260,10 +292,10 @@ extension AsyncSequenceValidationDiagram {
       }
     }
     
-    var expected = [(Clock.Instant, Result<String?, Error>)]()
+    var expected = [ExpectationResult.Event]()
     for (when, event) in parsedOutput {
       for result in event.results {
-        expected.append((when, result))
+        expected.append(ExpectationResult.Event(when: when, result: result, offset: event.index))
       }
     }
     let times = parsedOutput.map { when, _ in when }
@@ -283,7 +315,7 @@ extension AsyncSequenceValidationDiagram {
       
       let runner = Task {
         do {
-          try await test.test(with: clock, activeTicks: activeTicks) { event in
+          try await test.test(with: clock, activeTicks: activeTicks, output: test.output) { event in
             actual.withCriticalRegion { values in
               values.append((clock.now, .success(event)))
             }
@@ -323,6 +355,7 @@ extension AsyncSequenceValidationDiagram {
     Context.driver = nil
     
     return validate(
+      inputs: test.inputs,
       output: test.output,
       theme: theme,
       expected: expected,
