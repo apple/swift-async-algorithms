@@ -10,7 +10,6 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-
   @inlinable
   public func chunks<Collected: RangeReplaceableCollection>(ofCount count: Int, into: Collected.Type) -> AsyncChunksOfCountSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunksOfCountSequence(self, count: count)
@@ -20,7 +19,6 @@ extension AsyncSequence {
   public func chunks(ofCount count: Int) -> AsyncChunksOfCountSequence<Self, [Element]> {
     chunks(ofCount: count, into: [Element].self)
   }
-
 }
 
 public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {

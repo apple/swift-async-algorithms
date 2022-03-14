@@ -10,17 +10,15 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-
   @inlinable
-  public func chunked<Collected: RangeReplaceableCollection>(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool, into: Collected.Type) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
+  public func chunked<Collected: RangeReplaceableCollection>(into: Collected.Type, by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunkedByGroupSequence(self, grouping: belongInSameGroup)
   }
 
   @inlinable
   public func chunked(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, [Element]> {
-    chunked(by: belongInSameGroup, into: [Element].self)
+    chunked(into: [Element].self, by: belongInSameGroup)
   }
-
 }
 
 public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {

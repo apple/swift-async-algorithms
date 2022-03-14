@@ -27,7 +27,7 @@ final class TestChunk: XCTestCase {
     validate {
       "ABC-    DEF-    GHI-     |"
       "---X    ---X    ---X    |"
-      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
       "---'ABC'---'DEF'---'GHI'|"
     }
   }
@@ -36,7 +36,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB-   A-ABCDEFGH-         |"
       "--X   -X--------X         |"
-      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
       "--'AB'-A--------'ABCDEFGH'|"
     }
   }
@@ -45,7 +45,7 @@ final class TestChunk: XCTestCase {
     validate {
       "--1--|"
       "XX-XX|"
-      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
       "---1-|"
     }
   }
@@ -54,7 +54,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB^"
       "---X|"
-      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
       "--^"
     }
   }
@@ -63,7 +63,7 @@ final class TestChunk: XCTestCase {
     validate {
       "111-111|"
       "---X---|"
-      $0.inputs[0].chunked(bySignal: $0.inputs[1]).map(sumCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(sumCharacters)
       "---3---[3|]"
     }
   }
