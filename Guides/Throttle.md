@@ -9,7 +9,13 @@
 
 ## Introduction
 
+When events can potentially happen faster than the desired consumption rate there are multiple ways of handling that. One way of approaching that problem is to emit values after a given period has elapsed. These values can reduced from the values encountered while that duration occurs. This algorithm is commonly referred to as throttling. 
+
 ## Proposed Solution
+
+The throttle algorithm produces elements such that at least a specific interval has elapsed between them. It transacts by measuring against a specific clock. If values are produced by the base `AsyncSequence` the throttle does not resume it's next iterator until the period has elapsed or unless a terminal event is encountered.
+
+The interface for this algorithm is available on all `AsyncSequence` types. Unlike other algorithms like `debounce`, the throttle algorithm does not need to create additional tasks or require any sort of tolerance because the interval is just measured. A shorthand implementation will be offered in conjunction where the clock is the `ContinuousClock`; which allows for easy construction with `Duration` values. An additional shorthand is offered to reduce the values such that it provides a "latest" or "non latest" value; representing the leading or trailing edge of a throttled region of production of events.
 
 ```swift
 extension AsyncSequence {
@@ -37,7 +43,17 @@ extension AsyncSequence {
 }
 ```
 
+This all boils down to a terse description of how to transform the asynchronous sequence over time. 
+
+```swift
+fastEvents.throttle(for: .seconds(1))
+```
+
+In this case it transforms a potentially fast asynchronous sequence of events into one that waits for a window of 1 second to elapse before emitting a value.
+
 ## Detailed Design
+
+The type that implements the algorithm for debounce emits the same element type as the base that it applies to. It also throws when the base type throws (and likewise does not throw when the base type does not throw).
 
 ```swift
 public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {
@@ -59,6 +75,14 @@ extension AsyncThrottleSequence.Iterator: Sendable
   where Base.AsyncIterator: Sendable { }
 ```
 
+The `AsyncThrottleSequence` and it's `Iterator` are conditionally `Sendable` if the base types comprising it are `Sendable`.
+
 ## Alternatives Considered
 
+It was considered to only provide the "latest" style APIs, however the reduction version grants more flexibility and can act as a funnel to the implementations of `latest`.
+
 ## Credits/Inspiration
+
+http://reactivex.io/documentation/operators/sample.html
+
+https://developer.apple.com/documentation/combine/publishers/throttle/
