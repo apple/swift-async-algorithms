@@ -118,6 +118,13 @@ extension AsyncSequenceValidationDiagram {
     public var specification: Specification?
     public var index: String.Index?
     
+    init(when: Clock.Instant, kind: Kind, specification: Specification? = nil, index: String.Index? = nil) {
+      self.when = when
+      self.kind = kind
+      self.specification = specification
+      self.index = index
+    }
+    
     var reason: String {
       switch kind {
       case .expectedFinishButGotValue(let actual):

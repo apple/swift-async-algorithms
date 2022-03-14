@@ -9,9 +9,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct SourceLocation: Sendable {
+public struct SourceLocation: Sendable, CustomStringConvertible {
   public var file: StaticString
   public var line: UInt
+  
+  public var description: String {
+    return "\(file):\(line)"
+  }
 }
 
 public protocol SourceFailure: Error {

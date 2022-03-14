@@ -19,7 +19,14 @@ extension XCTestCase {
     let baseContext = XCTSourceCodeContext(location: baseLocation)
     do {
       let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
+      var detail: String?
       if failures.count > 0 {
+        detail = """
+        Expected
+        \(result.reconstituteExpected(theme: theme))
+        Actual
+        \(result.reconstituteActual(theme: theme))
+        """
         print("Expected")
         print(result.reconstituteExpected(theme: theme))
         print("Actual")
@@ -27,12 +34,14 @@ extension XCTestCase {
       }
       for failure in failures {
         if let specification = failure.specification {
+          print(specification.location)
           let location = XCTSourceCodeLocation(filePath: specification.location.file.description, lineNumber: Int(specification.location.line))
           let context = XCTSourceCodeContext(location: location)
-          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
+          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: context, associatedError: nil, attachments: [])
+          print(location)
           record(issue)
         } else {
-          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
+          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
           record(issue)
         }
       }

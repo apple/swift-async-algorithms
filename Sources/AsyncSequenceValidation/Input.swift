@@ -13,6 +13,11 @@ extension AsyncSequenceValidationDiagram {
   public struct Specification: Sendable {
     public let specification: String
     public let location: SourceLocation
+    
+    init(specification: String, location: SourceLocation) {
+      self.specification = specification
+      self.location = location
+    }
   }
   
   public struct Input: AsyncSequence, Sendable {
