@@ -78,10 +78,10 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
 
   func terminate() {
     terminationState = .terminal
+    pending = []
     for continuation in pending {
       continuation.resume(returning: .success(nil))
     }
-    pending = []
   }
 
   func next<Buffer: AsyncBuffer>(buffer: Buffer) async throws -> Buffer.Output? where Buffer.Input == Input, Buffer.Output == Output {
