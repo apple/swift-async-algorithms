@@ -46,7 +46,6 @@ extension XCTestCase {
         let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
         record(issue)
       }
-      
     }
   }
   
