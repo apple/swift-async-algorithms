@@ -10,10 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequenceValidationDiagram {
-  public struct Specification {
+  public struct Specification: Sendable {
     public let specification: String
-    public let file: StaticString
-    public let line: UInt
+    public let location: SourceLocation
   }
   
   public struct Input: AsyncSequence, Sendable {
@@ -80,8 +79,8 @@ extension AsyncSequenceValidationDiagram {
       Iterator(state: state, queue: queue, index: index)
     }
     
-    func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme) throws {
-      let emissions = try Event.parse(dsl, theme: theme)
+    func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme, location: SourceLocation) throws {
+      let emissions = try Event.parse(dsl, theme: theme, location: location)
       state.withCriticalRegion { state in
         state.emissions = emissions
       }

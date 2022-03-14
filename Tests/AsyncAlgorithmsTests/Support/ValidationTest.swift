@@ -14,7 +14,9 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 
 extension XCTestCase {
-  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+    let baseLocation = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
+    let baseContext = XCTSourceCodeContext(location: baseLocation)
     do {
       let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
       if failures.count > 0 {
@@ -24,20 +26,31 @@ extension XCTestCase {
         print(result.reconstituteActual(theme: theme))
       }
       for failure in failures {
-        let location = XCTSourceCodeLocation(filePath: failure.specification.file.description, lineNumber: Int(failure.specification.line))
-        let context = XCTSourceCodeContext(location: location)
-        let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
-        record(issue)
+        if let specification = failure.specification {
+          let location = XCTSourceCodeLocation(filePath: specification.location.file.description, lineNumber: Int(specification.location.line))
+          let context = XCTSourceCodeContext(location: location)
+          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
+          record(issue)
+        } else {
+          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: nil, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
+          record(issue)
+        }
       }
     } catch {
-      let location = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
-      let context = XCTSourceCodeContext(location: location)
-      let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
-      record(issue)
+      if let sourceFailure = error as? SourceFailure {
+        let location = XCTSourceCodeLocation(filePath: sourceFailure.location.file.description, lineNumber: Int(sourceFailure.location.line))
+        let context = XCTSourceCodeContext(location: location)
+        let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
+        record(issue)
+      } else {
+        let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
+        record(issue)
+      }
+      
     }
   }
   
-  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (inout AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, build, file: file, line: line)
   }
 }

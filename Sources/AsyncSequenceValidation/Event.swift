@@ -12,10 +12,18 @@
 extension AsyncSequenceValidationDiagram {
   struct Failure: Error, Equatable { }
   
-  enum ParseFailure: Error, CustomStringConvertible {
-    case stepInGroup(String, String.Index)
-    case nestedGroup(String, String.Index)
-    case unbalancedNesting(String, String.Index)
+  enum ParseFailure: Error, CustomStringConvertible, SourceFailure {
+    case stepInGroup(String, String.Index, SourceLocation)
+    case nestedGroup(String, String.Index, SourceLocation)
+    case unbalancedNesting(String, String.Index, SourceLocation)
+    
+    var location: SourceLocation {
+      switch self {
+      case .stepInGroup(_, _, let location): return location
+      case .nestedGroup(_, _, let location): return location
+      case .unbalancedNesting(_, _, let location): return location
+      }
+    }
     
     var description: String {
       switch self {
@@ -56,7 +64,7 @@ extension AsyncSequenceValidationDiagram {
       }
     }
     
-    static func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme) throws -> [(Clock.Instant, Event)] {
+    static func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme, location: SourceLocation) throws -> [(Clock.Instant, Event)] {
       var emissions = [(Clock.Instant, Event)]()
       var when = Clock.Instant(when: .steps(0))
       var string: String?
@@ -70,7 +78,7 @@ extension AsyncSequenceValidationDiagram {
             if grouping == 0 {
               when = when.advanced(by: .steps(1))
             } else {
-              throw ParseFailure.stepInGroup(dsl, index)
+              throw ParseFailure.stepInGroup(dsl, index, location)
             }
           } else {
             string?.append(ch)
@@ -125,13 +133,13 @@ extension AsyncSequenceValidationDiagram {
           if grouping == 0 {
             when = when.advanced(by: .steps(1))
           } else {
-            throw ParseFailure.nestedGroup(dsl, index)
+            throw ParseFailure.nestedGroup(dsl, index, location)
           }
           grouping += 1
         case .endGroup:
           grouping -= 1
           if grouping < 0 {
-            throw ParseFailure.unbalancedNesting(dsl, index)
+            throw ParseFailure.unbalancedNesting(dsl, index, location)
           }
         case .skip:
           string?.append(ch)
@@ -148,7 +156,7 @@ extension AsyncSequenceValidationDiagram {
         }
       }
       if grouping != 0 {
-        throw ParseFailure.unbalancedNesting(dsl, dsl.endIndex)
+        throw ParseFailure.unbalancedNesting(dsl, dsl.endIndex, location)
       }
       return emissions
     }

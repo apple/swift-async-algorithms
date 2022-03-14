@@ -23,26 +23,15 @@ public struct AsyncSequenceValidationDiagram : Sendable {
   }
   
   public static func buildBlock(_ input: String, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputs {
-    AccumulatedInputs(inputs: [Specification(specification: input, file: file, line: line)])
+    AccumulatedInputs(inputs: [Specification(specification: input, location: SourceLocation(file: file, line: line))])
   }
   
   public static func buildBlock<Operation: AsyncSequence>(_ operation: Operation, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputsWithOperation<Operation> where Operation.Element == String {
     AccumulatedInputsWithOperation(inputs: [], operation: operation)
   }
-
-  public static func buildBlock<Operation: AsyncSequence>(
-    _ input1: String,
-    _ input2: String,
-    _ input3: String,
-    _ input4: String,
-    _ sequence: Operation,
-    _ output: String
-  ) -> some AsyncSequenceValidationTest where Operation.Element == String {
-    Test(inputs: [input1, input2, input3, input4], sequence: sequence, output: output)
-  }
   
   public static func buildBlock(combining input: String, into accumulated: AccumulatedInputs, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputs {
-    AccumulatedInputs(inputs: accumulated.inputs + [Specification(specification: input, file: file, line: line)])
+    AccumulatedInputs(inputs: accumulated.inputs + [Specification(specification: input, location: SourceLocation(file: file, line: line))])
   }
   
   public static func buildBlock<Operation: AsyncSequence>(combining operation: Operation, into accumulated: AccumulatedInputs, file: StaticString = #file, line: UInt = #line) -> AccumulatedInputsWithOperation<Operation> {
@@ -50,7 +39,7 @@ public struct AsyncSequenceValidationDiagram : Sendable {
   }
   
   public static func buildBlock<Operation: AsyncSequence>(combining output: String, into accumulated: AccumulatedInputsWithOperation<Operation>, file: StaticString = #file, line: UInt = #line) -> some AsyncSequenceValidationTest {
-    Test(inputs: accumulated.inputs, sequence: accumulated.operation, output: Specification(specification: output, file: file, line: line))
+    Test(inputs: accumulated.inputs, sequence: accumulated.operation, output: Specification(specification: output, location: SourceLocation(file: file, line: line)))
   }
 
   let queue: WorkQueue

@@ -22,7 +22,7 @@ public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
   var output: AsyncSequenceValidationDiagram.Specification { get }
   
-  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws
+  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
 extension AsyncSequenceValidationDiagram {
@@ -31,7 +31,7 @@ extension AsyncSequenceValidationDiagram {
     let sequence: Operation
     let output: Specification
     
-    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], _ event: (String) -> Void) async throws {
+    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {
@@ -46,10 +46,18 @@ extension AsyncSequenceValidationDiagram {
         }
         do {
           if let pastEnd = try await iterator.next(){
-            Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotValueAfterIteration(pastEnd)))
+            let failure = ExpectationFailure(
+              when: Context.clock!.now,
+              kind: .specificationViolationGotValueAfterIteration(pastEnd),
+              specification: output)
+            Context.specificationFailures.append(failure)
           }
         } catch {
-          Context.specificationFailures.append(ExpectationFailure(when: Context.clock!.now, kind: .specificationViolationGotFailureAfterIteration(error)))
+          let failure = ExpectationFailure(
+            when: Context.clock!.now,
+            kind: .specificationViolationGotFailureAfterIteration(error),
+            specification: output)
+          Context.specificationFailures.append(failure)
         }
       } catch {
         throw error
@@ -262,10 +270,11 @@ extension AsyncSequenceValidationDiagram {
     }
     
     for (index, input) in diagram.inputs.enumerated() {
-      try input.parse(test.inputs[index].specification, theme: theme)
+      let inputSpecification = test.inputs[index]
+      try input.parse(inputSpecification.specification, theme: theme, location: inputSpecification.location)
     }
     
-    let parsedOutput = try Event.parse(test.output.specification, theme: theme)
+    let parsedOutput = try Event.parse(test.output.specification, theme: theme, location: test.output.location)
     let cancelEvents = Set(parsedOutput.filter { when, event in
       switch event {
       case .cancel: return true
@@ -306,7 +315,7 @@ extension AsyncSequenceValidationDiagram {
       
       let runner = Task {
         do {
-          try await test.test(with: clock, activeTicks: activeTicks) { event in
+          try await test.test(with: clock, activeTicks: activeTicks, output: test.output) { event in
             actual.withCriticalRegion { values in
               values.append((clock.now, .success(event)))
             }
