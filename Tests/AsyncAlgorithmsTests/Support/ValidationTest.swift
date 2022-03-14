@@ -34,11 +34,9 @@ extension XCTestCase {
       }
       for failure in failures {
         if let specification = failure.specification {
-          print(specification.location)
           let location = XCTSourceCodeLocation(filePath: specification.location.file.description, lineNumber: Int(specification.location.line))
           let context = XCTSourceCodeContext(location: location)
           let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: context, associatedError: nil, attachments: [])
-          print(location)
           record(issue)
         } else {
           let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
