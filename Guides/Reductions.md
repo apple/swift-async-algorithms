@@ -41,7 +41,15 @@ extension AsyncSequence {
 }
 ```
 
-Inclusive reductions do not have an initial value and so therefore do not need an additional variations beyond the throwing and non throwing flavors.
+These APIs can be used to reduce an initial value progressively or reduce into an initial value via mutation. In practice a common use case for reductions is to mutate a collection by appending values.
+
+```swift
+characters.reductions(into: "") { $0.append($1) }
+```
+
+If the characters being produced asynchronously are `"a", "b", "c"` then the iteration of the reductions is `"a", "ab", "abc"`.
+
+Inclusive reductions do not have an initial value and so therefore do not need an additional variations beyond the throwing and non throwing flavors. 
 
 ```swift
 extension AsyncSequence {
@@ -55,7 +63,19 @@ extension AsyncSequence {
 }
 ```
 
+This is often used for the senarios like a running tally or other such same produced value cases.
+
+```swift
+numbers.reductions { $0 + $1 }
+```
+
+In the above case if the numbers are a sequence of `1, 2, 3, 4` the produced values would be `1, 3, 6, 10`.
+
 ## Detailed Design
+
+The exclusive reduction variants come in two distinct cases; a non throwing and throwing. These both have types to encompass that throwing behavior.
+
+For non throwing exclusive reductions the element type of the sequence is the result of the reduction transform. `AsyncExclusiveReductionsSequence` will throw if the base asynchronous sequence throw, and will not throw if the base does not throw.
 
 ```swift
 public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {
@@ -75,6 +95,8 @@ extension AsyncExclusiveReductionsSequence: Sendable
 extension AsyncExclusiveReductionsSequence.Iterator: Sendable 
   where Base.AsyncIterator: Sendable, Element: Sendable { }
 ```
+
+The sendability behavior of `AsyncExclusiveReductionsSequence` is such that when the base, base iterator, and element are `Sendable` then `AsyncExclusiveReductionsSequence` is `Sendable`.
 
 ```swift
 public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Element> {
