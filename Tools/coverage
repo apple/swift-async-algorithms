@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+source ./Tools/commands.sh
+
+$LLVM_COV_PATH $1 \
+    "${COV_BIN}" \
+    -instr-profile=.build/debug/codecov/default.profdata \
+    -ignore-filename-regex=".build|Tests|AsyncSequenceValidation" \
+    -use-color
