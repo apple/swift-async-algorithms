@@ -9,7 +9,11 @@
 
 ## Introduction
 
+The family of algorithms for reduce are useful to convert a sequence or asynchronous sequence into a single value, but that can elide important intermediate information. This algorithm is often called scan but that does not infer it's heritage to the family of reducing. There are two strategies that are usable for creating continuous reductions; either exclusive reductions or, inclusive reductions. Exclusive reductions take a value and incorperate values into that initial value; a common example is reductions by appending to an array. Inclusive reductions transact just upon the values provided; a common example is adding numbers. 
+
 ## Proposed Solution
+
+Exclusive reductions come in two variants; either transforming by application, or transformation via mutation. This replicates the same interface as `reduce(_:_:)` and `reduce(into:_:)`. Unlike the `reduce` algorithms, the `reductions` algorithm also comes in two flavors; throwing or non throwing transformations.
 
 ```swift
 extension AsyncSequence {
@@ -34,6 +38,20 @@ extension AsyncSequence {
     into initial: Result, 
     _ transform: @Sendable @escaping (inout Result, Element) async throws -> Void
   ) -> AsyncThrowingExclusiveReductionsSequence<Self, Result>
+}
+```
+
+Inclusive reductions do not have an initial value and so therefore do not need an additional variations beyond the throwing and non throwing flavors.
+
+```swift
+extension AsyncSequence {
+  public func reductions(
+    _ transform: @Sendable @escaping (Element, Element) async -> Element
+  ) -> AsyncInclusiveReductionsSequence<Self>
+  
+  public func reductions(
+    _ transform: @Sendable @escaping (Element, Element) async throws -> Element
+  ) -> AsyncThrowingInclusiveReductionsSequence<Self>
 }
 ```
 
