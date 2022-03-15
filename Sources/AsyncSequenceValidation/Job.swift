@@ -11,6 +11,7 @@
 
 import _CAsyncSequenceValidationSupport
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 struct Job: Hashable, @unchecked Sendable {
   let job: JobRef
   

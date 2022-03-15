@@ -20,18 +20,12 @@ let package = Package(
   dependencies: [],
   targets: [
     .target(
-      name: "AsyncAlgorithms",
-      swiftSettings: [
-        .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking"
-        ])
-      ]),
+      name: "AsyncAlgorithms"),
     .target(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport"],
       swiftSettings: [
         .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking",
           "-Xfrontend", "-enable-experimental-pairwise-build-block"
         ])
       ]),
