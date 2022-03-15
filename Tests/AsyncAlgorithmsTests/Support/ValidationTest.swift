@@ -27,10 +27,13 @@ extension XCTestCase {
         Actual
         \(result.reconstituteActual(theme: theme))
         """
-        print("Expected")
-        print(result.reconstituteExpected(theme: theme))
-        print("Actual")
-        print(result.reconstituteActual(theme: theme))
+        // only show expected/actual when running in Xcode
+        if ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil {
+          print("Expected")
+          print(result.reconstituteExpected(theme: theme))
+          print("Actual")
+          print(result.reconstituteActual(theme: theme))
+        }
       }
       for failure in failures {
         if let specification = failure.specification {
