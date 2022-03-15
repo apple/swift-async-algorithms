@@ -62,6 +62,10 @@ extension AsyncDebounceSequence: AsyncSequence {
 
 Since the stored types comprising `AsyncDebounceSequence` must be `Sendable`; `AsyncDebounceSequence` is unconditionally always `Sendable`.
 
+## Alternatives Considered
+
+An alternative form of `debounce` could exist similar to the reductions of `throttle`; where a closure would be invoked for each value being set as the latest and reducing a new value to produce for the debounce.
+
 ## Credits/Inspiration
 
 The naming for debounce comes as a term of art; originally this term was inspired by electronic circutry. When a physical switch closes a circuit it can easily have a "bouncing" behavior (also called chatter) that is caused by electrical contact resistance and the physical bounce of springs associated with switches. That phenomenon is often addressed with additional circuits to de-bounce (removing the bouncing) by ensuring a certain quiessence occurs.
