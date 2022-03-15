@@ -10,14 +10,17 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func throttle<C: Clock, Reduced>(for interval: C.Instant.Duration, clock: C, reducing: @Sendable @escaping (Reduced?, Element) async -> Reduced) -> AsyncThrottleSequence<Self, C, Reduced> {
     AsyncThrottleSequence(self, interval: interval, clock: clock, reducing: reducing)
   }
   
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func throttle<Reduced>(for interval: Duration, reducing: @Sendable @escaping (Reduced?, Element) async -> Reduced) -> AsyncThrottleSequence<Self, ContinuousClock, Reduced> {
     throttle(for: interval, clock: .continuous, reducing: reducing)
   }
   
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func throttle<C: Clock>(for interval: C.Instant.Duration, clock: C, latest: Bool = true) -> AsyncThrottleSequence<Self, C, Element> {
     throttle(for: interval, clock: clock) { previous, element in
       if latest {
@@ -28,11 +31,13 @@ extension AsyncSequence {
     }
   }
   
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func throttle(for interval: Duration, latest: Bool = true) -> AsyncThrottleSequence<Self, ContinuousClock, Element> {
     throttle(for: interval, clock: .continuous, latest: latest)
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {
   let base: Base
   let interval: C.Instant.Duration
@@ -47,6 +52,7 @@ public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncThrottleSequence: AsyncSequence {
   public typealias Element = Reduced
   
@@ -85,5 +91,8 @@ extension AsyncThrottleSequence: AsyncSequence {
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncThrottleSequence: Sendable where Base: Sendable, Element: Sendable { }
+
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncThrottleSequence.Iterator: Sendable where Base.AsyncIterator: Sendable { }

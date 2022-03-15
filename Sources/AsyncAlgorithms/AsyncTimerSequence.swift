@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   public typealias Element = C.Instant
   
@@ -67,18 +68,22 @@ public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence {
   public static func repeating(every interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncTimerSequence<C> {
     return AsyncTimerSequence(interval: interval, tolerance: tolerance, clock: clock)
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence where C == SuspendingClock {
   public static func repeating(every interval: Duration, tolerance: Duration? = nil) -> AsyncTimerSequence<SuspendingClock> {
     return AsyncTimerSequence(interval: interval, tolerance: tolerance, clock: SuspendingClock())
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence: Sendable { }
+
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence.Iterator: Sendable { }
