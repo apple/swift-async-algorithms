@@ -49,7 +49,7 @@ This all boils down to a terse description of how to transform the asynchronous 
 fastEvents.throttle(for: .seconds(1))
 ```
 
-In this case it transforms a potentially fast asynchronous sequence of events into one that waits for a window of 1 second to elapse before emitting a value.
+In this case, the throttle transforms a potentially fast asynchronous sequence of events into one that waits for a window of 1 second to elapse before emitting a value.
 
 ## Detailed Design
 
