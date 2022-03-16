@@ -116,7 +116,7 @@ final class TestValidationDiagram: XCTestCase {
       "a--b-[;|]"
     }
   }
-  
+#if canImport(Darwin)
   func test_diagram_failure_mismatch_value() {
     expectFailures(["expected \"X\" but got \"C\" at tick 6"])
     validate {
@@ -294,7 +294,7 @@ final class TestValidationDiagram: XCTestCase {
       "a--b--c--|"
     }
   }
-
+#endif
   func test_delayNext() {
     validate {
       "xxx---   |"

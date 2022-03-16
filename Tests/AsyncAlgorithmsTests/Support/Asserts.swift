@@ -151,6 +151,7 @@ public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(_ expressio
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
 
+#if canImport(Darwin)
 extension XCTestCase {
   func expectFailures(_ failures: Set<String>) {
     let options = XCTExpectedFailure.Options()
@@ -160,3 +161,4 @@ extension XCTestCase {
     XCTExpectFailure(nil, options: options)
   }
 }
+#endif

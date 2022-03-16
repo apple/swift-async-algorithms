@@ -15,6 +15,7 @@ import AsyncSequenceValidation
 
 extension XCTestCase {
   public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+#if canImport(Darwin)
     let baseLocation = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
     let baseContext = XCTSourceCodeContext(location: baseLocation)
     do {
@@ -54,6 +55,30 @@ extension XCTestCase {
         record(issue)
       }
     }
+#else
+    do {
+      let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
+      if failures.count > 0 {
+        print("Expected")
+        print(result.reconstituteExpected(theme: theme))
+        print("Actual")
+        print(result.reconstituteActual(theme: theme))
+      }
+      for failure in failures {
+        if let specification = failure.specification {
+          XCTFail(failure.description, file: specification.location.file, line: specification.location.line)
+        } else {
+          XCTFail(failure.description, file: file, line: line)
+        }
+      }
+    } catch {
+      if let sourceFailure = error as? SourceFailure {
+        XCTFail("\(sourceFailure)", file: sourceFailure.location.file, line: sourceFailure.location.line)
+      } else {
+        XCTFail("\(error)", file: file, line: line)
+      }
+    }
+#endif
   }
   
   public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {

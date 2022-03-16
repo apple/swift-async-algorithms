@@ -254,17 +254,17 @@ final class TestBuffer: XCTestCase {
       return result
     }
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
@@ -320,17 +320,17 @@ final class TestBuffer: XCTestCase {
       return (result, err)
     }
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
 
     let task1Results = await task1.value
@@ -406,17 +406,17 @@ final class TestBuffer: XCTestCase {
       return (result, err)
     }
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
     values.advance()
     values.advance()
 
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC / 10)
+    try? await Task.sleep(nanoseconds: 100_000_000)
     values.advance()
 
     let task1Results = await task1.value

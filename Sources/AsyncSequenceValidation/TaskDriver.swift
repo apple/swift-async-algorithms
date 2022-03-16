@@ -19,17 +19,32 @@ import _CAsyncSequenceValidationSupport
 #error("TODO: Port TaskDriver threading to windows")
 #endif
 
+#if canImport(Darwin)
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return nil
 }
+#elseif canImport(Glibc)
+func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+  Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
+  return nil
+}
+#elseif canImport(WinSDK)
+#error("TODO: Port TaskDriver threading to windows")
+#endif
 
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 final class TaskDriver {
   let work: (TaskDriver) -> Void
   let queue: WorkQueue
+#if canImport(Darwin)
   var thread: pthread_t?
+#elseif canImport(Glibc)
+  var thread = pthread_t()
+#elseif canImport(WinSDK)
+#error("TODO: Port TaskDriver threading to windows")
+#endif
   
   init(queue: WorkQueue, _ work: @escaping (TaskDriver) -> Void) {
     self.queue = queue
@@ -42,12 +57,20 @@ final class TaskDriver {
   }
   
   func run() {
+#if canImport(Darwin)
     pthread_setname_np("Validation Diagram Clock Driver")
+#endif
     work(self)
   }
   
   func join() {
+#if canImport(Darwin)
     pthread_join(thread!, nil)
+#elseif canImport(Glibc)
+    pthread_join(thread, nil)
+#elseif canImport(WinSDK)
+#error("TODO: Port TaskDriver threading to windows")
+#endif
   }
   
   func enqueue(_ job: JobRef) {
