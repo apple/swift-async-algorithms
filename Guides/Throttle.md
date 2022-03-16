@@ -75,7 +75,7 @@ extension AsyncThrottleSequence.Iterator: Sendable
   where Base.AsyncIterator: Sendable { }
 ```
 
-The `AsyncThrottleSequence` and it's `Iterator` are conditionally `Sendable` if the base types comprising it are `Sendable`.
+The `AsyncThrottleSequence` and its `Iterator` are conditionally `Sendable` if the base types comprising it are `Sendable`.
 
 ## Alternatives Considered
 
