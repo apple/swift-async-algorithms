@@ -13,6 +13,11 @@ public struct SourceLocation: Sendable, CustomStringConvertible {
   public var file: StaticString
   public var line: UInt
   
+  public init(file: StaticString, line: UInt) {
+    self.file = file
+    self.line = line
+  }
+  
   public var description: String {
     return "\(file):\(line)"
   }
