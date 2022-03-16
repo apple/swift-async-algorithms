@@ -14,7 +14,7 @@
 
 ## Introduction
 
-`Array`, `Dictionary` and `Set` are some of the most commonly used data structures for storing collections of elements. Having a way to transition from an `AsyncSequence` to a collection is not only a useful shorthand but a powerful way of expressing direct intent for how to consume an `AsyncSequence`.
+`Array`, `Dictionary` and `Set` are some of the most commonly-used data structures for storing collections of elements. Having a way to transition from an `AsyncSequence` to a collection is not only a useful shorthand but a powerful way of expressing direct intent for how to consume an `AsyncSequence`.
 
 This type of functionality can be useful for examples, testing, but also interfacing with existing APIs that expect a fully formed collection before processing it.
 
