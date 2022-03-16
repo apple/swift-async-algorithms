@@ -3,7 +3,8 @@ extension AsyncSequence {
   /// elements of the asynchronous sequence using the given closure.
   ///
   /// This can be seen as applying the reduce function to each element and
-  /// providing the initial value followed by these results as an asynchronous sequence.
+  /// producing an asynchronous sequence consisting of the initial value followed
+  /// by these results.
   ///
   /// ```
   /// let runningTotal = [1, 2, 3, 4].async.reductions(+)
