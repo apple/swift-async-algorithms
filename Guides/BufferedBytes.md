@@ -40,13 +40,13 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
 }
 ```
 
-For each invocation of `next` the iterator will check if a buffer has been filled. If the buffer is filled with some amount of bytes a fast path is taken to directly return a byte out of that buffer. If the buffer is not filled then the read function is invoked to acquire the next filled buffer and then it takes a byte out of that buffer.
+For each invocation of `next`, the iterator will check if a buffer has been filled. If the buffer is filled with some amount of bytes, a fast path is taken to directly return a byte out of that buffer. If the buffer is not filled, the read function is invoked to acquire the next filled buffer, at which point it takes a byte out of that buffer.
 
-If the read function returns 0 indicating it read no more bytes the iterator is claimed to be finished and no additional invocations to the read function are made.
+If the read function returns `0`, indicating it didn't read any more bytes, the iterator is decided to be finished and no additional invocations to the read function are made.
 
-If the read function throws the error will be thrown by the iteration. Subsequent invocations to the iterator will return nil without invoking the read function.
+If the read function throws, the error will be thrown by the iteration. Subsequent invocations to the iterator will then return `nil` without invoking the read function.
 
-During the iteration if the task is cancelled the iteration will check the cancellation only in passes where the read function is invoked and will throw a `CancellationError`.
+If the task is cancelled during the iteration, the iteration will check the cancellation only in passes where the read function is invoked, and will throw a `CancellationError`.
 
 ### Naming
 

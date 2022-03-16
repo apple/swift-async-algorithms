@@ -20,11 +20,11 @@ for try await line in lines {
 }
 ```
 
-The above example shows how two `AsyncSequence` types can be chained together. In this case it prepends a preamble to the lines content of the file. 
+The above example shows how two `AsyncSequence` types can be chained together. In this case it prepends a preamble to the `lines` content of the file. 
 
 ## Detailed Design
 
-This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted these will be implemented in terms of two and three base sequence cases.
+This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted, these will be implemented in terms of two- and three-base sequence cases.
 
 ```swift
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence>(_ s1: Base1, _ s2: Base2) -> AsyncChain2Sequence<Base1, Base2> where Base1.Element == Base2.Element
@@ -62,9 +62,9 @@ The `chain(_:...)` function takes two or more sequences as arguments.
 
 The resulting `AsyncChainSequence` type is an asynchronous sequence, with conditional conformance to `Sendable` when the arguments conform.
 
-When any of the asynchronous sequences being chained together come to their end of iteration the `AsyncChainSequence` iteration proceeds on to the next asynchronous sequence. When the last asynchronous sequence reaches the end of iteration the `AsyncChainSequence` then ends its iteration. At any point in time if one of the comprising asynchronous sequences ever throw an error during iteration the resulting `AsyncChainSequence` iteration will throw that error and end iteration.
+When any of the asynchronous sequences being chained together come to their end of iteration, the `AsyncChainSequence` iteration proceeds to the next asynchronous sequence. When the last asynchronous sequence reaches the end of iteration, the `AsyncChainSequence` then ends its iteration. 
 
-The throwing behavior of `AsyncChainSequence` is that it will throw when any of its comprising bases throw, and will not throw when all of its comprising bases do not throw.
+At any point in time, if one of the comprising asynchronous sequences throws an error during iteration, the resulting `AsyncChainSequence` iteration will throw that error and end iteration. The throwing behavior of `AsyncChainSequence` is that it will throw when any of its comprising bases throw, and will not throw when all of its comprising bases do not throw.
 
 ### Naming
 

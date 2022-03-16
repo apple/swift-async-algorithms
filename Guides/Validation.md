@@ -5,9 +5,9 @@
 
 ## Introduction
 
-Testing is a critical are of focus for any package to make it robust, catch bugs, and explain the expected behaviors in a documented manner. Testing things that are asynchronous can be difficult, testing things that are asynchronous multiple times can be even more difficult.
+Testing is a critical area of focus for any package to make it robust, catch bugs, and explain the expected behaviors in a documented manner. Testing things that are asynchronous can be difficult, testing things that are asynchronous multiple times can be even more difficult.
 
-Types that implement `AsyncSequence` can often be described in deterministic actions given particular inputs. For the inputs, the events can be described as a discrete set - values, errors being thrown, the terminal state of returning a nil value from the iterator or advancing in time and not doing anything. Likewise, expected output has a discrete set of events - values, errors being caught, the terminal state of receiving a nil value from the iterator or advancing in time and not doing anything. 
+Types that implement `AsyncSequence` can often be described in deterministic actions given particular inputs. For the inputs, the events can be described as a discrete set: values, errors being thrown, the terminal state of returning a `nil` value from the iterator, or advancing in time and not doing anything. Likewise, the expected output has a discrete set of events: values, errors being caught, the terminal state of receiving a `nil` value from the iterator, or advancing in time and not doing anything. 
 
 ## Proposed Solution
 
@@ -23,7 +23,7 @@ validate {
 
 This syntax can be accomplished with a confluence of utilizing some of the advanced features of XCTest, the concurrency runtime, and result builders. The diagram as listed flows as if each event that would propagate is an event flowing along a column but also it shows the expression progressed over time; describing each event. 
 
-By utilizing result builders this same function can accommodate more than one input specification for testing things like `merge`.
+By utilizing result builders, this same function can accommodate more than one input specification for testing things like `merge`.
 
 ```swift
 validate {
@@ -34,7 +34,7 @@ validate {
 }
 ```
 
-Normally testing a function like `merge` would result in either limited expectations or be stochastic in nature. Those approaches are to account for the potential ordering not being deterministic. By taking the approach to have explicit ordering of time defined by the diagram it allows for the test to be predictable. That determinism is sourced directly from the input sequences and the expected correlative output sequence. In short, the syntax of the test inputs and expectations make the execution reliable.
+Normally testing a function like `merge` would result in either limited expectations or be stochastic in nature. Those approaches are to account for the potential ordering not being deterministic. Taking the approach of having explicit ordering of time defined by the diagram allows for the test to be predictable. That determinism is sourced directly from the input sequences and the expected correlative output sequence. In short, the syntax of the test inputs and expectations make the execution reliable.
 
 The syntax is trivially parsable (and consequently customizable). By default, the events require only a limited subset of characters for control; such as the advancing in time `-`, or the termination of a sequence by returning nil `|`. However some events may produce strings greater than just one character, other events may happen at the same time, and there is also the cancellation event. This all culminates into a test theme definition of:
 
@@ -51,7 +51,7 @@ The syntax is trivially parsable (and consequently customizable). By default, th
 
 Because some events may take up more than one character and the alignment is important to the visual progression of events, spaces are not counted as part of the parsed events. A space means that no time is advanced and not event is produced or expected. This means that the string `"a -    -b- -"` is equivalent to `"a--b--"`.
 
-Defining a custom theme can then be trivial since the list of expected interactions are well known. For example an emoji based diagram can be easily constructed:
+Defining a custom theme can then be trivial, since the list of expected interactions are well known. For example an emoji based diagram can be easily constructed:
 
 ```swift
 struct EmojiTokens: AsyncSequenceValidationTheme {
@@ -78,7 +78,7 @@ validate(theme: EmojiTokens()) {
 
 ## Detailed Design
 
-The public interface for this system comes in two parts - the `AsyncSequenceValidationDiagram` subsystem and the `XCTest` extensions. The most commonly interacted with and most approachable portion is the `XCTest` extension.
+The public interface for this system comes in two parts: the `AsyncSequenceValidationDiagram` subsystem and the `XCTest` extensions. The most commonly interacted-with and most approachable portion is the `XCTest` extension.
 
 ```swift
 extension XCTestCase {
@@ -88,7 +88,7 @@ extension XCTestCase {
 }
 ```
 
-These two methods break down to usage like some of the previously used examples; however the reality of how it works is perhaps the more important portion. For example the code listed below has some interesting points of interest worth mentioning.
+These two methods break down to usage like some of the previously used examples. However, the reality of how it works is perhaps the more important portion. For example, the code listed below has some points of interest worth mentioning.
 
 ```swift
 validate {
@@ -98,13 +98,15 @@ validate {
 }
 ``` 
 
-The progression of the input sequence can be derived from the `$0.inputs[0]`. This is an `AsyncSequence` with the `Element` type of `String` which at the given input emits an `"a"` at tick 0, a `"b"` at tick 3, a `"c"` at tick 6 and a finish event at tick 10. The output of the middle expression `$0.inputs[0].map { item in await Task { item.capitalized }.value }` is expected to emit an `"A"` at tick 0, a `"B"` at tick 3, a `"C"` at tick 6 and a finish event at tick 10. However careful readers may immediately recognize that the `map` function is asynchronous and schedules work on a separate task. Normally this would pose a distinct hazard at deterministic testing for timing of events, however the `validate` utilizes a specialized hook into the Swift concurrency runtime to schedule the events stepwise and deterministically. This works in a two-fold manner; first it uses a custom `Clock` to schedule events, but also ties that clock into a task driver that ensures enqueued jobs are executed in lock step with that clock.
+The progression of the input sequence can be derived from the `$0.inputs[0]`. This is an `AsyncSequence` with the `Element` type of `String` which at the given input emits an `"a"` at tick 0, a `"b"` at tick 3, a `"c"` at tick 6 and a finish event at tick 10. The output of the middle expression `$0.inputs[0].map { item in await Task { item.capitalized }.value }` is expected to emit an `"A"` at tick 0, a `"B"` at tick 3, a `"C"` at tick 6 and a finish event at tick 10.
 
-The underpinnings to make that work are the actual `AsyncSequenceValidationDiagram` subsystem. The XCTest interface does offer a considerably more simple surface area so the diagrams, for approachability, will be broken down into a few key sections. Those sections are the result builder, the diagram clock, the inputs, themes, and expectations/tests.
+Careful readers may immediately recognize that the `map` function is asynchronous and schedules work on a separate task. Normally, this would pose a distinct hazard to deterministic testing for timing of events. However, the `validate` utilizes a specialized hook into the Swift concurrency runtime to schedule the events stepwise and deterministically. This works in a two-fold manner: first, it uses a custom `Clock` to schedule events. Second, it ties that clock into a task driver that ensures enqueued jobs are executed in lockstep with that clock.
+
+The underpinnings to make that work are the actual `AsyncSequenceValidationDiagram` subsystem. The `XCTest` interface does offer a considerably more simple surface area so the diagrams will be broken down into a few key sections for approachability. Those sections are the result builder, the diagram clock, the inputs, themes, and expectations/tests.
 
 ### Result Builder
 
-The result builder syntax allows for simple and concise diagrams to be built. Those diagrams can come in a few forms, ranging from no inputs to three inputs (it is worth noting the implementation is not limited to just three inputs and can easily be expanded to more as we deem it needed). The builder itself uses the multiple parameter build block functions to ensure the proper ordering if inputs, tested sequences, and outputs. 
+The result builder syntax allows for simple and concise diagrams to be built. Those diagrams can come in a few forms, ranging from no inputs to three inputs. It is worth noting the implementation is not limited to just three inputs and can easily be expanded to more as we deem it needed. The builder itself uses the multiple parameter build block functions to ensure the proper ordering of inputs, tested sequences, and outputs. 
 
 ```swift
 @resultBuilder
@@ -140,11 +142,15 @@ public struct AsyncSequenceValidationDiagram : Sendable {
 }
 ```
 
-The `AsyncSequenceValidationTest`, `InputList` and `Clock` will be covered in subsequent sections.
+The `AsyncSequenceValidationTest`, `InputList`, and `Clock` will be covered in subsequent sections.
 
 ### Validation Diagram Clock
 
-One of the key functionalities of the validation diagrams is being able to control time. For proper usage of this testing infrastructure all clock sources must be tied to the `AsyncSequenceValidationDiagram.Clock` that is exposed on the diagram itself. This is the heartbeat of how each columnar input and expectation are produced and consumed. It measures time in an integral manner of `steps`. One step being advanced per event symbol; in the default ASCII diagrams that means `-`, `;`, `|`, `^` and any character value event, or in the case of quoted values like `"'foo'"`, or in grouped events like `"[ab]"`. 
+One of the key functionalities of the validation diagrams is being able to control time. For proper usage of this testing infrastructure, all clock sources must be tied to the `AsyncSequenceValidationDiagram.Clock` that is exposed on the diagram itself. This is the heartbeat of how each columnar input and expectation are produced and consumed. It measures time in an integral manner of `steps`. One step is advanced per event symbol; in the default ASCII diagrams that means:
+
+*  `-`, `;`, `|`, `^`, and any character value event.
+* Quoted values like `"'foo'"`.
+* Grouped events like `"[ab]"`.
 
 ```swift
 extension AsyncSequenceValidationDiagram {
@@ -185,7 +191,7 @@ Key notes: the `minimumResolution` of the `AsyncSequenceValidationDiagram.Clock`
 
 ### Inputs
 
-The inputs to the validation diagram are lazily constructed with the input parameters built by the result builder syntax. The inputs are `Sendable` `AsyncSequence` conforming types that have their `Element` defined as `String`. The elements produced as defined by the input specification in the result builder. This means that on each tick that an element is defined the next function will resume to return that element (or nil or thrown error depending on the input specification). The `InputList` grants access to the defined inputs lazily. 
+The inputs to the validation diagram are lazily constructed with the input parameters built by the result builder syntax. The inputs are `Sendable` and `AsyncSequence` conforming types that have their `Element` defined as `String`. The elements are produced as defined by the input specification in the result builder. This means that on each tick that an element is defined, the `next` function will resume to return that element (or return `nil` or throw an error, depending on the input specification). The `InputList` grants access to the defined inputs lazily. 
 
 ```swift
 extension AsyncSequenceValidationDiagram {
@@ -222,7 +228,11 @@ Access to the validation diagram input list is done through calls such as `$0.in
 |   ` `   | `.skip`                   | Skip/Ignore       | `"a b- |"` |
 |         | `.value`                  | Values.           | `"ab-|"`   |
 
-There are some diagram inputs specifications that are not valid. The three cases are; a step being specified in a group, a nested group, and an unbalanced nesting. Respectively examples of these invalid cases are `"[a-]b|"`, `"[[ab]]|"`, and `"[ab|"`.
+There are some diagram input specifications that are not valid. The three cases are:
+
+* A step being specified in a group (`"[a-]b|"`).
+* A nested group (`"[[ab]]|"`).
+* An unbalanced nesting (`"[ab|"`).
 
 ```swift
 public protocol AsyncSequenceValidationTheme {
@@ -258,7 +268,7 @@ extension AsyncSequenceValidationDiagram {
 
 This set of interfaces are the primary mechanism in which the simplified XCTest extension rests upon. 
 
-Expectations defined by the domain specific language symbology can be roughly expressed as expected results and actual results (this notably avoids cancellation and steps since those are better expressed through the failure reporting system). The expectation failures can express the combination of these expected and actual values; showing when the expectation failure occurred and the kind of expectation failure that happened along with the payload of those actual and expected values.
+Expectations defined by the domain specific language symbology can be roughly expressed as expected results and actual results. This notably avoids cancellation and steps, since those are better expressed through the failure reporting system. The expectation failures can express the combination of these expected and actual values. This can also show when the expectation failure occurred and the kind of expectation failure that happened, along with the payload of the actual and expected values.
 
 ```swift
 extension AsyncSequenceValidationDiagram {
@@ -290,7 +300,7 @@ extension AsyncSequenceValidationDiagram {
 }
 ```
 
-The testing itself reduces down to two methods, one being a default theme parameter of `.ascii`. The test methods execute the validation diagram using a custom scheduling hook from the concurrency runtime such that all events are sequentially processed on a single cooperatively multitasking executed thread. That thread is responsible for ensuring the ordering of the events and the execution of each time delineation such that the order of emissions of any input events are sequential top to bottom: input 0 is emitted first, then input 1 etc. After the ordering of input events the jobs enqueued onto that task driver thread are executed in order of receipt. This ensures the overall order of execution is stable and deterministic but most importantly predictable.
+The testing itself reduces down to two methods, one being a default theme parameter of `.ascii`. The test methods execute the validation diagram using a custom scheduling hook from the concurrency runtime such that all events are sequentially processed on a single cooperatively-multitasking executed thread. That thread is responsible for ensuring the ordering of the events and the execution of each time delineation such that the order of emissions of any input events are sequential top to bottom: input 0 is emitted first, then input 1, etc. After the ordering of input events, the jobs enqueued onto that task driver thread are executed in order of receipt. This ensures the overall order of execution is stable and deterministic but, most importantly, predictable.
 
 ```swift
 public protocol AsyncSequenceValidationTest: Sendable {
@@ -314,19 +324,19 @@ extension AsyncSequenceValidationDiagram {
 
 ## Future Directions/Improvements
 
-The emoji diagram theme could be made to be a built in system; it makes for really flashy slides/demos and is really easy to see what is going on (but at the cost of being slightly harder to type).
+The emoji diagram theme could be made to be a built-in system. It makes for really flashy slides/demos and makes it really easy to see what is going on, but at the cost of being slightly harder to type.
 
-The testing infrastructure could support with minor alteration testing iteration beyond the terminal cases (either errors being thrown from the iterator or past the first nil return value from `next`). This could help enforce some of the semantical expectations of `AsyncSequence`.
+The testing infrastructure could support (with minor alteration) testing iteration beyond the terminal cases, either errors being thrown from the iterator or past the first `nil` return value from `next`. This could help enforce some of the semantical expectations of `AsyncSequence`.
 
 In addition to hooking into the runtime for execution of jobs, the deferred execution of jobs could also be hooked so that a time scale conversion could be made such that any sleep using any clock could map directly to the validation diagram internal clock ticks. 
 
-The testing infrastructure could also have support for testing for values that do not have specified order for a given tick. Some race conditions from external systems not under the control of the concurrency runtime may not be accountable. If that were to be a consideration, unordered group tokens could be added. For example the symbols `{` and `}` could be used to represent a group that is unordered. However, since there are not any cases that this really seems useful for the swift-async-algorithms package this is not a priority at this time.
+The testing infrastructure could also have support for testing for values that do not have specified order for a given tick. Some race conditions from external systems not under the control of the concurrency runtime may not be accountable. If that were to be a consideration, unordered group tokens could be added. For example the symbols `{` and `}` could be used to represent a group that is unordered. However, since there are not any cases where this really seems useful for the swift-async-algorithms package, this is not a priority at this time.
 
 ## Alternatives Considered
 
 The validation diagram system could be retrofitted to accommodate other value types other than strings, however most use cases can easily be expressed in a readable form with minor adjustments to use strings. 
 
-The builder functions could pass in N-ary variants of the diagram to enforce the inputs to be specific instead of accessed via the lazy `InputList`. As we may potentially add additional numbers of inputs in the future this seems like a less maintainable implementation even though it may offer slightly more safety and only marginally better spelling; i.e. `$0.inputs[0]` versus `$0.input0` etc.
+The builder functions could pass in N-ary variants of the diagram to enforce the inputs to be specific instead of accessed via the lazy `InputList`. As we may potentially add additional numbers of inputs in the future this seems like a less maintainable implementation even though it may offer slightly more safety and only marginally better spelling,  i.e., `$0.inputs[0]` versus `$0.input0` etc.
 
 ## Credits/Inspiration
 

@@ -25,7 +25,7 @@ Given some sample inputs the following combined events can be expected.
 
 ## Detailed Design
 
-This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted these will be implemented in terms of two and three base sequence cases.
+This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted, these will be implemented in terms of two- and three-base sequence cases.
 
 ```swift
 public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncCombineLatest2Sequence<Base1, Base2>
@@ -62,13 +62,13 @@ public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequ
 
 ```
 
-The `combineLatest(_:...)` function takes two or more asynchronous sequences as arguments with the resulting `AsyncCombineLatestSequence` which is an asynchronous sequence.
+The `combineLatest(_:...)` function takes two or more asynchronous sequences as arguments and produces an  `AsyncCombineLatestSequence` which is an asynchronous sequence.
 
-Since the bases comprising the `AsyncCombineLatestSequence` must be iterated concurrently to produce the latest value it means that those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elemnts they produce must be `Sendable`. 
+Since the bases comprising the `AsyncCombineLatestSequence` must be iterated concurrently to produce the latest value, those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elemnts they produce must all be `Sendable`. 
 
-If any of the bases terminate before the first element is produced then the `AsyncCombineLatestSequence` iteration can never be satisfied so if a base's iterator returns nil at the first iteration then the `AsyncCombineLatestSequence` iterator immediately returns nil to signify a terminal state. In this particular case any outstanding iteration of other bases will be cancelled. After the first element is produced this behavior is different since the latest values can still be satisfied by at least one base. This means that beyond the construction of the first tuple comprised of the returned elements of the base the terminal state of the `AsyncCombineLatestSequence` iteration will only be reached when all of the base iterations reach a terminal state.
+If any of the bases terminate before the first element is produced, then the `AsyncCombineLatestSequence` iteration can never be satisfied. So, if a base's iterator returns `nil` at the first iteration, then the `AsyncCombineLatestSequence` iterator immediately returns `nil` to signify a terminal state. In this particular case, any outstanding iteration of other bases will be cancelled. After the first element is produced ,this behavior is different since the latest values can still be satisfied by at least one base. This means that beyond the construction of the first tuple comprised of the returned elements of the bases, the terminal state of the `AsyncCombineLatestSequence` iteration will only be reached when all of the base iterations reach a terminal state.
 
-The throwing behavior of `AsyncCombineLatestSequence` is that if any of the bases throw then the composed asynchronous sequence then throws on its iteration. If at any point (within the first or afterwards) an error is thrown by any base, the other iterations are cancelled and the thrown error is immediately thrown to the consuming iteration.
+The throwing behavior of `AsyncCombineLatestSequence` is that if any of the bases throw, then the composed asynchronous sequence throws on its iteration. If at any point (within the first iteration or afterwards), an error is thrown by any base, the other iterations are cancelled and the thrown error is immediately thrown to the consuming iteration.
 
 ### Naming
 
