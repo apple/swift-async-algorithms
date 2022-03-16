@@ -11,7 +11,7 @@
 
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
-  /// elements of the asynchronous sequence using the given closure.
+  /// elements of the asynchronous sequence using the given error-throwing closure.
   ///
   /// This can be seen as applying the reduce function to each element and
   /// providing the initial value followed by these results as an asynchronous sequence.
@@ -19,7 +19,8 @@ extension AsyncSequence {
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
   ///   - transform: A closure that combines the previously reduced result and
-  ///     the next element in the receiving asynchronous sequence.
+  ///     the next element in the receiving asynchronous sequence and returns
+  ///     the result. If the closure throws an error, the sequence throws.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable
@@ -30,7 +31,7 @@ extension AsyncSequence {
   }
   
   /// Returns an asynchronous sequence containing the accumulated results of combining the
-  /// elements of the asynchronous sequence using the given closure.
+  /// elements of the asynchronous sequence using the given error-throwing closure.
   ///
   /// This can be seen as applying the reduce function to each element and
   /// providing the initial value followed by these results as an asynchronous sequence.
@@ -38,7 +39,9 @@ extension AsyncSequence {
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
   ///   - transform: A closure that combines the previously reduced result and
-  ///     the next element in the receiving asynchronous sequence.
+  ///     the next element in the receiving asynchronous sequence, mutating the
+  ///     previous result instead of returning a value. If the closure throws an
+  ///     error, the sequence throws.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable
@@ -47,8 +50,8 @@ extension AsyncSequence {
   }
 }
 
-/// An asynchronous sequence of applying a transform to the element of an asynchronous sequence and the
-/// previously transformed result.
+/// An asynchronous sequence of applying an error-throwing transform to the element of
+/// an asynchronous sequence and the previously transformed result.
 @frozen
 public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   @usableFromInline

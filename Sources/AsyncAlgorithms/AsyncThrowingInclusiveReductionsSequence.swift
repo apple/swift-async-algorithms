@@ -1,6 +1,6 @@
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
-  /// elements of the asynchronous sequence using the given closure.
+  /// elements of the asynchronous sequence using the given error-throwing closure.
   ///
   /// This can be seen as applying the reduce function to each element and
   /// providing the initial value followed by these results as an asynchronous sequence.
@@ -13,7 +13,8 @@ extension AsyncSequence {
   /// ```
   ///
   /// - Parameter transform: A closure that combines the previously reduced
-  ///   result and the next element in the receiving sequence.
+  ///   result and the next element in the receiving sequence. If the closure
+  ///     throws an error, the sequence throws.
   /// - Returns: An asynchronous sequence of the reduced elements.
   @inlinable
   public func reductions(

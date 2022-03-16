@@ -13,10 +13,10 @@
 /// of a common architecture for AsyncSequences of UInt8s (i.e. byte streams).
 ///
 /// Bytes are read into an internal buffer of `capacity` bytes via the
-/// `readFunction`. Invoking next returns bytes from the internal buffer until it's
+/// `readFunction`. Invoking `next()` returns bytes from the internal buffer until it's
 /// empty, and then suspends and awaits another invocation of `readFunction` to
-/// refill. If `readFunction` returns 0 (indicating nothing was read), next() will
-/// return nil from then on. Cancellation is checked before each invocation of
+/// refill. If `readFunction` returns 0 (indicating nothing was read), `next()` will
+/// return `nil` from then on. Cancellation is checked before each invocation of
 /// `readFunction`, which means that many calls to `next()` will not check for
 /// cancellation.
 ///
@@ -56,7 +56,7 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
     buffer = _AsyncBytesBuffer(capacity: capacity, readFunction: readFunction)
   }
   
-  /// Reads a byte out of the buffer if available. When no bytes are available this will trigger a
+  /// Reads a byte out of the buffer if available. When no bytes are available, this will trigger
   /// the read function to reload the buffer and then return the next byte from that buffer.
   @inlinable @inline(__always)
   public mutating func next() async throws -> UInt8? {

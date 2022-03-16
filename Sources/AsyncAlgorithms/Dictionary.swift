@@ -44,7 +44,8 @@ extension Dictionary {
   ///     dictionary.
   ///   - combine: A closure that is called with the values for any duplicate
   ///     keys that are encountered. The closure returns the desired value for
-  ///     the final dictionary.
+  ///     the final dictionary, or throws an error if building the dictionary
+  ///     can't proceed.
   @inlinable
   public init<S: AsyncSequence>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) async throws -> Value) async rethrows where S.Element == (Key, Value) {
     self.init()

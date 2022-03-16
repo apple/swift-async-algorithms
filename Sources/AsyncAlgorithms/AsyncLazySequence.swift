@@ -11,7 +11,7 @@
 
 extension Sequence {
   /// An asynchronous sequence containing the same elements as this sequence,
-  /// but on which  operations, such as `map` and `filter`, are
+  /// but on which operations, such as `map` and `filter`, are
   /// implemented asynchronously.
   @inlinable
   public var async: AsyncLazySequence<Self> {
@@ -26,7 +26,7 @@ extension Sequence {
 /// asynchronous sequences.
 ///
 /// This functions similarly to `LazySequence` by accessing elemetns sequentially
-/// in the iterators next method.
+/// in the iterator's `next()` method.
 @frozen
 public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
   public typealias Element = Base.Element

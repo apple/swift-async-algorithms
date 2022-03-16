@@ -12,7 +12,7 @@
 extension RangeReplaceableCollection {
   /// Creates a new instance of a collection containing the elements of an asynchronous sequence.
   ///
-  /// - Parameter surce: The asynchronous sequence of elements for the new collection.
+  /// - Parameter source: The asynchronous sequence of elements for the new collection.
   @inlinable
   public init<Source: AsyncSequence>(_ source: Source) async rethrows where Source.Element == Element {
     self.init()
