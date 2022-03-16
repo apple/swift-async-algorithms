@@ -53,7 +53,7 @@ In this case, the throttle transforms a potentially fast asynchronous sequence o
 
 ## Detailed Design
 
-The type that implements the algorithm for debounce emits the same element type as the base that it applies to. It also throws when the base type throws (and likewise does not throw when the base type does not throw).
+The type that implements the algorithm for throttle emits the same element type as the base that it applies to. It also throws when the base type throws (and likewise does not throw when the base type does not throw).
 
 ```swift
 public struct AsyncThrottleSequence<Base: AsyncSequence, C: Clock, Reduced> {
