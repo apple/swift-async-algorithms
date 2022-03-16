@@ -14,7 +14,7 @@
 
 ## Proposed Solution
 
-To achieve a back pressure supporting system that allows for the communication of more than one value from one task to another we are introducing a new type that has an asynchronous sending capability that awaits the consumption of iteration. This channel for events will be a reference type asynchronous sequence that each value sent or finish transmitted will await the consumption of that value or event by iteration. That awaiting behavior will allow for the affordance of back pressure applied from the consumption site to be transmitted to the production site. This means that the rate of production cannot exceede the rate of consumption as well as the rate of consumption cannot exceede the rate of production.
+To achieve a system that supports back pressure and allows for the communication of more than one value from one task to another we are introducing a new type, the _channel_. The channel will be a reference-type asynchronous sequence with an asynchronous sending capability that awaits the consumption of iteration. Each value sent by the channel, or finish transmitted, will await the consumption of that value or event by iteration. That awaiting behavior will allow for the affordance of back pressure applied from the consumption site to be transmitted to the production site. This means that the rate of production cannot exceed the rate of consumption, and that the rate of consumption cannot exceed the rate of production.
 
 ## Detailed Design
 
