@@ -18,9 +18,9 @@ To achieve a system that supports back pressure and allows for the communication
 
 ## Detailed Design
 
-Similar to the `AsyncStream` and `AsyncThrowingStream` types, the type for sending events via back pressure will come in two versions. These two versions will account for the throwing nature or non-throwing nature of the events being produced. 
+Similar to the `AsyncStream` and `AsyncThrowingStream` types, the type for sending elements via back pressure will come in two versions. These two versions will account for the throwing nature or non-throwing nature of the elements being produced. 
 
-Each type will have functions to send events and to send terminal events. 
+Each type will have functions to send elements and to send terminal events. 
 
 ```swift
 public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
