@@ -53,6 +53,6 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
 
 ## Alternatives Considered
 
-It was consider to use the naming heritage of "subject".
+The use of the name "subject" was considered, due to its heritage as a name for a sync-to-async adapter type.
 
 ## Credits/Inspiration
