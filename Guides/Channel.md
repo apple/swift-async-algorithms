@@ -10,7 +10,7 @@
 
 ## Introduction
 
-`AsyncStream` introduced a mechanism to send buffered elements from a non swift concurrency context into an asynchronous swift concurrency context. That design only addressed a portion of the potential use cases; the missing portion was the back pressure excerpted across two concurrency domains. 
+`AsyncStream` introduced a mechanism to send buffered elements from a context that doesn't use Swift concurrency into one that does. That design only addressed a portion of the potential use cases; the missing portion was the back pressure excerpted across two concurrency domains. 
 
 ## Proposed Solution
 
