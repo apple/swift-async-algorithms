@@ -78,7 +78,7 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
 
   func terminate() {
     terminationState = .terminal
-    var oldPending = pending
+    let oldPending = pending
     pending = []
     for continuation in oldPending {
       continuation.resume(returning: .success(nil))
