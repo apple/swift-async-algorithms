@@ -70,4 +70,4 @@ extension AsyncThrowingRemoveDuplicatesSequence.Iterator: Sendable
 
 ## Credits/Inspiration
 
-The Combine has a [function for publishers](https://developer.apple.com/documentation/combine/publisher/removeduplicates()/) that performs a similar task.
+The Combine framework has a [function for publishers](https://developer.apple.com/documentation/combine/publisher/removeduplicates()/) that performs a similar task.
