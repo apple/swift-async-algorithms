@@ -9,7 +9,7 @@
 
 ## Introduction
 
-Just as it is common for `Sequence` types that contain optional values to need to `.compactMap { $0 }`, `AsyncSequence` types have the same use cases. This common task means that the type must employ a closure to test the optional value. A more efficient way can be done. Both for execution performance as well as API efficiency of typing.
+Just as it is common for `Sequence` types that contain optional values to need to `.compactMap { $0 }`, `AsyncSequence` types have the same use cases. This common task means that the type must employ a closure to test the optional value. This can be done more efficeintly for both execution performance as well as API efficiency of typing.
 
 ## Proposed Solution
 
