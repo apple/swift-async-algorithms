@@ -14,7 +14,7 @@ This package has three main goals:
 
  The foundation for AsyncAlgorithms was included in Swift 5.5 from [AsyncSequence](https://github.com/apple/swift-evolution/blob/main/proposals/0298-asyncsequence.md). Swift 5.5 also brings the ability to use a natural `for/in` loop with `await` to process the values in an `AsyncSequence` and `Sequence`-equivalent API like `map` and `filter`. Structured concurrency allows us to write code where intermediate state is simply a local variable, `try` can be used directly on functions that `throw`, and generally treat the logic for asynchronous code similar to that of synchronous code.
 
-This package will provide a home for these APIs. Development and API design will take place on [GitHub](https://github.com/apple/swift-async-algorithms) and the [Swift Forums](https://forums.swift.org/c/related-projects/).
+This package is the home for these APIs. Development and API design take place on [GitHub](https://github.com/apple/swift-async-algorithms) and the [Swift Forums](https://forums.swift.org/c/related-projects/).
 
 ## Contents
 
@@ -86,7 +86,7 @@ Finally, add `import AsyncAlgorithms` to your source code.
 
 ## Getting Started
 
-⚠️ Please note that the swift-async-algorithms currently requires a recent [Swift Trunk Development toolchain](https://www.swift.org/download/#trunk-development-main). More information on how to use [custom toolchains with Xcode can be viewed here](https://developer.apple.com/library/archive/documentation/ToolsLanguages/Conceptual/Xcode_Overview/AlternativeToolchains.html).
+⚠️ Please note that this package currently requires a recent [Swift Trunk Development toolchain](https://www.swift.org/download/#trunk-development-main). More information on how to use custom toolchains with Xcode can be viewed [here](https://developer.apple.com/library/archive/documentation/ToolsLanguages/Conceptual/Xcode_Overview/AlternativeToolchains.html).
 
 ### Building/Testing Using Xcode on macOS
 
@@ -96,7 +96,7 @@ Finally, add `import AsyncAlgorithms` to your source code.
   4. Open the `swift-async-algorithms` package directory in Xcode
   5. Build or Test in Xcode as normal
 
-⚠️ Warning: `swift test` does not currently work properly with custom toolchains for this package.
+⚠️ Note: `swift test` does not currently work properly with custom toolchains for this package.
 
 ### Building/Testing on Linux
 
