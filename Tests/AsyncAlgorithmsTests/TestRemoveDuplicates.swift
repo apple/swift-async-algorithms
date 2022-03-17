@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+@preconcurrency import XCTest
 import AsyncAlgorithms
 
 final class TestRemoveDuplicates: XCTestCase {
@@ -64,7 +64,7 @@ final class TestRemoveDuplicates: XCTestCase {
         throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
       }
       return $0
-    } as (Int) throws -> Int)
+    } as @Sendable (Int) throws -> Int)
 
     do {
       for try await item in throwingSequence.removeDuplicates() {
