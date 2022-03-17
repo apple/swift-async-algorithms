@@ -118,8 +118,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_mismatch_value() {
-    expectFailures(["expected \"X\" but got \"C\" at tick 6"])
-    validate {
+    validate(expectedFailures: ["expected \"X\" but got \"C\" at tick 6"]) {
       "a--b--c---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--X---|"
@@ -127,9 +126,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_value_for_finish() {
-    expectFailures(["expected finish but got \"C\" at tick 6",
-                    "unexpected finish at tick 10"])
-    validate {
+    validate(expectedFailures: ["expected finish but got \"C\" at tick 6",
+                                "unexpected finish at tick 10"]) {
       "a--b--c---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--|"
@@ -137,9 +135,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_finish_for_value() {
-    expectFailures(["expected \"C\" but got finish at tick 6",
-                    "expected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["expected \"C\" but got finish at tick 6",
+                                "expected finish at tick 7"]) {
       "a--b--|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -147,8 +144,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_finish_for_error() {
-    expectFailures(["expected failure but got finish at tick 6"])
-    validate {
+    validate(expectedFailures: ["expected failure but got finish at tick 6"]) {
       "a--b--|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -156,8 +152,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_error_for_finish() {
-    expectFailures(["expected finish but got failure at tick 6"])
-    validate {
+    validate(expectedFailures: ["expected finish but got failure at tick 6"]) {
       "a--b--^"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--|"
@@ -165,9 +160,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_value_for_error() {
-    expectFailures(["expected failure but got \"C\" at tick 6",
-                    "unexpected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["expected failure but got \"C\" at tick 6",
+                    "unexpected finish at tick 7"])  {
       "a--b--c|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -175,9 +169,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_error_for_value() {
-    expectFailures(["expected \"C\" but got failure at tick 6",
-                    "expected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["expected \"C\" but got failure at tick 6",
+                    "expected finish at tick 7"]) {
       "a--b--^"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -185,9 +178,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_expected_value() {
-    expectFailures(["expected \"C\" at tick 6",
-                    "unexpected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["expected \"C\" at tick 6"]) {
       "a--b---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--C|"
@@ -195,9 +186,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_expected_failure() {
-    expectFailures(["expected failure at tick 6",
-                    "unexpected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["expected failure at tick 6",
+                    "unexpected finish at tick 7"]) {
       "a--b---|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B--^"
@@ -205,8 +195,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_unexpected_value() {
-    expectFailures(["unexpected \"C\" at tick 6"])
-    validate {
+    validate(expectedFailures: ["unexpected \"C\" at tick 6"]) {
       "a--b--c|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B---|"
@@ -214,9 +203,8 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_failure_unexpected_failure() {
-    expectFailures(["unexpected failure at tick 6",
-                    "expected finish at tick 7"])
-    validate {
+    validate(expectedFailures: ["unexpected failure at tick 6",
+                    "expected finish at tick 7"]) {
       "a--b--^|"
       $0.inputs[0].map { item in await Task { item.capitalized }.value }
       "A--B---|"
@@ -224,8 +212,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_unbalanced_group() {
-    expectFailures(["validation diagram unbalanced grouping"])
-    validate {
+    validate(expectedFailures: ["validation diagram unbalanced grouping"]) {
       " ab|"
       $0.inputs[0]
       "[ab|"
@@ -233,8 +220,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_unbalanced_group_input() {
-    expectFailures(["validation diagram unbalanced grouping"])
-    validate {
+    validate(expectedFailures: ["validation diagram unbalanced grouping"]) {
       "[ab|"
       $0.inputs[0]
       " ab|"
@@ -242,8 +228,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_nested_group() {
-    expectFailures(["validation diagram nested grouping"])
-    validate {
+    validate(expectedFailures: ["validation diagram nested grouping"]) {
       "  ab|"
       $0.inputs[0]
       "[[ab|"
@@ -251,8 +236,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_nested_group_input() {
-    expectFailures(["validation diagram nested grouping"])
-    validate {
+    validate(expectedFailures: ["validation diagram nested grouping"]) {
       "[[ab|"
       $0.inputs[0]
       "  ab|"
@@ -260,8 +244,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_step_in_group() {
-    expectFailures(["validation diagram step symbol in group"])
-    validate {
+    validate(expectedFailures: ["validation diagram step symbol in group"]) {
       "  ab|"
       $0.inputs[0]
       "[a-]b|"
@@ -269,8 +252,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_parse_failure_step_in_group_input() {
-    expectFailures(["validation diagram step symbol in group"])
-    validate {
+    validate(expectedFailures: ["validation diagram step symbol in group"]) {
       "[a-]b|"
       $0.inputs[0]
       "  ab|"
@@ -278,8 +260,7 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_specification_produce_past_end() {
-    expectFailures(["specification violation got \"d\" after iteration terminated at tick 9"])
-    validate {
+    validate(expectedFailures: ["specification violation got \"d\" after iteration terminated at tick 9"]) {
       "a--b--c--|"
       $0.inputs[0].violatingSpecification(returningPastEndIteration: "d")
       "a--b--c--|"
@@ -287,14 +268,13 @@ final class TestValidationDiagram: XCTestCase {
   }
   
   func test_diagram_specification_throw_past_end() {
-    expectFailures(["specification violation got failure after iteration terminated at tick 9"])
-    validate {
+    validate(expectedFailures: ["specification violation got failure after iteration terminated at tick 9"]) {
       "a--b--c--|"
       $0.inputs[0].violatingSpecification(throwingPastEndIteration: Failure())
       "a--b--c--|"
     }
   }
-
+  
   func test_delayNext() {
     validate {
       "xxx---   |"

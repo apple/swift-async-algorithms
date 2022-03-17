@@ -150,13 +150,3 @@ fileprivate func ==<A: Equatable, B: Equatable, C: Equatable>(_ lhs: [(A, B, C)]
 public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(_ expression1: @autoclosure () throws -> [(A, B, C)], _ expression2: @autoclosure () throws -> [(A, B, C)], _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
-
-extension XCTestCase {
-  func expectFailures(_ failures: Set<String>) {
-    let options = XCTExpectedFailure.Options()
-    options.issueMatcher = { issue in
-      return failures.contains(issue.compactDescription)
-    }
-    XCTExpectFailure(nil, options: options)
-  }
-}

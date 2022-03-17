@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 @preconcurrency import XCTest
+import Dispatch
 import AsyncAlgorithms
 
 final class TestTaskSelect: XCTestCase {
@@ -17,7 +18,7 @@ final class TestTaskSelect: XCTestCase {
     let firstValue = await Task.select(Task {
       return 1
     }, Task {
-      try! await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+      try! await Task.sleep(until: .now + .seconds(2), clock: .continuous)
       return 2
     }).value
     XCTAssertEqual(firstValue, 1)
@@ -25,7 +26,7 @@ final class TestTaskSelect: XCTestCase {
   
   func test_second() async {
     let firstValue = await Task.select(Task {
-      try! await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+      try! await Task.sleep(until: .now + .seconds(2), clock: .continuous)
       return 1
     }, Task {
       return 2
@@ -36,7 +37,7 @@ final class TestTaskSelect: XCTestCase {
   func test_throwing() async {
     do {
       _ = try await Task.select(Task { () async throws -> Int in
-        try await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+        try await Task.sleep(until: .now + .seconds(2), clock: .continuous)
         return 1
       }, Task { () async throws -> Int in
         throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
@@ -58,7 +59,7 @@ final class TestTaskSelect: XCTestCase {
           firstCancelled.fulfill()
         } operation: { () -> Int in
           firstReady.fulfill()
-          try? await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+          try? await Task.sleep(until: .now + .seconds(2), clock: .continuous)
           return 1
         }
       }, Task {
@@ -66,7 +67,7 @@ final class TestTaskSelect: XCTestCase {
           secondCancelled.fulfill()
         } operation: { () -> Int in
           secondReady.fulfill()
-          try? await Task.sleep(nanoseconds: NSEC_PER_SEC * 2)
+          try? await Task.sleep(until: .now + .seconds(2), clock: .continuous)
           return 1
         }
       })

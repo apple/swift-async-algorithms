@@ -12,6 +12,7 @@
 import XCTest
 import AsyncAlgorithms
 
+#if canImport(Darwin)
 final class TestThroughput: XCTestCase {
   func test_chain2() async {
     await measureSequenceThroughput(output: 1) {
@@ -64,3 +65,4 @@ final class TestThroughput: XCTestCase {
     }
   }
 }
+#endif

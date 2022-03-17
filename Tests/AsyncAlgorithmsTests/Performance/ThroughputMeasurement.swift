@@ -13,6 +13,7 @@ import AsyncAlgorithms
 import Foundation
 @preconcurrency import XCTest
 
+#if canImport(Darwin)
 public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
   public typealias Element = Value
   let value: Value
@@ -138,3 +139,4 @@ final class TestMeasurements: XCTestCase {
     }
   }
 }
+#endif

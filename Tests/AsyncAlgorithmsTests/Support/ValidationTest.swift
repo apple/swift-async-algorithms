@@ -14,9 +14,19 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 
 extension XCTestCase {
-  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
-    let baseLocation = XCTSourceCodeLocation(filePath: file.description, lineNumber: Int(line))
-    let baseContext = XCTSourceCodeContext(location: baseLocation)
+  func recordFailure(_ description: String, detail: String? = nil, system: Bool = false, at location: AsyncSequenceValidation.SourceLocation) {
+#if canImport(Darwin)
+    let context = XCTSourceCodeContext(location: XCTSourceCodeLocation(filePath: location.file.description, lineNumber: Int(location.line)))
+    let issue = XCTIssue(type: system ? .system : .assertionFailure, compactDescription: description, detailedDescription: detail, sourceCodeContext: context, associatedError: nil, attachments: [])
+    record(issue)
+#else
+    XCTFail(description, file: location.file, line: location.line)
+#endif
+  }
+  
+  func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+    var expectations = expectedFailures
+    let baseLoc = AsyncSequenceValidation.SourceLocation(file: file, line: line)
     do {
       let (result, failures) = try AsyncSequenceValidationDiagram.test(theme: theme, build)
       var detail: String?
@@ -33,30 +43,30 @@ extension XCTestCase {
         print(result.reconstituteActual(theme: theme))
       }
       for failure in failures {
-        if let specification = failure.specification {
-          let location = XCTSourceCodeLocation(filePath: specification.location.file.description, lineNumber: Int(specification.location.line))
-          let context = XCTSourceCodeContext(location: location)
-          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: context, associatedError: nil, attachments: [])
-          record(issue)
-        } else {
-          let issue = XCTIssue(type: .assertionFailure, compactDescription: failure.description, detailedDescription: detail, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
-          record(issue)
+        if expectations.remove(failure.description) == nil {
+          recordFailure(failure.description, detail: detail, at: failure.specification?.location ?? baseLoc)
         }
       }
     } catch {
-      if let sourceFailure = error as? SourceFailure {
-        let location = XCTSourceCodeLocation(filePath: sourceFailure.location.file.description, lineNumber: Int(sourceFailure.location.line))
-        let context = XCTSourceCodeContext(location: location)
-        let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: context, associatedError: nil, attachments: [])
-        record(issue)
-      } else {
-        let issue = XCTIssue(type: .system, compactDescription: "\(error)", detailedDescription: nil, sourceCodeContext: baseContext, associatedError: nil, attachments: [])
-        record(issue)
+      if expectations.remove("\(error)") == nil {
+        recordFailure("\(error)", system: true, at: (error as? SourceFailure)?.location ?? baseLoc)
       }
+    }
+    // any remaining expectations are failures that were expected but did not happen
+    for expectation in expectations {
+      XCTFail("Expected failure: \(expectation) did not occur.", file: file, line: line)
     }
   }
   
+  func validate<Test: AsyncSequenceValidationTest>(expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+    validate(theme: .ascii, expectedFailures: expectedFailures, build, file: file, line: line)
+  }
+  
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+    validate(theme: theme, expectedFailures: [], build, file: file, line: line)
+  }
+  
   public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
-    validate(theme: .ascii, build, file: file, line: line)
+    validate(theme: .ascii, expectedFailures: [], build, file: file, line: line)
   }
 }
