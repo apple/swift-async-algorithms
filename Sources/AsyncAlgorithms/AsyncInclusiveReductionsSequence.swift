@@ -13,7 +13,8 @@ extension AsyncSequence {
   /// ```
   ///
   /// - Parameter transform: A closure that combines the previously reduced
-  ///   result and the next element in the receiving sequence.
+  ///   result and the next element in the receiving sequence, and returns
+  ///   the result.
   /// - Returns: An asynchronous sequence of the reduced elements.
   @inlinable
   public func reductions(

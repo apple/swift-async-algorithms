@@ -10,21 +10,21 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-  /// Returns an async sequence containing elements of this async sequence with
+  /// Returns an asynchronous sequence containing elements of this asynchronous sequence with
   /// the given separator inserted in between each element.
   ///
-  /// Any value of the async sequence's element type can be used as the separator.
+  /// Any value of the asynchronous sequence's element type can be used as the separator.
   ///
-  /// - Parameter separator: Value to insert in between each of this async
+  /// - Parameter separator: The value to insert in between each of this async
   ///   sequence’s elements.
-  /// - Returns: The interspersed async sequence of elements.
+  /// - Returns: The interspersed asynchronous sequence of elements.
   @inlinable
   public func interspersed(with separator: Element) -> AsyncInterspersedSequence<Self> {
     AsyncInterspersedSequence(self, separator: separator)
   }
 }
 
-/// An async sequence that presents the elements of a base async sequence of
+/// An asynchronous sequence that presents the elements of a base asynchronous sequence of
 /// elements with a separator between each of those elements.
 public struct AsyncInterspersedSequence<Base: AsyncSequence> {
   @usableFromInline
@@ -43,7 +43,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
 extension AsyncInterspersedSequence: AsyncSequence {
   public typealias Element = Base.Element
 
-  /// The iterator for an `AsyncInterspersedSequence` async sequence.
+  /// The iterator for an `AsyncInterspersedSequence` asynchronous sequence.
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
     internal enum State {

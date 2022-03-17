@@ -18,8 +18,8 @@ extension AsyncSequence {
   ///
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
-  ///   - transform: A closure that combines the previously reduced result and
-  ///     the next element in the receiving asynchronous sequence.
+  ///   - transform: A closure that combines the previously-reduced result and
+  ///     the next element in the receiving asynchronous sequence, which it returns.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable
@@ -37,8 +37,9 @@ extension AsyncSequence {
   ///
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
-  ///   - transform: A closure that combines the previously reduced result and
-  ///     the next element in the receiving asynchronous sequence.
+  ///   - transform: A closure that combines the previously-reduced result and
+  ///     the next element in the receiving asynchronous sequence, mutating the
+  ///     previous result instead of returning a value.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable

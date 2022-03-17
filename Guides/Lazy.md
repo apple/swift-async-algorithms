@@ -3,7 +3,7 @@
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncLazySequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestLazy.swift)]
 
-Converts a non asynchronous sequence into an asynchronous one. 
+Converts a non-asynchronous sequence into an asynchronous one. 
 
 This operation is available for all `Sequence` types. 
 
@@ -17,7 +17,7 @@ to combine with other `AsyncSequence` types to provide well known sources of dat
 
 ## Detailed Design
 
-The `.async` property is returns an `AsyncLazySequence` that is generic upon the base `Sequence` it was constructed from.
+The `.async` property returns an `AsyncLazySequence` that is generic upon the base `Sequence` it was constructed from.
 
 ```swift
 extension Sequence {

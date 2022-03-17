@@ -25,7 +25,7 @@ Given some sample inputs the following merged events can be expected.
 
 ## Detailed Design
 
-This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted these will be implemented in terms of two and three base sequence cases.
+This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted, these will be implemented in terms of two- and three-base sequence cases.
 
 ```swift
 public func merge<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncMerge2Sequence<Base1, Base2>
@@ -64,17 +64,17 @@ public struct AsyncMerge3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Ba
 
 ```
 
-The `merge(_:...)` function takes two or more asynchronous sequences as arguments with the resulting `AsyncMergeSequence` which is an asynchronous sequence.
+The `merge(_:...)` function takes two or more asynchronous sequences as arguments and produces an `AsyncMergeSequence` which is an asynchronous sequence.
 
-Since the bases comprising the `AsyncMergeSequence` must be iterated concurrently to produce the latest value it means that those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elements they produce must be `Sendable`. 
+Since the bases comprising the `AsyncMergeSequence` must be iterated concurrently to produce the latest value,  those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elements they produce must be `Sendable`. 
 
-When iterating a `AsyncMergeSequence` it becomes terminal when all of the base asynchronous sequences are terminal; meaning there is no more potential of any elements being produced. 
+When iterating a `AsyncMergeSequence`, the sequence terminates when all of the base asynchronous sequences terminate, since this means there is no potential for any further elements to be produced. 
 
-The throwing behavior of `AsyncMergeSequence` is that if any of the bases throw then the composed asynchronous sequence then throws on its iteration. If at any point an error is thrown by any base, the other iterations are cancelled and the thrown error is immediately thrown to the consuming iteration.
+The throwing behavior of `AsyncMergeSequence` is that if any of the bases throw, then the composed asynchronous sequence throws on its iteration. If at any point an error is thrown by any base, the other iterations are cancelled and the thrown error is immediately thrown to the consuming iteration.
 
 ### Naming
 
-Since the inherent behavior of `merge(_:...)` merges values from multiple streams into a singular asynchronous sequence the naming is intended to be quite literal. There are precedent terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
+Since the inherent behavior of `merge(_:...)` merges values from multiple streams into a singular asynchronous sequence, the naming is intended to be quite literal. There are precedent terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
 
 ### Comparison with other libraries
 

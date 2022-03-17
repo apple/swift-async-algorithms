@@ -25,7 +25,7 @@ Given some sample inputs the following zipped events can be expected.
 
 ## Detailed Design
 
-This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted these will be implemented in terms of two and three base sequence cases.
+This function family and the associated family of return types are prime candidates for variadic generics. Until that proposal is accepted, these will be implemented in terms of two- and three-base sequence cases.
 
 ```swift
 public func zip<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncZip2Sequence<Base1, Base2>
@@ -64,17 +64,17 @@ public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base
 
 The `zip(_:...)` function takes two or more asynchronous sequences as arguments with the resulting `AsyncZipSequence` which is an asynchronous sequence.
 
-Each iteration of an `AsyncZipSequence` will await all base iterators to produce a value. This iteration will be done concurrently to produce a singular tuple result. If any of the base iterations produce a terminal event by returning nil from their iteration, the `AsyncZipSequence` iteration is immediately considered unsatisfiable and returns nil and all iterations of other bases will be cancelled. If any iteration of the bases throws an error then the other iterations concurrently running are cancelled and the produced error is rethrown, terminating the iteration.
+Each iteration of an `AsyncZipSequence` will await for all base iterators to produce a value. This iteration will be done concurrently to produce a singular tuple result. If any of the base iterations terminates by returning `nil` from its iteration, the `AsyncZipSequence` iteration is immediately considered unsatisfiable and returns `nil` and all iterations of other bases will be cancelled. If any iteration of the bases throws an error, then the other iterations concurrently running are cancelled and the produced error is rethrown, terminating the iteration.
 
 `AsyncZipSequence` requires that the iterations are done concurrently. This means that the base sequences, their elements, and iterators must all be `Sendable`. That makes `AsyncZipSequence` inherently `Sendable`.
 
-The source of throwing of `AsyncZipSequence` is determined by its bases. That means that if any base is throwing then the iteration of the `AsyncZipSequence` can throw. If no bases can throw then the `AsyncZipSequence` does not throw.
+The source of throwing of `AsyncZipSequence` is determined by its bases. That means that if any base can throw an error then the iteration of the `AsyncZipSequence` can throw. If no bases can throw, then the `AsyncZipSequence` does not throw.
 
 ### Naming
 
-The `zip(_:...)` function takes its name from the Swift standard library with the function of the same name. The `AsyncZipSequence` family of types take their name from the same family from the standard library for the type returned by `zip(_:_:)`. The one caveat differential is that this asynchronous version allows for the affordance of recognizing the eventual variadic generic need of expanding a zip of more than just two sources.
+The `zip(_:...)` function takes its name from the Swift standard library function of the same name. The `AsyncZipSequence` family of types take their name from the same family from the standard library for the type returned by `zip(_:_:)`. The one difference is that this asynchronous version allows for the affordance of recognizing the eventual variadic generic need of expanding a zip of more than just two sources.
 
-It is common in some libraries to have a `ZipMap` or some other combination of `zip` and `map`. This is a pretty common usage pattern however leaving a singular type for composition feels considerably more approachable.
+It is common in some libraries to have a `ZipMap` or some other combination of `zip` and `map`. This is a common usage pattern, but leaving a singular type for composition feels considerably more approachable.
 
 ### Comparison with other libraries
 
