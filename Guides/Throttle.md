@@ -9,13 +9,13 @@
 
 ## Introduction
 
-When events can potentially happen faster than the desired consumption rate there are multiple ways of handling that. One way of approaching that problem is to emit values after a given period has elapsed. These values can reduced from the values encountered while that duration occurs. This algorithm is commonly referred to as throttling. 
+When events can potentially happen faster than the desired consumption rate, there are multiple ways to handle the situation. One approach is to emit values after a given period has elapsed. These emitted values can be reduced from the values encountered during the waiting period. This algorithm is commonly referred to as throttling. 
 
 ## Proposed Solution
 
-The throttle algorithm produces elements such that at least a specific interval has elapsed between them. It transacts by measuring against a specific clock. If values are produced by the base `AsyncSequence` the throttle does not resume it's next iterator until the period has elapsed or unless a terminal event is encountered.
+The throttle algorithm produces elements such that at least a specific interval has elapsed between them. It transacts by measuring against a specific clock. If values are produced by the base `AsyncSequence` the throttle does not resume its next iterator until the period has elapsed or unless a terminal event is encountered.
 
-The interface for this algorithm is available on all `AsyncSequence` types. Unlike other algorithms like `debounce`, the throttle algorithm does not need to create additional tasks or require any sort of tolerance because the interval is just measured. A shorthand implementation will be offered in conjunction where the clock is the `ContinuousClock`; which allows for easy construction with `Duration` values. An additional shorthand is offered to reduce the values such that it provides a "latest" or "non latest" value; representing the leading or trailing edge of a throttled region of production of events.
+The interface for this algorithm is available on all `AsyncSequence` types. Unlike other algorithms like `debounce`, the throttle algorithm does not need to create additional tasks or require any sort of tolerance because the interval is just measured. A shorthand implementation will be offered in conjunction where the clock is the `ContinuousClock`, which allows for easy construction with `Duration` values. An additional shorthand is offered to reduce the values such that it provides a "latest" or "non latest" value, representing the leading or trailing edge of a throttled region of production of events.
 
 ```swift
 extension AsyncSequence {

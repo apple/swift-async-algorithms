@@ -9,11 +9,16 @@
 
 ## Introduction
 
-The family of algorithms for reduce are useful to convert a sequence or asynchronous sequence into a single value, but that can elide important intermediate information. This algorithm is often called scan but that does not infer it's heritage to the family of reducing. There are two strategies that are usable for creating continuous reductions; either exclusive reductions or, inclusive reductions. Exclusive reductions take a value and incorperate values into that initial value; a common example is reductions by appending to an array. Inclusive reductions transact just upon the values provided; a common example is adding numbers. 
+The family of algorithms for reduce are useful for converting a sequence or asynchronous sequence into a single value, but that can elide important intermediate information. The _reductions_ algorithm is often called "scan", but this name does not convey its heritage to the family of reducing.
+
+There are two strategies that are usable for creating continuous reductions: exclusive reductions and inclusive reductions:
+
+ * Exclusive reductions take a value and incorporate values into that initial value. A common example is reductions by appending to an array.
+ * Inclusive reductions transact only on the values provided. A common example is adding numbers. 
 
 ## Proposed Solution
 
-Exclusive reductions come in two variants; either transforming by application, or transformation via mutation. This replicates the same interface as `reduce(_:_:)` and `reduce(into:_:)`. Unlike the `reduce` algorithms, the `reductions` algorithm also comes in two flavors; throwing or non throwing transformations.
+Exclusive reductions come in two variants: transforming by application, or transformation via mutation. This replicates the same interface as `reduce(_:_:)` and `reduce(into:_:)`. Unlike the `reduce` algorithms, the `reductions` algorithm also comes in two flavors: throwing or non throwing transformations.
 
 ```swift
 extension AsyncSequence {
@@ -41,15 +46,15 @@ extension AsyncSequence {
 }
 ```
 
-These APIs can be used to reduce an initial value progressively or reduce into an initial value via mutation. In practice a common use case for reductions is to mutate a collection by appending values.
+These APIs can be used to reduce an initial value progressively or reduce into an initial value via mutation. In practice, a common use case for reductions is to mutate a collection by appending values.
 
 ```swift
 characters.reductions(into: "") { $0.append($1) }
 ```
 
-If the characters being produced asynchronously are `"a", "b", "c"` then the iteration of the reductions is `"a", "ab", "abc"`.
+If the characters being produced asynchronously are `"a", "b", "c"`, then the iteration of the reductions is `"a", "ab", "abc"`.
 
-Inclusive reductions do not have an initial value and so therefore do not need an additional variations beyond the throwing and non throwing flavors. 
+Inclusive reductions do not have an initial value and therefore do not need an additional variations beyond the throwing and non throwing flavors. 
 
 ```swift
 extension AsyncSequence {
@@ -63,19 +68,19 @@ extension AsyncSequence {
 }
 ```
 
-This is often used for the senarios like a running tally or other such same produced value cases.
+This is often used for scenarios like a running tally or other similar cases.
 
 ```swift
 numbers.reductions { $0 + $1 }
 ```
 
-In the above case if the numbers are a sequence of `1, 2, 3, 4` the produced values would be `1, 3, 6, 10`.
+In the above example, if the numbers are a sequence of `1, 2, 3, 4`, the produced values would be `1, 3, 6, 10`.
 
 ## Detailed Design
 
-The exclusive reduction variants come in two distinct cases; a non throwing and throwing. These both have types to encompass that throwing behavior.
+The exclusive reduction variants come in two distinct cases: non-throwing and throwing. These both have corresponding types to encompass that throwing behavior.
 
-For non throwing exclusive reductions the element type of the sequence is the result of the reduction transform. `AsyncExclusiveReductionsSequence` will throw if the base asynchronous sequence throw, and will not throw if the base does not throw.
+For non-throwing exclusive reductions, the element type of the sequence is the result of the reduction transform. `AsyncExclusiveReductionsSequence` will throw if the base asynchronous sequence throws, and will not throw if the base does not throws.
 
 ```swift
 public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {

@@ -9,13 +9,13 @@
 
 ## Introduction
 
-When events can potentially happen faster than the desired consumption rate there are multiple ways of handling that. One way of approaching that problem is to only emit values after a given period of time of quiessence has elapsed. This algorithm is commonly referred to as debouncing. 
+When events can potentially happen faster than the desired consumption rate, there are multiple ways to handle the situation. One approach is to only emit values after a given period of time of inactivity, or "quiessence", has elapsed. This algorithm is commonly referred to as debouncing. 
 
 ## Proposed Solution
 
-The debounce algorithm produces elements after a particular duration has passed between events. It transacts within a given tolerance applied to a clock. If values are produced by the base `AsyncSequence` the debounce does not resume it's next iterator until the period has elapsed with no values are produced or unless a terminal event is encountered.
+The debounce algorithm produces elements after a particular duration has passed between events. It transacts within a given tolerance applied to a clock. If values are produced by the base `AsyncSequence` during this quiet period, the debounce does not resume its next iterator until the period has elapsed with no values are produced or unless a terminal event is encountered.
 
-The interface for this algorithm is available on all `AsyncSequence` types where the base type, iterator, and element are `Sendable`; since this will inherently create tasks to manage those timing of events. A shorthand implementation will be offered in conjunction where the clock is the `ContinuousClock`; which allows for easy construction with `Duration` values.
+The interface for this algorithm is available on all `AsyncSequence` types where the base type, iterator, and element are `Sendable`, since this algorithm will inherently create tasks to manage their timing of events. A shorthand implementation will be offered where the clock is the `ContinuousClock`, which allows for easy construction with `Duration` values.
 
 ```swift
 extension AsyncSequence {
@@ -64,7 +64,7 @@ Since the stored types comprising `AsyncDebounceSequence` must be `Sendable`; `A
 
 ## Alternatives Considered
 
-An alternative form of `debounce` could exist similar to the reductions of `throttle`; where a closure would be invoked for each value being set as the latest and reducing a new value to produce for the debounce.
+An alternative form of `debounce` could exist similar to the reductions of `throttle`, where a closure would be invoked for each value being set as the latest, and reducing a new value to produce for the debounce.
 
 ## Credits/Inspiration
 
