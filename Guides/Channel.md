@@ -51,8 +51,32 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
 }
 ```
 
+Channels are intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceede the consumption of values from iteration. Each of these methods suspend after enquing the event and are resumed when the next call to `next()` on the `Iterator` is made. 
+
+```swift
+let channel = AsyncChannel<String>()
+Task {
+  while let resultOfLongCalculation = doLongCalculations() {
+    await channel.send(resultOfLongCaclulation)
+  }
+  await channel.finish()
+}
+
+for await calculationResult in channel {
+  print(calculationResult)
+}
+```
+
+The example above uses a task to perform intense calculations; each of which are sent to the other task via the `send(_:)` method. That call to `send(_:)` returns when the next iteration of the channel is invoked. 
+
 ## Alternatives Considered
 
 The use of the name "subject" was considered, due to its heritage as a name for a sync-to-async adapter type.
 
+It was considered to make `AsyncChannel` and `AsyncThrowingChannel` actors, however due to the cancellation internals it would imply that these types would need to create new tasks to handle cancel events. The advantages of an actor in this particular case did not outweigh the impact of adjusting the implementations to be actors.
+
 ## Credits/Inspiration
+
+`AsyncChannel` and `AsyncThrowingChannel` was heavily inspired from `Subject` but with the key difference that it uses Swift concurrency to apply back pressure.
+
+https://developer.apple.com/documentation/combine/subject/
