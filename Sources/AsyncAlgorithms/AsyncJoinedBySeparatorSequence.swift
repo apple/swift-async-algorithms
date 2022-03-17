@@ -71,7 +71,7 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
     @usableFromInline
     var state: State
 
-    @usableFromInline
+    @inlinable
     init(_ iterator: Base.AsyncIterator, separator: Separator) {
       state = .initial(iterator, separator)
     }

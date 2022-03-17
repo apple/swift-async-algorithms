@@ -16,10 +16,12 @@ extension AsyncSequence where Element: AsyncSequence {
   }
 }
 
+@frozen
 public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence {
   public typealias Element = Base.Element.Element
   public typealias AsyncIterator = Iterator
-  
+
+  @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
     enum State {
@@ -31,7 +33,7 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
     @usableFromInline
     var state: State
     
-    @usableFromInline
+    @inlinable
     init(_ iterator: Base.AsyncIterator) {
       state = .initial(iterator)
     }
