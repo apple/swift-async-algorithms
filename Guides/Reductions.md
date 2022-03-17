@@ -124,6 +124,8 @@ extension AsyncThrowingExclusiveReductionsSequence.Iterator: Sendable
 
 ## Alternatives Considered
 
+One alternate name for `reductions` was to name it `scan`; however the naming from the Swift Algorithms package offers considerably more inference to the heritage of what family of functions this algorithm belongs to.
+
 ## Credits/Inspiration
 
 This transformation function is a direct analog to the synchronous version [defined in the Swift Algorithms package](https://github.com/apple/swift-algorithms/blob/main/Guides/Reductions.md)
