@@ -9,7 +9,11 @@
 
 ## Introduction
 
+Just as it is common for `Sequence` types that contain optional values to need to `.compactMap { $0 }`, `AsyncSequence` types have the same use cases. This common task means that the type must employ a closure to test the optional value. A more effecient way can be done. Both for execution performance as well as API effeciency of typing.
+
 ## Proposed Solution
+
+Similar to the Swift Algorithms package we propose that a new method be added to `AsyncSequence` to fit this need.
 
 ```swift
 extension AsyncSequence {
@@ -18,7 +22,11 @@ extension AsyncSequence {
 }
 ```
 
+This is equivelent to writing `.compactMap { $0 }` from a behavioral standpoint but is easier to reason about and is more effecient since it does not need to execute or store a closure.
+
 ## Detailed Design
+
+The `AsyncCompactedSequence` type from an effects standpoint works just like `AsyncCompactMapSequence`. When the base asynchronous sequence throws, the iteration of `AsyncCompactedSequence` can throw. Likewise if the base does not throw then the iteration of `AsyncCompactedSequence` does not throw. This type is conditionally `Sendable` when the base, base element, and base iterator are `Sendable.
 
 ```swift
 public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequence
@@ -43,8 +51,6 @@ extension AsyncCompactedSequence.Iterator: Sendable
     Base: Sendable, Base.Element: Sendable, 
     Base.AsyncIterator: Sendable { }
 ```
-
-## Alternatives Considered
 
 ## Credits/Inspiration
 
