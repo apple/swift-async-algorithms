@@ -101,7 +101,7 @@ for try await (firstLetter, names) in groupedNames {
 
 A special property of this kind of projection chunking is that when an asynchronous sequence's elements are known to be ordered, the output of the chunking asynchronous sequence is suitable for initializing dictionaries using the `AsyncSequence` initializer for `Dictionary`. This is because the projection can be easily designed to match the sorting characteristics and thereby guarantee that the output matches the pattern of an array of pairs of unique "keys" with the chunks as the "values".
 
-In the example above, if the names are known to be ordered then you can take advantage of the uniqueness of each "first charater" projection to initialize a `Dictionary` like so:
+In the example above, if the names are known to be ordered then you can take advantage of the uniqueness of each "first character" projection to initialize a `Dictionary` like so:
 
 ```swift
 let names = URL(fileURLWithPath: "/tmp/names.txt").lines

@@ -25,7 +25,7 @@ Three categories of initializers will be added to provide initializers for those
 `RangeReplaceableCollection` will gain a new that constructs a collection given an `AsyncSequence`. This will allow for creating arrays from asynchronous sequences but also allow for creating types like `Data` or `ContiguousArray`. Because of the nature of asynchronous sequences, this initializer must be asynchronous and declare that it rethrows errors from the base asynchronous sequence.
 
 ```swift
-extension RangeReplacableCollection {
+extension RangeReplaceableCollection {
   public init<Source: AsyncSequence>(
     _ source: Source
   ) async rethrows 

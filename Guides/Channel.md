@@ -51,13 +51,13 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
 }
 ```
 
-Channels are intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceede the consumption of values from iteration. Each of these methods suspend after enquing the event and are resumed when the next call to `next()` on the `Iterator` is made. 
+Channels are intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceed the consumption of values from iteration. Each of these methods suspend after enqueuing the event and are resumed when the next call to `next()` on the `Iterator` is made. 
 
 ```swift
 let channel = AsyncChannel<String>()
 Task {
   while let resultOfLongCalculation = doLongCalculations() {
-    await channel.send(resultOfLongCaclulation)
+    await channel.send(resultOfLongCalculation)
   }
   await channel.finish()
 }

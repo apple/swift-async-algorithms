@@ -31,7 +31,7 @@ extension Task {
 
 Given any number of `Task` objects that share the same `Success` and `Failure` types; `Task.select` will suspend and await each tasks result and resume when the first task has produced a result. While the calling task of `Task.select` is suspended if that task is cancelled the tasks being selected receive the cancel. This is similar to the family of `TaskGroup` with a few behavioral and structural differences. 
 
-The `withTaskGroup` API will create effecient child tasks.
+The `withTaskGroup` API will create efficient child tasks.
 The `Task.select` API takes pre-existing tasks.
 
 The `withTaskGroup` API will await all child tasks to be finished before returning. 

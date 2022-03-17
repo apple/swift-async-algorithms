@@ -78,7 +78,7 @@ It is common in some libraries to have a `ZipMap` or some other combination of `
 
 ### Comparison with other libraries
 
-**Swift** The swift standard library has an [API definition of zip](https://developer.apple.com/documentation/swift/1541125-zip) as a top level function for comining two sequences.
+**Swift** The swift standard library has an [API definition of zip](https://developer.apple.com/documentation/swift/1541125-zip) as a top level function for combining two sequences.
 
 **ReactiveX** ReactiveX has an [API definition of Zip](https://reactivex.io/documentation/operators/zip.html) as a top level function for combinining Observables.
 

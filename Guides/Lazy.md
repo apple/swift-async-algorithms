@@ -32,10 +32,6 @@ extension AsyncLazySequence: Sendable where Base: Sendable { }
 extension AsyncLazySequence.Iterator: Sendable where Base.Iterator: Sendable { }
 ```
 
-The resulting `AsyncLazySequence` is an `AsyncSequence`, with conditional conformance to `Sendable`, `Codable`, `Equatable`, 
-and `Hashable` when the base type conforms to these protocols.
-
-
 ### Naming
 
 This property's and type's name match the naming approaches in the Swift standard library. The property is named with a 
