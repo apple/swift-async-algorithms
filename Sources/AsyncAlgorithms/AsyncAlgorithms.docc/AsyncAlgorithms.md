@@ -46,7 +46,7 @@ This package is the home for these APIs. Development and API design take place o
 - ``_Concurrency/AsyncSequence/reductions(into:_:)-1ghas``
 - ``_Concurrency/AsyncSequence/reductions(into:_:)-t4an``
 - ``_Concurrency/AsyncSequence/removeduplicates()``
-- ``_Concurrency/AsyncSequence/removeduplicates(by:)-6epc2``
+- ``_Concurrency/AsyncSequence/removeDuplicates(by:)-6epc2``
 - ``_Concurrency/AsyncSequence/removeduplicates(by:)-7geff``
 - ``_Concurrency/AsyncSequence/throttle(for:clock:latest:)``
 - ``_Concurrency/AsyncSequence/throttle(for:clock:reducing:)``
