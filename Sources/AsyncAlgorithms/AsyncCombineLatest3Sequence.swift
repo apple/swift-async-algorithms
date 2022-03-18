@@ -13,6 +13,7 @@ public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence, Base3: Asy
   AsyncCombineLatest3Sequence(base1, base2, base3)
 }
 
+/// An `AsyncSequence` that combines the latest values produced from three asynchronous sequences into an asynchronous sequence of tuples.
 public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
   where
     Base1: Sendable, Base2: Sendable, Base3: Sendable,
@@ -32,6 +33,7 @@ public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequ
 extension AsyncCombineLatest3Sequence: AsyncSequence {
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)
   
+  /// The iterator for a `AsyncCombineLatest3Sequence` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     var iterator: AsyncCombineLatest2Sequence<AsyncCombineLatest2Sequence<Base1, Base2>, Base3>.Iterator
     

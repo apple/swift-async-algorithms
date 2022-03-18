@@ -27,9 +27,11 @@ public struct AsyncCombineLatest2Sequence<Base1: AsyncSequence, Base2: AsyncSequ
   }
 }
 
+/// An `AsyncSequence` that combines the latest values produced from two asynchronous sequences into an asynchronous sequence of tuples.
 extension AsyncCombineLatest2Sequence: AsyncSequence {
   public typealias Element = (Base1.Element, Base2.Element)
   
+  /// The iterator for a `AsyncCombineLatest2Sequence` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     enum Partial: Sendable {
       case first(Result<Base1.Element?, Error>, Base1.AsyncIterator)
