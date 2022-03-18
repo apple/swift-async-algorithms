@@ -1,0 +1,28 @@
+{
+    "metadata": {
+        "formatVersion": {
+            "major": 0,
+            "minor": 5,
+            "patch": 3
+        },
+        "generator": "Apple Swift version 5.7-dev (LLVM b542228299b0f75, Swift 79dcb5710e6cd24)"
+    },
+    "module": {
+        "name": "_Concurrency",
+        "platform": {
+            "architecture": "arm64",
+            "operatingSystem": {
+                "minimumVersion": {
+                    "major": 10,
+                    "minor": 15,
+                    "patch": 0
+                },
+                "name": "macosx"
+            },
+            "vendor": "apple"
+        }
+    },
+    "relationships": [],
+    "symbols": []
+}
+
