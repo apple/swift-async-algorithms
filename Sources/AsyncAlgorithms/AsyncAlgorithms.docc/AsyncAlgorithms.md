@@ -1,6 +1,6 @@
 # ``AsyncAlgorithms``
 
-**Swift Async Algorithms** is an open-source package of asynchronous sequence and advanced algorithms that involve concurrency, along with their related types.
+An open-source package of asynchronous sequence and advanced algorithms that involve concurrency, along with their related types.
 
 This package has three main goals:
 
@@ -52,6 +52,11 @@ This package is the home for these APIs. Development and API design take place o
 - ``_Concurrency/AsyncSequence/throttle(for:clock:reducing:)``
 - ``_Concurrency/AsyncSequence/throttle(for:latest:)``
 - ``_Concurrency/AsyncSequence/throttle(for:reducing:)``
+
+### Task Extensions
+
+- ``_Concurrency/Task.select(_:)-10kz8``
+- ``_Concurrency/Task.select(_:)-6z7kp``
 
 ### Functions
 
