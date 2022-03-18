@@ -18,45 +18,19 @@ This package is the home for these APIs. Development and API design take place o
 
 ### AsyncSequence Extensions
 
-- ``_Concurrency/AsyncSequence/buffer(_:)``
-- ``_Concurrency/AsyncSequence/buffer(policy:)``
-- ``_Concurrency/AsyncSequence/chunked(by:)-22u15``
-- ``_Concurrency/AsyncSequence/chunked(by:)-6ueqa``
-- ``_Concurrency/AsyncSequence/chunked(by:)-8r64n``
-- ``_Concurrency/AsyncSequence/chunked(by:into:)-15i9z``
-- ``_Concurrency/AsyncSequence/chunked(by:into:)-8x981``
-- ``_Concurrency/AsyncSequence/chunked(into:by:)``
-- ``_Concurrency/AsyncSequence/chunked(into:on:)``
-- ``_Concurrency/AsyncSequence/chunked(on:)``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:)``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:into:)``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:or:)-1mvvt``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:or:)-9g3dr``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:or:into:)-8pp6q``
-- ``_Concurrency/AsyncSequence/chunks(ofCount:or:into:)-8xk6u``
-- ``_Concurrency/AsyncSequence/compacted()``
-- ``_Concurrency/AsyncSequence/debounce(for:tolerance:)``
-- ``_Concurrency/AsyncSequence/debounce(for:tolerance:clock:)``
-- ``_Concurrency/AsyncSequence/interspersed(with:)``
-- ``_Concurrency/AsyncSequence/joined(separator:)``
-- ``_Concurrency/AsyncSequence/reductions(_:)-4efsu``
-- ``_Concurrency/AsyncSequence/reductions(_:)-58t9p``
-- ``_Concurrency/AsyncSequence/reductions(_:_:)-50jy3``
-- ``_Concurrency/AsyncSequence/reductions(_:_:)-8lxv9``
-- ``_Concurrency/AsyncSequence/reductions(into:_:)-1ghas``
-- ``_Concurrency/AsyncSequence/reductions(into:_:)-t4an``
-- ``_Concurrency/AsyncSequence/removeDuplicates()``
-- ``_Concurrency/AsyncSequence/removeDuplicates(by:)-6epc2``
-- ``_Concurrency/AsyncSequence/removeDuplicates(by:)-7geff``
-- ``_Concurrency/AsyncSequence/throttle(for:clock:latest:)``
-- ``_Concurrency/AsyncSequence/throttle(for:clock:reducing:)``
-- ``_Concurrency/AsyncSequence/throttle(for:latest:)``
-- ``_Concurrency/AsyncSequence/throttle(for:reducing:)``
+- <doc:Buffer>
+- <doc:Chunk>
+- <doc:Compacted>
+- <doc:Debounce>
+- <doc:Intersperse>
+- <doc:Join>
+- <doc:Reductions>
+- <doc:RemoveDuplicates>
+- <doc:Throttle>
 
 ### Task Extensions
 
-- ``_Concurrency/Task/select(_:)-10kz8``
-- ``_Concurrency/Task/select(_:)-6z7kp``
+- <doc:Task-Extensions>
 
 ### Functions
 
