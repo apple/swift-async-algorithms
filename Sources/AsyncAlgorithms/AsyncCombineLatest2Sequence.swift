@@ -9,10 +9,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Creates an asynchronous sequence that combines the latest values from two `AsyncSequence` types
+/// by emitting a tuple of the values.
 public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncCombineLatest2Sequence<Base1, Base2> {
   AsyncCombineLatest2Sequence(base1, base2)
 }
 
+/// An `AsyncSequence` that combines the latest values produced from two asynchronous sequences into an asynchronous sequence of tuples.
 public struct AsyncCombineLatest2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Sendable
   where
     Base1: Sendable, Base2: Sendable,
@@ -27,7 +30,6 @@ public struct AsyncCombineLatest2Sequence<Base1: AsyncSequence, Base2: AsyncSequ
   }
 }
 
-/// An `AsyncSequence` that combines the latest values produced from two asynchronous sequences into an asynchronous sequence of tuples.
 extension AsyncCombineLatest2Sequence: AsyncSequence {
   public typealias Element = (Base1.Element, Base2.Element)
   

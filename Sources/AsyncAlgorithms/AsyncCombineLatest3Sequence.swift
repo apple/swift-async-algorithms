@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Creates an asynchronous sequence that combines the latest values from three `AsyncSequence` types
+/// by emitting a tuple of the values.
 public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(_ base1: Base1, _ base2: Base2, _ base3: Base3) -> AsyncCombineLatest3Sequence<Base1, Base2, Base3> {
   AsyncCombineLatest3Sequence(base1, base2, base3)
 }
