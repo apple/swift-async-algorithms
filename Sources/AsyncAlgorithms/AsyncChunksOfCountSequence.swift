@@ -10,20 +10,24 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
+  /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` of a given count.
   @inlinable
   public func chunks<Collected: RangeReplaceableCollection>(ofCount count: Int, into: Collected.Type) -> AsyncChunksOfCountSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunksOfCountSequence(self, count: count)
   }
 
+  /// Creates an asynchronous sequence that creates chunks of a given count.
   @inlinable
   public func chunks(ofCount count: Int) -> AsyncChunksOfCountSequence<Self, [Element]> {
     chunks(ofCount: count, into: [Element].self)
   }
 }
 
+/// An `AsyncSequence` that chunks elements into `RangeReplaceableCollection` instances of at least a given count.
 public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
   public typealias Element = Collected
 
+  /// The iterator for a `AsyncChunksOfCountSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
 
