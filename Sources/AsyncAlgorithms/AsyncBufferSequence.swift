@@ -136,7 +136,7 @@ public protocol AsyncBuffer: Actor {
   /// Pop an element from the buffer.
   ///
   /// Implementors of `pop()` may throw. In cases where types
-  /// throw from this function that throwing behavior contributes to
+  /// throw from this function, that throwing behavior contributes to
   /// the rethrowing characteristics of `AsyncBufferSequence`.
   func pop() async throws -> Output?
 }
@@ -145,11 +145,11 @@ public protocol AsyncBuffer: Actor {
 public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   /// A policy for buffering elements to an `AsyncLimitBuffer`
   public enum Policy: Sendable {
-    /// A policy for no bounding limit of pushed elements
+    /// A policy for no bounding limit of pushed elements.
     case unbounded
-    /// A policy for limiting to a specific number of oldest values
+    /// A policy for limiting to a specific number of oldest values.
     case bufferingOldest(Int)
-    /// A policy for limiting to a specific number of newest values
+    /// A policy for limiting to a specific number of newest values.
     case bufferingNewest(Int)
   }
   
@@ -168,7 +168,7 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
     self.policy = policy
   }
   
-  /// Push an element to enqueue to the buffer
+  /// Push an element to enqueue to the buffer.
   public func push(_ element: Element) async {
     switch policy {
     case .unbounded:
@@ -201,8 +201,8 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
 extension AsyncSequence where Element: Sendable {
   /// Creates an asynchronous sequence that buffers elements using a buffer created from a supplied closure.
   ///
-  /// Use the `buffer(_:)` to account for `AsyncSequence` types that may produce elements faster
-  /// than they are iterated. The closure provided returns the backing buffer for storing and dealing with
+  /// Use the `buffer(_:)` method to account for `AsyncSequence` types that may produce elements faster
+  /// than they are iterated. The `createBuffer` closure returns a backing buffer for storing elements and dealing with
   /// behavioral charcteristics of the `buffer(_:)` algorithm.
   ///
   /// - Parameter createBuffer: A closure that constructs a new `AsyncBuffer` actor to store buffered values.
