@@ -70,6 +70,7 @@ public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {
 }
 
 extension AsyncExclusiveReductionsSequence: AsyncSequence {
+  /// The iterator for an `AsyncExclusiveReductionsSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline

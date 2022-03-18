@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence where Element: Equatable {
+  /// Creates an asynchronous sequence that omits repeated elements.
   public func removeDuplicates() -> AsyncRemoveDuplicatesSequence<Self> {
     AsyncRemoveDuplicatesSequence(self) { lhs, rhs in
       lhs == rhs
@@ -18,18 +19,22 @@ extension AsyncSequence where Element: Equatable {
 }
 
 extension AsyncSequence {
+  /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
   public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async -> Bool) -> AsyncRemoveDuplicatesSequence<Self> {
     return AsyncRemoveDuplicatesSequence(self, predicate: predicate)
   }
   
+  /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
   public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async throws -> Bool) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
     return AsyncThrowingRemoveDuplicatesSequence(self, predicate: predicate)
   }
 }
 
+/// An asynchronous sequence that omits repeated elements by testing them with a predicate.
 public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
 
+  /// The iterator for an `AsyncRemoveDuplicatesSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
 
     @usableFromInline
@@ -84,9 +89,11 @@ extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Ele
 extension AsyncRemoveDuplicatesSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
 
 
+/// An asynchronous sequence that omits repeated elements by testing them with a predicate.
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
   
+  /// The iterator for an `AsyncThrowingRemoveDuplicatesSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
 
     @usableFromInline
