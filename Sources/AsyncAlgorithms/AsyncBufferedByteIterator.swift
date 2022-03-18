@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 /// An `AsyncIterator` that provides a convenient and high-performance implementation
-/// of a common architecture for `AsyncSequence` of `UInt8` otherwise known as byte streams.
+/// of a common architecture for `AsyncSequence` of `UInt8`, otherwise known as byte streams.
 ///
 /// Bytes are read into an internal buffer of `capacity` bytes via the
 /// `readFunction`. Invoking `next()` returns bytes from the internal buffer until it's
