@@ -21,6 +21,7 @@ extension AsyncSequence {
   }
 }
 
+/// An `AsyncSequence` that emits elements after a given quiescence period has elapsed.
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
   where Base.AsyncIterator: Sendable, Base.Element: Sendable, Base: Sendable {
