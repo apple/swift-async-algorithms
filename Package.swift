@@ -17,7 +17,9 @@ let package = Package(
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
     .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
   ],
-  dependencies: [],
+  dependencies: [
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+  ],
   targets: [
     .target(
       name: "AsyncAlgorithms"),
