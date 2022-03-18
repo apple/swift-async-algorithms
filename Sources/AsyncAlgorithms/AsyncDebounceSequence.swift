@@ -10,17 +10,23 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
+  /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
+  /// has elapsed by using a spectified Clock.
   @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func debounce<C: Clock>(for interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncDebounceSequence<Self, C> {
     AsyncDebounceSequence(self, interval: interval, tolerance: tolerance, clock: clock)
   }
   
+  /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
+  /// has elapsed.
   @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func debounce(for interval: Duration, tolerance: Duration? = nil) -> AsyncDebounceSequence<Self, ContinuousClock> {
     debounce(for: interval, tolerance: tolerance, clock: .continuous)
   }
 }
 
+/// An `AsyncSequence` that emits the latest element after a given quiescence period
+/// has elapsed.
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
   where Base.AsyncIterator: Sendable, Base.Element: Sendable, Base: Sendable {
@@ -41,6 +47,7 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
 extension AsyncDebounceSequence: AsyncSequence {
   public typealias Element = Base.Element
   
+  /// The iterator for a `AsyncDebounceSequence` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     enum Partial: Sendable {
       case sleep
