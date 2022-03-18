@@ -9,7 +9,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// A channel for sending elements from on task to another with back pressure.
+///
+/// The `AsyncChannel` class is intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. The back pressure applied by `send(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceed the consumption of values from iteration. Each of these methods suspend after enqueuing the event and are resumed when the next call to `next()` on the `Iterator` is made.
 public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
+  /// The iterator for a `AsyncChannel` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     let channel: AsyncChannel<Element>
     var active: Bool = true
@@ -18,6 +22,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
       self.channel = channel
     }
     
+    /// Await the next sent element or finish
     public mutating func next() async -> Element? {
       guard active else {
         return nil
@@ -98,6 +103,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   let state = ManagedCriticalState(State())
   
+  /// Create a new `AsyncChannel` given an element type.
   public init(element elementType: Element.Type = Element.self) { }
   
   func establish() -> Int {
@@ -180,14 +186,19 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     continuation?.resume(with: result)
   }
   
+  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// If the channel is already finished then this returns immediately
   public func send(_ element: Element) async {
       await _send(.success(element))
   }
   
+  /// Send a finish to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// If the channel is already finished then this returns immediately
   public func finish() async {
       await _send(.success(nil))
   }
   
+  /// Create an `Iterator` for iteration of an `AsyncChannel`
   public func makeAsyncIterator() -> Iterator {
     return Iterator(self)
   }
