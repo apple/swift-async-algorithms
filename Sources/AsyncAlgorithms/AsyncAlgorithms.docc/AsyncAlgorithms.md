@@ -55,8 +55,8 @@ This package is the home for these APIs. Development and API design take place o
 
 ### Task Extensions
 
-- ``_Concurrency/Task.select(_:)-10kz8``
-- ``_Concurrency/Task.select(_:)-6z7kp``
+- ``_Concurrency/Task/select(_:)-10kz8``
+- ``_Concurrency/Task/select(_:)-6z7kp``
 
 ### Functions
 
