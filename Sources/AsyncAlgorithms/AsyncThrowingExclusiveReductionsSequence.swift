@@ -72,6 +72,7 @@ public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Elem
 }
 
 extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
+  /// The iterator for an `AsyncThrowingExclusiveReductionsSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline

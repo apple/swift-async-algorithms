@@ -24,6 +24,8 @@ extension AsyncSequence {
   }
 }
 
+/// An asynchronous sequence containing the accumulated results of combining the
+/// elements of the asynchronous sequence using a given error-throwing closure.
 @frozen
 public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
   @usableFromInline
@@ -42,6 +44,7 @@ public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
 extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
   public typealias Element = Base.Element
   
+  /// The iterator for an `AsyncThrowingInclusiveReductionsSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline

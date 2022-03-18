@@ -13,6 +13,7 @@
 ///
 /// The `AsyncThrowingChannel` class is intended to be used as a communication types between tasks., particularly when one task produces values and another task consumes those values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceed the consumption of values from iteration. Each of these methods suspends after enqueuing the event and is resumed when the next call to `next()` on the `Iterator` is made.
 public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
+  /// The iterator for an `AsyncThrowingChannel` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     let channel: AsyncThrowingChannel<Element, Failure>
     var active: Bool = true
@@ -188,14 +189,20 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     continuation?.resume(with: result)
   }
   
+  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// If the channel is already finished then this returns immediately
   public func send(_ element: Element) async {
       await _send(.success(element))
   }
   
+  /// Send an error to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// If the channel is already finished then this returns immediately
   public func fail(_ error: Error) async where Failure == Error {
     await _send(.failure(error))
   }
   
+  /// Send a finish to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// If the channel is already finished then this returns immediately
   public func finish() async {
       await _send(.success(nil))
   }

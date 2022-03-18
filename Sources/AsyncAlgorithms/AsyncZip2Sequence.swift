@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Creates an asynchronous sequence that concurrently awaits values from two `AsyncSequence` types
+/// by emitting a tuple of the values.
 public func zip<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ base2: Base2) -> AsyncZip2Sequence<Base1, Base2>
   where Base1: Sendable,
         Base2: Sendable,
@@ -19,6 +21,8 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence>(_ base1: Base1, _ ba
   AsyncZip2Sequence(base1, base2)
 }
 
+/// An asynchronous sequence that concurrently awaits values from two `AsyncSequence` types
+/// by emitting a tuple of the values.
 public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Sendable
   where Base1: Sendable,
         Base2: Sendable,
@@ -38,6 +42,7 @@ public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Sen
 extension AsyncZip2Sequence: AsyncSequence {
   public typealias Element = (Base1.Element, Base2.Element)
   
+  /// The iterator for an `AsyncZip2Sequence` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     var base1: Base1.AsyncIterator?
     var base2: Base2.AsyncIterator?

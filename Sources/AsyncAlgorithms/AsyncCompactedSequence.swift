@@ -23,6 +23,7 @@ public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequenc
     self.base = base
   }
 
+  /// The iterator for an `AsyncCompactedSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline

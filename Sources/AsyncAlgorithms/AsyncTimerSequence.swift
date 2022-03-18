@@ -9,10 +9,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// An `AsyncSequence` that produces elements at regular intervals.
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   public typealias Element = C.Instant
   
+  /// The iterator for an `AsyncTimerSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
     var clock: C?
     let interval: C.Instant.Duration
@@ -57,6 +59,7 @@ public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   let interval: C.Instant.Duration
   let tolerance: C.Instant.Duration?
   
+  /// Create an `AsyncTimerSequence` with a given repeating interval.
   public init(interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) {
     self.clock = clock
     self.interval = interval
@@ -70,6 +73,7 @@ public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
 
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence {
+  /// Create an `AsyncTimerSequence` with a given repeating interval.
   public static func repeating(every interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncTimerSequence<C> {
     return AsyncTimerSequence(interval: interval, tolerance: tolerance, clock: clock)
   }
@@ -77,6 +81,7 @@ extension AsyncTimerSequence {
 
 @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncTimerSequence where C == SuspendingClock {
+  /// Create an `AsyncTimerSequence` with a given repeating interval.
   public static func repeating(every interval: Duration, tolerance: Duration? = nil) -> AsyncTimerSequence<SuspendingClock> {
     return AsyncTimerSequence(interval: interval, tolerance: tolerance, clock: SuspendingClock())
   }

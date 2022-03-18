@@ -10,17 +10,20 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence where Element: AsyncSequence {
+  /// Concatenate an `AsyncSequence` of `AsyncSequence` elements 
   @inlinable
   public func joined() -> AsyncJoinedSequence<Self> {
     return AsyncJoinedSequence(self)
   }
 }
 
+/// An `AsyncSequence` that concatenates`AsyncSequence` elements
 @frozen
 public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence {
   public typealias Element = Base.Element.Element
   public typealias AsyncIterator = Iterator
 
+  /// The iterator for an `AsyncJoinedSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
