@@ -10,7 +10,8 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-  /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type by testing if elements belong in the same group.
+  /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection`
+  /// type by testing if elements belong in the same group.
   @inlinable
   public func chunked<Collected: RangeReplaceableCollection>(into: Collected.Type, by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunkedByGroupSequence(self, grouping: belongInSameGroup)
