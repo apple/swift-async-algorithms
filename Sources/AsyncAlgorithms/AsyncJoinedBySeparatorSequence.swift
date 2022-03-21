@@ -10,14 +10,14 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence where Element: AsyncSequence {
-  /// Concatenate an `AsyncSequence` of `AsyncSequence` elements with a seperator.
+  /// Concatenate an `AsyncSequence` of `AsyncSequence` elements with a separator.
   @inlinable
   public func joined<Separator: AsyncSequence>(separator: Separator) -> AsyncJoinedBySeparatorSequence<Self, Separator> {
     return AsyncJoinedBySeparatorSequence(self, separator: separator)
   }
 }
 
-/// An `AsyncSequence` that concatenates`AsyncSequence` elements with a seperator.
+/// An `AsyncSequence` that concatenates `AsyncSequence` elements with a separator.
 public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   public typealias Element = Base.Element.Element
   public typealias AsyncIterator = Iterator

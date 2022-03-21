@@ -24,7 +24,7 @@ extension AsyncSequence {
     return AsyncRemoveDuplicatesSequence(self, predicate: predicate)
   }
   
-  /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
+  /// Creates an asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
   public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async throws -> Bool) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
     return AsyncThrowingRemoveDuplicatesSequence(self, predicate: predicate)
   }
@@ -89,7 +89,7 @@ extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Ele
 extension AsyncRemoveDuplicatesSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
 
 
-/// An asynchronous sequence that omits repeated elements by testing them with a predicate.
+/// An asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
   
