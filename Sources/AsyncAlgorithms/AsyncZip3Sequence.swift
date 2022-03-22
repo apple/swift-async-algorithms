@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 /// Creates an asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
-/// by emitting a tuple of the values.
+/// and emits a tuple of the values.
 public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(_ base1: Base1, _ base2: Base2, _ base3: Base3) -> AsyncZip3Sequence<Base1, Base2, Base3>
   where Base1: Sendable,
         Base2: Sendable,
@@ -25,7 +25,7 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence
 }
 
 /// An asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
-/// by emitting a tuple of the values.
+/// and emits a tuple of the values.
 public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
   where Base1: Sendable,
         Base2: Sendable,
