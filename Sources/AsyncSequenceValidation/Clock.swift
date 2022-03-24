@@ -9,7 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+import AsyncAlgorithms
+
 extension AsyncSequenceValidationDiagram {
   public struct Clock {
     let queue: WorkQueue
@@ -20,7 +21,6 @@ extension AsyncSequenceValidationDiagram {
   }
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncSequenceValidationDiagram.Clock: Clock {
   public struct Step: DurationProtocol, Hashable, CustomStringConvertible {
     internal var rawValue: Int

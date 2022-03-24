@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 import _CAsyncSequenceValidationSupport
+import AsyncAlgorithms
 
 @_silgen_name("swift_job_run")
 @usableFromInline
@@ -18,7 +19,6 @@ internal func _swiftJobRun(
   _ executor: UnownedSerialExecutor
 ) -> ()
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
   var output: AsyncSequenceValidationDiagram.Specification { get }
@@ -26,14 +26,13 @@ public protocol AsyncSequenceValidationTest: Sendable {
   func test<C: Clock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension AsyncSequenceValidationDiagram {
   struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
     let inputs: [Specification]
     let sequence: Operation
     let output: Specification
     
-    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
+    func test<C: ClockShims.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {

@@ -11,7 +11,6 @@
 
 import _CAsyncSequenceValidationSupport
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 @resultBuilder
 public struct AsyncSequenceValidationDiagram : Sendable {
   public struct Component<T> {
@@ -54,6 +53,46 @@ public struct AsyncSequenceValidationDiagram : Sendable {
   
   public static func buildPartialBlock<Operation: AsyncSequence>(accumulated: AccumulatedInputsWithOperation<Operation>, next output: Component<String>) -> some AsyncSequenceValidationTest {
     return Test(inputs: accumulated.inputs, sequence: accumulated.operation, output: Specification(specification: output.component, location: output.location))
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(_ sequence: Component<Operation>, _ output: Component<String>) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    let part1 = buildPartialBlock(first: sequence)
+    let part2 = buildPartialBlock(accumulated: part1, next: output)
+    return part2
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(_ input1: Component<String>, _ sequence: Component<Operation>, _ output: Component<String>) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    let part1 = buildPartialBlock(first: input1)
+    let part2 = buildPartialBlock(accumulated: part1, next: sequence)
+    let part3 = buildPartialBlock(accumulated: part2, next: output)
+    return part3
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(_ input1: Component<String>, _ input2: Component<String>, _ sequence: Component<Operation>, _ output: Component<String>) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    let part1 = buildPartialBlock(first: input1)
+    let part2 = buildPartialBlock(accumulated: part1, next: input2)
+    let part3 = buildPartialBlock(accumulated: part2, next: sequence)
+    let part4 = buildPartialBlock(accumulated: part3, next: output)
+    return part4
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(_ input1: Component<String>, _ input2: Component<String>, _ input3: Component<String>, _ sequence: Component<Operation>, _ output: Component<String>) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    let part1 = buildPartialBlock(first: input1)
+    let part2 = buildPartialBlock(accumulated: part1, next: input2)
+    let part3 = buildPartialBlock(accumulated: part2, next: input3)
+    let part4 = buildPartialBlock(accumulated: part3, next: sequence)
+    let part5 = buildPartialBlock(accumulated: part4, next: output)
+    return part5
+  }
+  
+  public static func buildBlock<Operation: AsyncSequence>(_ input1: Component<String>, _ input2: Component<String>, _ input3: Component<String>, _ input4: Component<String>, _ sequence: Component<Operation>, _ output: Component<String>) -> some AsyncSequenceValidationTest where Operation.Element == String {
+    let part1 = buildPartialBlock(first: input1)
+    let part2 = buildPartialBlock(accumulated: part1, next: input2)
+    let part3 = buildPartialBlock(accumulated: part2, next: input3)
+    let part4 = buildPartialBlock(accumulated: part3, next: input3)
+    let part5 = buildPartialBlock(accumulated: part4, next: sequence)
+    let part6 = buildPartialBlock(accumulated: part5, next: output)
+    return part6
   }
   
   let queue: WorkQueue

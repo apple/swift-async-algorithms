@@ -86,27 +86,26 @@ Finally, add `import AsyncAlgorithms` to your source code.
 
 ## Getting Started
 
-⚠️ Please note that this package currently requires a recent [Swift Trunk Development toolchain](https://www.swift.org/download/#trunk-development-main). More information on how to use custom toolchains with Xcode can be viewed [here](https://developer.apple.com/library/archive/documentation/ToolsLanguages/Conceptual/Xcode_Overview/AlternativeToolchains.html).
-
 ### Building/Testing Using Xcode on macOS
 
-  1. Download the most recent development Xcode toolchain.
-  2. Install the package
-  4. Select the development toolchain in Xcode
-  4. Open the `swift-async-algorithms` package directory in Xcode
-  5. Build or Test in Xcode as normal
+  1. Open the `swift-async-algorithms` package directory in Xcode
+  2. Build or Test in Xcode as normal
+  
+### Building/Testing Using Swift Package Manager
 
-⚠️ Note: `swift test` does not currently work properly with custom toolchains for this package.
+  1. In the `swift-async-algorithms` directory run `swift build` or `swift test` accordingly 
 
 ### Building/Testing on Linux
 
-  1. Download the most recent development toolchain for your Linux distribution
+  1. Download the most recent toolchain for your Linux distribution
   2. Decompress the archive to a path in which the `swift` executable is in the binary search path environment variable (`$PATH`)
   3. In the `swift-async-algorithms` directory run `swift build` or `swift test` accordingly
 
 ## Source Stability
 
 The Swift Async Algorithms package has a goal of being source stable as soon as possible; version numbers will follow [Semantic Versioning](https://semver.org/). Source breaking changes to public API can only land in a new major version.
+
+Before the version 1.0 the `swift-async-algorithms` package will not be source or ABI stable. Particularly the shims associated with `Clock`, `Instant` and `Duration` are present just to provide backwards compatability to older toolchains. As soon as this is available widely the shims will be removed; which will be an ABI breaking change. 
 
 The public API of version 1.0 of the `swift-async-algorithms` package will consist of non-underscored declarations that are marked `public` in the `AsyncAlgorithms` module. Interfaces that aren't part of the public API may continue to change in any release, including patch releases.
 

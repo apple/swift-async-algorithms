@@ -31,25 +31,21 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when an `AsyncTimerSequence` fires.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int, or timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: count, signal: timer)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when an `AsyncTimerSequence` fires.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func chunks<C: Clock>(ofCount count: Int, or timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunks(ofCount: count, or: timer, into: [Element].self)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when an `AsyncTimerSequence` fires.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func chunked<C: Clock, Collected: RangeReplaceableCollection>(by timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: nil, signal: timer)
   }
 
   /// Creates an asynchronous sequence that creates chunks when an `AsyncTimerSequence` fires.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func chunked<C: Clock>(by timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunked(by: timer, into: [Element].self)
   }
