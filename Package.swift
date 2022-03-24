@@ -12,14 +12,12 @@ let package = Package(
   ],
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
-    .library(name: "ClockShims", type: .static, targets: ["ClockShims"]),
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
     .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
   ],
   dependencies: [],
   targets: [
-    .target(name: "AsyncAlgorithms", dependencies: ["ClockShims"]),
-    .target(name: "ClockShims"),
+    .target(name: "AsyncAlgorithms"),
     .target(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),

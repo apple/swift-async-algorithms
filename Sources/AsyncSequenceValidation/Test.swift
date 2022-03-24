@@ -34,7 +34,7 @@ extension AsyncSequenceValidationDiagram {
     let sequence: Operation
     let output: Specification
     
-    func test<C: ClockShims.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
+    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {
