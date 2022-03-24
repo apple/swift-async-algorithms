@@ -26,6 +26,11 @@ let package = Package(
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
   ]
 )

@@ -27,6 +27,7 @@ import Swift
 /// only comparable on the same machine in the same booted session.
 ///
 /// This clock is suitable for high resolution measurements of execution.
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct SuspendingClock {
   public struct Instant: Codable, Sendable {
     internal var _value: Duration
@@ -39,6 +40,7 @@ public struct SuspendingClock {
   public init() { }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Clock where Self == SuspendingClock {
   /// A clock that measures time that always increments but stops incrementing 
   /// while the system is asleep. 
@@ -48,7 +50,7 @@ extension Clock where Self == SuspendingClock {
   public static var suspending: SuspendingClock { return SuspendingClock() }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension SuspendingClock: Clock {
   /// The current instant accounting for machine suspension.
   public var now: SuspendingClock.Instant {
@@ -99,6 +101,7 @@ extension SuspendingClock: Clock {
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension SuspendingClock.Instant: InstantProtocol {
   public static var now: SuspendingClock.Instant { SuspendingClock().now }
 

@@ -30,7 +30,7 @@ import Swift
 ///
 /// For more information about specific clocks see `ContinuousClock` and 
 /// `SuspendingClock`.
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public protocol Clock: Sendable {
   associatedtype Instant: InstantProtocol
 
@@ -41,7 +41,7 @@ public protocol Clock: Sendable {
 }
 
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Clock {
   /// Measure the elapsed time to execute a closure.
   ///
@@ -49,7 +49,7 @@ extension Clock {
   ///       let elapsed = clock.measure {
   ///          someWork()
   ///       }
-  
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func measure(_ work: () throws -> Void) rethrows -> Instant.Duration {
     let start = now
     try work()
@@ -63,7 +63,7 @@ extension Clock {
   ///       let elapsed = await clock.measure {
   ///          await someWork()
   ///       }
-  
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func measure(
     _ work: () async throws -> Void
   ) async rethrows -> Instant.Duration {

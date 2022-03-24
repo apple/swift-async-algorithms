@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 extension Task where Success == Never, Failure == Never {
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+  @_disfavoredOverload
   public static func sleep<C: Clock>(
     until deadine: C.Instant,
     tolerance: C.Instant.Duration? = nil,

@@ -31,7 +31,7 @@
 /// temporal measurement component; specifically leap seconds should be 
 /// represented as an additional accessor since that is specific only to certain
 /// clock implementations.
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 @frozen
 public struct Duration: Sendable {
   /// The low 64 bits of a 128-bit signed integer value counting attoseconds.
@@ -88,7 +88,7 @@ public struct Duration: Sendable {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration {
   /// The composite components of the `Duration`.
   ///
@@ -101,7 +101,7 @@ extension Duration {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration {
   /// Construct a `Duration` given a number of seconds represented as a 
   /// `BinaryInteger`.
@@ -193,7 +193,7 @@ extension Duration {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: Codable {
   
   public init(from decoder: Decoder) throws {
@@ -211,31 +211,28 @@ extension Duration: Codable {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: Hashable {
-  
   public func hash(into hasher: inout Hasher) {
     hasher.combine(_attoseconds)
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: Equatable {
-  
   public static func == (_ lhs: Duration, _ rhs: Duration) -> Bool {
     return lhs._attoseconds == rhs._attoseconds
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: Comparable {
-  
   public static func < (_ lhs: Duration, _ rhs: Duration) -> Bool {
     return lhs._attoseconds < rhs._attoseconds
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: AdditiveArithmetic {
   
   public static var zero: Duration { Duration(_attoseconds: 0) }
@@ -261,7 +258,7 @@ extension Duration: AdditiveArithmetic {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration {
   
   public static func / (_ lhs: Duration, _ rhs: Double) -> Duration {
@@ -309,7 +306,7 @@ extension Duration {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: CustomStringConvertible {
   
   public var description: String {
@@ -317,5 +314,5 @@ extension Duration: CustomStringConvertible {
   }
 }
 
-
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Duration: DurationProtocol { }

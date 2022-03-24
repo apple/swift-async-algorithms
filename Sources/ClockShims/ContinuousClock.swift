@@ -27,6 +27,7 @@ import Swift
 /// only comparable locally during the execution of a program.
 ///
 /// This clock is suitable for high resolution measurements of execution.
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 public struct ContinuousClock {
   /// A continuous point in time used for `ContinuousClock`.
   public struct Instant: Codable, Sendable {
@@ -40,15 +41,18 @@ public struct ContinuousClock {
   public init() { }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension Clock where Self == ContinuousClock {
   /// A clock that measures time that always increments but does not stop 
   /// incrementing while the system is asleep. 
   ///
   ///       try await Task.sleep(until: .now + .seconds(3), clock: .continuous)
   ///
+  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public static var continuous: ContinuousClock { return ContinuousClock() }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension ContinuousClock: Clock {
   /// The current continuous instant.
   public var now: ContinuousClock.Instant {
@@ -99,6 +103,7 @@ extension ContinuousClock: Clock {
   }
 }
 
+@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
 extension ContinuousClock.Instant: InstantProtocol {
   public static var now: ContinuousClock.Instant { ContinuousClock.now }
 
