@@ -103,6 +103,11 @@ Finally, add `import AsyncAlgorithms` to your source code.
   1. Download the most recent development toolchain for your Linux distribution
   2. Decompress the archive to a path in which the `swift` executable is in the binary search path environment variable (`$PATH`)
   3. In the `swift-async-algorithms` directory run `swift build` or `swift test` accordingly
+  
+### Building with Swift 5.6
+
+  1. `git checkout swift-5.6`
+  2. run `swift build` or `swift test` accordingly
 
 ## Source Stability
 
