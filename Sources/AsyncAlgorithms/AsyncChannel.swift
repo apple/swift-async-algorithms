@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A channel for sending elements from on task to another with back pressure.
+/// A channel for sending elements from one task to another with back pressure.
 ///
 /// The `AsyncChannel` class is intended to be used as a communication type between tasks,
 /// particularly when one task produces values and another task consumes those values. The back
