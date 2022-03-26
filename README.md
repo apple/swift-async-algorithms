@@ -37,6 +37,7 @@ This package is the home for these APIs. Development and API design take place o
 - [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
 #### Other useful asynchronous sequences
+- [`adjacentPairs()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/AdjacentPairs.md): Collects tuples of adjacent elements.
 - [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Chunked.md): Collect values into chunks.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
