@@ -174,7 +174,7 @@ extension Merge2StateMachine.Either where Base1.Element == Base2.Element {
 /// An asynchronous sequence of elements from two underlying asynchronous sequences
 ///
 /// In a `AsyncMerge2Sequence` instance, the *i*th element is the *i*th element
-/// resolved in sequential order out of the two underyling asynchronous sequences.
+/// resolved in sequential order out of the two underlying asynchronous sequences.
 /// Use the `merge(_:_:)` function to create an `AsyncMerge2Sequence`.
 public struct AsyncMerge2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: AsyncSequence, Sendable
 where

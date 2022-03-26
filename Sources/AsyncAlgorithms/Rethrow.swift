@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// This is a hack around the fact that we dont have generic effects
+// This is a hack around the fact that we don't have generic effects
 // alternatively in the use cases we would want `rethrows(unsafe)`
 // or something like that to avoid this nifty hack...
 

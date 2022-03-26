@@ -144,7 +144,7 @@ struct WorkQueue: Sendable {
               items.append(queue.removeFirst())
             }
             queues[job] = queue
-            // if there is nothing left in this queue then dont bother with it anymore
+            // if there is nothing left in this queue then don't bother with it anymore
             if queue.count == 0 {
               jobsToRemove.insert(jobIndex)
             }

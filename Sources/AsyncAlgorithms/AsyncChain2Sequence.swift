@@ -15,7 +15,7 @@
 /// - Parameters:
 ///   - s1: The first asynchronous sequence.
 ///   - s2: The second asynchronous sequence.
-/// - Returns: An asynchonous sequence that iterates first over the elements of `s1`, and
+/// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`.
 @inlinable
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence>(_ s1: Base1, _ s2: Base2) -> AsyncChain2Sequence<Base1, Base2> where Base1.Element == Base2.Element {
