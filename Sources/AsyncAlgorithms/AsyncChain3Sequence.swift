@@ -16,7 +16,7 @@
 ///   - s1: The first asynchronous sequence.
 ///   - s2: The second asynchronous sequence.
 ///   - s3: The third asynchronous sequence.
-/// - Returns: An asynchonous sequence that iterates first over the elements of `s1`, and
+/// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`, and then over the elements of `s3`
 @inlinable
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(_ s1: Base1, _ s2: Base2, _ s3: Base3) -> AsyncChain3Sequence<Base1, Base2, Base3> {

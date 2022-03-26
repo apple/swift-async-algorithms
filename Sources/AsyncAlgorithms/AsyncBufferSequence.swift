@@ -203,7 +203,7 @@ extension AsyncSequence where Element: Sendable {
   ///
   /// Use the `buffer(_:)` method to account for `AsyncSequence` types that may produce elements faster
   /// than they are iterated. The `createBuffer` closure returns a backing buffer for storing elements and dealing with
-  /// behavioral charcteristics of the `buffer(_:)` algorithm.
+  /// behavioral characteristics of the `buffer(_:)` algorithm.
   ///
   /// - Parameter createBuffer: A closure that constructs a new `AsyncBuffer` actor to store buffered values.
   /// - Returns: An asynchronous sequence that buffers elements using the specified `AsyncBuffer`.
