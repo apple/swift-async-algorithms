@@ -23,7 +23,7 @@ where
 /// An asynchronous sequence of elements from three underlying asynchronous sequences
 ///
 /// In a `AsyncMerge3Sequence` instance, the *i*th element is the *i*th element
-/// resolved in sequential order out of the two underyling asynchronous sequences.
+/// resolved in sequential order out of the two underlying asynchronous sequences.
 /// Use the `merge(_:_:_:)` function to create an `AsyncMerge3Sequence`.
 public struct AsyncMerge3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: AsyncSequence, Sendable
 where
@@ -206,7 +206,7 @@ where
         return try await apply(task1, task2, nil)
         
       // 2 terminal
-      // these can be permuted in place since they dont need to run two or more tasks at once
+      // these can be permuted in place since they don't need to run two or more tasks at once
       case (.terminal, .terminal, .idle(var iterator3)):
         do {
           if let value = try await iterator3.next() {

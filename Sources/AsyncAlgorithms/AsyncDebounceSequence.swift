@@ -11,7 +11,7 @@
 
 extension AsyncSequence {
   /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
-  /// has elapsed by using a spectified Clock.
+  /// has elapsed by using a specified Clock.
   @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
   public func debounce<C: Clock>(for interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncDebounceSequence<Self, C> {
     AsyncDebounceSequence(self, interval: interval, tolerance: tolerance, clock: clock)
