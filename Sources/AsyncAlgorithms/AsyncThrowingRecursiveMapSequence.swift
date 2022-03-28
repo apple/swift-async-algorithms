@@ -10,7 +10,37 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-    
+    /// Returns a sequence containing the original sequence followed by recursive mapped sequence.
+    ///
+    /// ```
+    /// struct View {
+    ///     var id: Int
+    ///     var children: [View] = []
+    /// }
+    /// let tree = [
+    ///     View(id: 1, children: [
+    ///         View(id: 3),
+    ///         View(id: 4, children: [
+    ///             View(id: 6),
+    ///         ]),
+    ///         View(id: 5),
+    ///     ]),
+    ///     View(id: 2),
+    /// ]
+    /// for await view in tree.async.recursiveMap({ $0.children.async }) {
+    ///     print(view.id)
+    /// }
+    /// // 1
+    /// // 2
+    /// // 3
+    /// // 4
+    /// // 5
+    /// // 6
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - transform: A closure that map the element to new sequence.
+    /// - Returns: A sequence of the original sequence followed by recursive mapped sequence.
     @inlinable
     public func recursiveMap<C>(_ transform: @Sendable @escaping (Element) async throws -> C) -> AsyncThrowingRecursiveMapSequence<Self, C> {
         return AsyncThrowingRecursiveMapSequence(self, transform)

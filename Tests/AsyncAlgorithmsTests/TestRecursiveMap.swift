@@ -100,4 +100,59 @@ final class TestRecursiveMap: XCTestCase {
         XCTAssertEqual(result, answer)
     }
     
+    struct View {
+        
+        var id: Int
+        
+        var children: [View] = []
+    }
+    
+    func testAsyncRecursiveMap2() async {
+        
+        let tree = [
+            View(id: 1, children: [
+                View(id: 3),
+                View(id: 4, children: [
+                    View(id: 6),
+                ]),
+                View(id: 5),
+            ]),
+            View(id: 2),
+        ]
+        
+        let views: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        
+        var result: [Int] = []
+        
+        for await view in views {
+            result.append(view.id)
+        }
+        
+        XCTAssertEqual(result, Array(1...6))
+    }
+    
+    func testAsyncThrowingRecursiveMap2() async throws {
+        
+        let tree = [
+            View(id: 1, children: [
+                View(id: 3),
+                View(id: 4, children: [
+                    View(id: 6),
+                ]),
+                View(id: 5),
+            ]),
+            View(id: 2),
+        ]
+        
+        let views: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        
+        var result: [Int] = []
+        
+        for try await view in views {
+            result.append(view.id)
+        }
+        
+        XCTAssertEqual(result, Array(1...6))
+    }
+    
 }
