@@ -100,32 +100,32 @@ final class TestRecursiveMap: XCTestCase {
         XCTAssertEqual(result, answer)
     }
     
-    struct View {
+    struct Node {
         
         var id: Int
         
-        var children: [View] = []
+        var children: [Node] = []
     }
     
     func testAsyncRecursiveMap2() async {
         
         let tree = [
-            View(id: 1, children: [
-                View(id: 3),
-                View(id: 4, children: [
-                    View(id: 6),
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
                 ]),
-                View(id: 5),
+                Node(id: 5),
             ]),
-            View(id: 2),
+            Node(id: 2),
         ]
         
-        let views: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        let nodes: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
         
         var result: [Int] = []
         
-        for await view in views {
-            result.append(view.id)
+        for await node in nodes {
+            result.append(node.id)
         }
         
         XCTAssertEqual(result, Array(1...6))
@@ -134,22 +134,22 @@ final class TestRecursiveMap: XCTestCase {
     func testAsyncThrowingRecursiveMap2() async throws {
         
         let tree = [
-            View(id: 1, children: [
-                View(id: 3),
-                View(id: 4, children: [
-                    View(id: 6),
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
                 ]),
-                View(id: 5),
+                Node(id: 5),
             ]),
-            View(id: 2),
+            Node(id: 2),
         ]
         
-        let views: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        let nodes: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
         
         var result: [Int] = []
         
-        for try await view in views {
-            result.append(view.id)
+        for try await node in nodes {
+            result.append(node.id)
         }
         
         XCTAssertEqual(result, Array(1...6))

@@ -13,22 +13,22 @@ extension AsyncSequence {
     /// Returns a sequence containing the original sequence followed by recursive mapped sequence.
     ///
     /// ```
-    /// struct View {
+    /// struct Node {
     ///     var id: Int
-    ///     var children: [View] = []
+    ///     var children: [Node] = []
     /// }
     /// let tree = [
-    ///     View(id: 1, children: [
-    ///         View(id: 3),
-    ///         View(id: 4, children: [
-    ///             View(id: 6),
+    ///     Node(id: 1, children: [
+    ///         Node(id: 3),
+    ///         Node(id: 4, children: [
+    ///             Node(id: 6),
     ///         ]),
-    ///         View(id: 5),
+    ///         Node(id: 5),
     ///     ]),
-    ///     View(id: 2),
+    ///     Node(id: 2),
     /// ]
-    /// for await view in tree.async.recursiveMap({ $0.children.async }) {
-    ///     print(view.id)
+    /// for await node in tree.async.recursiveMap({ $0.children.async }) {
+    ///     print(node.id)
     /// }
     /// // 1
     /// // 2
