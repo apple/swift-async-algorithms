@@ -96,6 +96,10 @@ extension AsyncSequence {
 }
 ```
 
+For the non-throwing recursive map sequence, `AsyncRecursiveMapSequence` will throw only if the base sequence or the transformed sequence throws. As the opposite side, `AsyncThrowingRecursiveMapSequence` throws when the base sequence, tarnsformed sequence or the supplied closure throws.
+
+The sendability behavior of `Async[Throwing]RecursiveMapSequence` is such that when the base, base iterator, and element are `Sendable` then `Async[Throwing]RecursiveMapSequence` is `Sendable`.
+
 ### Complexity
 
 Calling this method is O(_1_).
