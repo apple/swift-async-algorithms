@@ -41,6 +41,10 @@ for await node in tree.async.recursiveMap({ $0.children.async }) {
 
 This function comes with two different traversal methods. This option affects the element order of the output sequence.
 
+- `depthFirst`: The algorithm will go down first and produce the resulting path.
+
+- `breadthFirst`: The algorithm will go through the previous sequence first and chaining all the occurring sequences.
+
 ## Detailed Design
 
 The `recursiveMap(option:_:)` method is declared as `AsyncSequence` extensions, and return `AsyncRecursiveMapSequence` or `AsyncThrowingRecursiveMapSequence` instance:
