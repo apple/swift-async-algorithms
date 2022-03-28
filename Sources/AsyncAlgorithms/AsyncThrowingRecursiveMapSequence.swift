@@ -106,7 +106,7 @@ extension AsyncThrowingRecursiveMapSequence {
         var mapped_iterator: Transformed.AsyncIterator?
         
         @usableFromInline
-        var transform: @Sendable (Base.Element) async throws -> Transformed
+        let transform: @Sendable (Base.Element) async throws -> Transformed
         
         @inlinable
         init(
