@@ -18,13 +18,13 @@ struct Node {
 }
 let tree = [
     Node(id: 1, children: [
-        Node(id: 3),
-        Node(id: 4, children: [
-            Node(id: 6),
+        Node(id: 2),
+        Node(id: 3, children: [
+            Node(id: 4),
         ]),
         Node(id: 5),
     ]),
-    Node(id: 2),
+    Node(id: 6),
 ]
 for await node in tree.async.recursiveMap({ $0.children.async }) {
     print(node.id)
@@ -41,7 +41,8 @@ for await node in tree.async.recursiveMap({ $0.children.async }) {
 
 This function comes with two different traversal methods. This option affects the element order of the output sequence.
 
-- `depthFirst`: The algorithm will go down first and produce the resulting path.
+- `depthFirst`: The algorithm will go down first and produce the resulting path. The algorithm starts with original 
+  sequence and calling the supplied closure first. This is default option.
 
 - `breadthFirst`: The algorithm will go through the previous sequence first and chaining all the occurring sequences.
 
