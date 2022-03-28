@@ -19,13 +19,13 @@ extension AsyncSequence {
     /// }
     /// let tree = [
     ///     Node(id: 1, children: [
-    ///         Node(id: 3),
-    ///         Node(id: 4, children: [
-    ///             Node(id: 6),
+    ///         Node(id: 2),
+    ///         Node(id: 3, children: [
+    ///             Node(id: 4),
     ///         ]),
     ///         Node(id: 5),
     ///     ]),
-    ///     Node(id: 2),
+    ///     Node(id: 6),
     /// ]
     /// for await node in tree.async.recursiveMap({ $0.children.async }) {
     ///     print(node.id)
@@ -39,11 +39,15 @@ extension AsyncSequence {
     /// ```
     ///
     /// - Parameters:
+    ///   - option: Traversal option. default depth-first. 
     ///   - transform: A closure that map the element to new sequence.
     /// - Returns: A sequence of the original sequence followed by recursive mapped sequence.
     @inlinable
-    public func recursiveMap<C>(_ transform: @Sendable @escaping (Element) async throws -> C) -> AsyncThrowingRecursiveMapSequence<Self, C> {
-        return AsyncThrowingRecursiveMapSequence(self, transform)
+    public func recursiveMap<C>(
+        option: AsyncThrowingRecursiveMapSequence<Self, C>.TraversalOption = .depthFirst,
+        _ transform: @Sendable @escaping (Element) async throws -> C
+    ) -> AsyncThrowingRecursiveMapSequence<Self, C> {
+        return AsyncThrowingRecursiveMapSequence(self, option, transform)
     }
 }
 
@@ -55,21 +59,37 @@ public struct AsyncThrowingRecursiveMapSequence<Base: AsyncSequence, Transformed
     let base: Base
     
     @usableFromInline
+    let option: TraversalOption
+    
+    @usableFromInline
     let transform: @Sendable (Base.Element) async throws -> Transformed
     
     @inlinable
-    init(_ base: Base, _ transform: @Sendable @escaping (Base.Element) async throws -> Transformed) {
+    init(
+        _ base: Base,
+        _ option: TraversalOption,
+        _ transform: @Sendable @escaping (Base.Element) async throws -> Transformed
+    ) {
         self.base = base
+        self.option = option
         self.transform = transform
     }
     
     @inlinable
     public func makeAsyncIterator() -> AsyncIterator {
-        return AsyncIterator(base, transform)
+        return AsyncIterator(base, option, transform)
     }
 }
 
 extension AsyncThrowingRecursiveMapSequence {
+    
+    public enum TraversalOption: Sendable {
+        
+        case depthFirst
+        
+        case breadthFirst
+        
+    }
     
     public struct AsyncIterator: AsyncIteratorProtocol {
         
@@ -77,7 +97,10 @@ extension AsyncThrowingRecursiveMapSequence {
         var base: Base.AsyncIterator?
         
         @usableFromInline
-        var mapped: ArraySlice<Transformed> = []
+        let option: TraversalOption
+        
+        @usableFromInline
+        var mapped: ArraySlice<Transformed.AsyncIterator> = []
         
         @usableFromInline
         var mapped_iterator: Transformed.AsyncIterator?
@@ -86,36 +109,89 @@ extension AsyncThrowingRecursiveMapSequence {
         var transform: @Sendable (Base.Element) async throws -> Transformed
         
         @inlinable
-        init(_ base: Base, _ transform: @Sendable @escaping (Base.Element) async throws -> Transformed) {
+        init(
+            _ base: Base,
+            _ option: TraversalOption,
+            _ transform: @Sendable @escaping (Base.Element) async throws -> Transformed
+        ) {
             self.base = base.makeAsyncIterator()
+            self.option = option
             self.transform = transform
+        }
+        
+        @inlinable
+        mutating func _tryMakeIterator(_ element: Element) async throws -> Transformed.AsyncIterator {
+            
+            do {
+                
+                return try await transform(element).makeAsyncIterator()
+                
+            } catch {
+                
+                // set all state to empty
+                base = nil
+                mapped = []
+                mapped_iterator = nil
+                
+                throw error
+            }
         }
         
         @inlinable
         public mutating func next() async throws -> Base.Element? {
             
-            if self.base != nil {
+            switch option {
                 
-                if let element = try await self.base?.next() {
-                    try await mapped.append(transform(element))
-                    return element
+            case .depthFirst:
+                
+                while self.mapped_iterator != nil {
+                    
+                    if let element = try await self.mapped_iterator!.next() {
+                        mapped.append(self.mapped_iterator!)
+                        self.mapped_iterator = try await _tryMakeIterator(element)
+                        return element
+                    }
+                    
+                    self.mapped_iterator = mapped.popLast()
                 }
                 
-                self.base = nil
-                self.mapped_iterator = mapped.popFirst()?.makeAsyncIterator()
-            }
-            
-            while self.mapped_iterator != nil {
-                
-                if let element = try await self.mapped_iterator?.next() {
-                    try await mapped.append(transform(element))
-                    return element
+                if self.base != nil {
+                    
+                    if let element = try await self.base!.next() {
+                        self.mapped_iterator = try await _tryMakeIterator(element)
+                        return element
+                    }
+                    
+                    self.base = nil
                 }
                 
-                self.mapped_iterator = mapped.popFirst()?.makeAsyncIterator()
+                return nil
+                
+            case .breadthFirst:
+                
+                if self.base != nil {
+                    
+                    if let element = try await self.base!.next() {
+                        try await mapped.append(_tryMakeIterator(element))
+                        return element
+                    }
+                    
+                    self.base = nil
+                    self.mapped_iterator = mapped.popFirst()
+                }
+                
+                while self.mapped_iterator != nil {
+                    
+                    if let element = try await self.mapped_iterator!.next() {
+                        try await mapped.append(_tryMakeIterator(element))
+                        return element
+                    }
+                    
+                    self.mapped_iterator = mapped.popFirst()
+                }
+                
+                return nil
             }
-            
-            return nil
         }
     }
 }
