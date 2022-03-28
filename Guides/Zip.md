@@ -6,10 +6,10 @@
 Combines the latest values produced from two or more asynchronous sequences into an asynchronous sequence of tuples.
 
 ```swift
-let appleFeed = URL("http://www.example.com/ticker?symbol=AAPL").lines
-let nasdaqFeed = URL("http://www.example.com/ticker?symbol=^IXIC").lines
+let appleFeed = URL(string: "http://www.example.com/ticker?symbol=AAPL")!.lines
+let nasdaqFeed = URL(string: "http://www.example.com/ticker?symbol=^IXIC")!.lines
 
-for try await (apple, nasdaq) = zip(appleFeed, nasdaqFeed) {
+for try await (apple, nasdaq) in zip(appleFeed, nasdaqFeed) {
   print("APPL: \(apple) NASDAQ: \(nasdaq)")
 }
 ```
