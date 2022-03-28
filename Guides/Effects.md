@@ -1,4 +1,4 @@
-| Type                                                | Throws       | Sendablity  |
+| Type                                                | Throws       | Sendability |
 |-----------------------------------------------------|--------------|-------------|
 | `AsyncBufferedByteIterator`                         | throws       | Sendable    |
 | `AsyncBufferSequence`                               | rethrows     | Conditional |

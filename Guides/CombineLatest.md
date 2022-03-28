@@ -64,7 +64,7 @@ public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequ
 
 The `combineLatest(_:...)` function takes two or more asynchronous sequences as arguments and produces an  `AsyncCombineLatestSequence` which is an asynchronous sequence.
 
-Since the bases comprising the `AsyncCombineLatestSequence` must be iterated concurrently to produce the latest value, those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elemnts they produce must all be `Sendable`. 
+Since the bases comprising the `AsyncCombineLatestSequence` must be iterated concurrently to produce the latest value, those sequences must be able to be sent to child tasks. This means that a prerequisite of the bases must be that the base asynchronous sequences, their iterators, and the elements they produce must all be `Sendable`. 
 
 If any of the bases terminate before the first element is produced, then the `AsyncCombineLatestSequence` iteration can never be satisfied. So, if a base's iterator returns `nil` at the first iteration, then the `AsyncCombineLatestSequence` iterator immediately returns `nil` to signify a terminal state. In this particular case, any outstanding iteration of other bases will be cancelled. After the first element is produced ,this behavior is different since the latest values can still be satisfied by at least one base. This means that beyond the construction of the first tuple comprised of the returned elements of the bases, the terminal state of the `AsyncCombineLatestSequence` iteration will only be reached when all of the base iterations reach a terminal state.
 
@@ -72,12 +72,12 @@ The throwing behavior of `AsyncCombineLatestSequence` is that if any of the base
 
 ### Naming
 
-Since the inherent behavior of `combineLatest(_:...)` combines the latest values from multiple streams into a tuple the naming is intended to be quite literal. There are precident terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
+Since the inherent behavior of `combineLatest(_:...)` combines the latest values from multiple streams into a tuple the naming is intended to be quite literal. There are precedent terms of art in other frameworks and libraries (listed in the comparison section). Other naming takes the form of "withLatestFrom". This was disregarded since the "with" prefix is often most associated with the passing of a closure and some sort of contextual concept; `withUnsafePointer` or `withUnsafeContinuation` are prime examples.
 
 ### Comparison with other libraries
 
 Combine latest often appears in libraries developed for processing events over time since the event ordering of a concept of "latest" only occurs when asynchrony is involved.
 
-**ReactiveX** ReactiveX has an [API definition of CombineLatest](https://reactivex.io/documentation/operators/combinelatest.html) as a top level function for combinining Observables.
+**ReactiveX** ReactiveX has an [API definition of CombineLatest](https://reactivex.io/documentation/operators/combinelatest.html) as a top level function for combining Observables.
 
 **Combine** Combine has an [API definition of combineLatest](https://developer.apple.com/documentation/combine/publisher/combinelatest(_:)/) has an operator style method for combining Publishers.
