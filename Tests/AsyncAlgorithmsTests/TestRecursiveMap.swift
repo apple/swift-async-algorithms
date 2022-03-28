@@ -55,7 +55,7 @@ final class TestRecursiveMap: XCTestCase {
         
         let _result: AsyncRecursiveMapSequence = list.async
             .compactMap { $0.parent == nil ? Path(id: $0.id, path: "/\($0.name)") : nil }
-            .recursiveMap { parent in _list.async.compactMap { $0.parent == parent.id ? Path(id: $0.id, path: "\(parent.path)/\($0.name)") : nil } }
+            .recursiveMap(option: .breadthFirst) { parent in _list.async.compactMap { $0.parent == parent.id ? Path(id: $0.id, path: "\(parent.path)/\($0.name)") : nil } }
         
         var result: [Path] = []
         
@@ -89,7 +89,7 @@ final class TestRecursiveMap: XCTestCase {
         
         let _result: AsyncThrowingRecursiveMapSequence = list.async
             .compactMap { $0.parent == nil ? Path(id: $0.id, path: "/\($0.name)") : nil }
-            .recursiveMap { parent in _list.async.compactMap { $0.parent == parent.id ? Path(id: $0.id, path: "\(parent.path)/\($0.name)") : nil } }
+            .recursiveMap(option: .breadthFirst) { parent in _list.async.compactMap { $0.parent == parent.id ? Path(id: $0.id, path: "\(parent.path)/\($0.name)") : nil } }
         
         var result: [Path] = []
         
@@ -111,16 +111,16 @@ final class TestRecursiveMap: XCTestCase {
         
         let tree = [
             Node(id: 1, children: [
-                Node(id: 3),
-                Node(id: 4, children: [
-                    Node(id: 6),
+                Node(id: 2),
+                Node(id: 3, children: [
+                    Node(id: 4),
                 ]),
                 Node(id: 5),
             ]),
-            Node(id: 2),
+            Node(id: 6),
         ]
         
-        let nodes: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        let nodes: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }  // default depthFirst option
         
         var result: [Int] = []
         
@@ -135,6 +135,30 @@ final class TestRecursiveMap: XCTestCase {
         
         let tree = [
             Node(id: 1, children: [
+                Node(id: 2),
+                Node(id: 3, children: [
+                    Node(id: 4),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 6),
+        ]
+        
+        let nodes: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }  // default depthFirst option
+        
+        var result: [Int] = []
+        
+        for try await node in nodes {
+            result.append(node.id)
+        }
+        
+        XCTAssertEqual(result, Array(1...6))
+    }
+    
+    func testAsyncRecursiveMap3() async {
+        
+        let tree = [
+            Node(id: 1, children: [
                 Node(id: 3),
                 Node(id: 4, children: [
                     Node(id: 6),
@@ -144,7 +168,31 @@ final class TestRecursiveMap: XCTestCase {
             Node(id: 2),
         ]
         
-        let nodes: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async }
+        let nodes: AsyncRecursiveMapSequence = tree.async.recursiveMap(option: .breadthFirst) { $0.children.async }
+        
+        var result: [Int] = []
+        
+        for await node in nodes {
+            result.append(node.id)
+        }
+        
+        XCTAssertEqual(result, Array(1...6))
+    }
+    
+    func testAsyncThrowingRecursiveMap3() async throws {
+        
+        let tree = [
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 2),
+        ]
+        
+        let nodes: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap(option: .breadthFirst) { $0.children.async }
         
         var result: [Int] = []
         
