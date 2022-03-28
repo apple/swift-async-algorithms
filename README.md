@@ -39,6 +39,7 @@ This package is the home for these APIs. Development and API design take place o
 #### Other useful asynchronous sequences
 - [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Chunked.md): Collect values into chunks.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
+- [`recursiveMap(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RecursiveMap.md): Produces a sequence containing the original sequence followed by recursive mapped sequence.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
 - [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
 
