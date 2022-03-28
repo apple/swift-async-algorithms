@@ -87,7 +87,7 @@ public struct AsyncRecursiveMapSequence<Base: AsyncSequence, Transformed: AsyncS
 extension AsyncRecursiveMapSequence {
     
     /// Traversal option. This option affects the element order of the output sequence.
-    public enum TraversalOption {
+    public enum TraversalOption: Sendable {
         
         /// The algorithm will go down first and produce the resulting path.
         case depthFirst
