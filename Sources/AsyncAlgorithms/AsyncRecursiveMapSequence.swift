@@ -126,7 +126,7 @@ extension AsyncRecursiveMapSequence {
         }
         
         @inlinable
-        public mutating func next() async rethrows -> Base.Element? {
+        mutating func tryNext() async rethrows -> Base.Element? {
             
             switch option {
                 
@@ -179,6 +179,24 @@ extension AsyncRecursiveMapSequence {
                 }
                 
                 return nil
+            }
+        }
+        
+        @inlinable
+        public mutating func next() async rethrows -> Base.Element? {
+            
+            do {
+                
+                return try await self.tryNext()
+                
+            } catch {
+                
+                // set all state to empty
+                base = nil
+                mapped = []
+                mapped_iterator = nil
+                
+                throw error
             }
         }
     }

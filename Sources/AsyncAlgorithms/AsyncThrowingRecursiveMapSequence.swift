@@ -126,25 +126,7 @@ extension AsyncThrowingRecursiveMapSequence {
         }
         
         @inlinable
-        mutating func _tryMakeIterator(_ element: Element) async throws -> Transformed.AsyncIterator {
-            
-            do {
-                
-                return try await transform(element).makeAsyncIterator()
-                
-            } catch {
-                
-                // set all state to empty
-                base = nil
-                mapped = []
-                mapped_iterator = nil
-                
-                throw error
-            }
-        }
-        
-        @inlinable
-        public mutating func next() async throws -> Base.Element? {
+        mutating func tryNext() async throws -> Base.Element? {
             
             switch option {
                 
@@ -154,7 +136,7 @@ extension AsyncThrowingRecursiveMapSequence {
                     
                     if let element = try await self.mapped_iterator!.next() {
                         mapped.append(self.mapped_iterator!)
-                        self.mapped_iterator = try await _tryMakeIterator(element)
+                        self.mapped_iterator = try await transform(element).makeAsyncIterator()
                         return element
                     }
                     
@@ -164,7 +146,7 @@ extension AsyncThrowingRecursiveMapSequence {
                 if self.base != nil {
                     
                     if let element = try await self.base!.next() {
-                        self.mapped_iterator = try await _tryMakeIterator(element)
+                        self.mapped_iterator = try await transform(element).makeAsyncIterator()
                         return element
                     }
                     
@@ -178,7 +160,7 @@ extension AsyncThrowingRecursiveMapSequence {
                 if self.base != nil {
                     
                     if let element = try await self.base!.next() {
-                        try await mapped.append(_tryMakeIterator(element))
+                        try await mapped.append(transform(element).makeAsyncIterator())
                         return element
                     }
                     
@@ -189,7 +171,7 @@ extension AsyncThrowingRecursiveMapSequence {
                 while self.mapped_iterator != nil {
                     
                     if let element = try await self.mapped_iterator!.next() {
-                        try await mapped.append(_tryMakeIterator(element))
+                        try await mapped.append(transform(element).makeAsyncIterator())
                         return element
                     }
                     
@@ -197,6 +179,24 @@ extension AsyncThrowingRecursiveMapSequence {
                 }
                 
                 return nil
+            }
+        }
+        
+        @inlinable
+        public mutating func next() async throws -> Base.Element? {
+            
+            do {
+                
+                return try await self.tryNext()
+                
+            } catch {
+                
+                // set all state to empty
+                base = nil
+                mapped = []
+                mapped_iterator = nil
+                
+                throw error
             }
         }
     }

@@ -203,6 +203,162 @@ final class TestRecursiveMap: XCTestCase {
         XCTAssertEqual(result, Array(1...6))
     }
     
+    func testAsyncRecursiveMapWithBaseSequenceThrows() async throws {
+        
+        let tree = [
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 2),
+        ]
+        
+        let throwing_base = tree.async.map { node async throws -> Node in
+            if node.id == 2 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
+            return node
+        }
+        
+        let nodes: AsyncRecursiveMapSequence = throwing_base.recursiveMap { $0.children.async }
+        
+        var result: [Int] = []
+        var iterator = nodes.makeAsyncIterator()
+        
+        do {
+            
+            while let node = try await iterator.next() {
+                result.append(node.id)
+            }
+            
+            XCTFail()
+            
+        } catch {
+            
+            XCTAssertEqual((error as NSError).code, -1)  // we got throw from the closure
+        }
+        
+        let expectedNil = try await iterator.next()  // we should get nil in here
+        XCTAssertNil(expectedNil)
+    }
+    
+    func testAsyncThrowingRecursiveMapWithBaseSequenceThrows() async throws {
+        
+        let tree = [
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 2),
+        ]
+        
+        let throwing_base = tree.async.map { node async throws -> Node in
+            if node.id == 2 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
+            return node
+        }
+        
+        let nodes: AsyncThrowingRecursiveMapSequence = throwing_base.recursiveMap { $0.children.async }
+        
+        var result: [Int] = []
+        var iterator = nodes.makeAsyncIterator()
+        
+        do {
+            
+            while let node = try await iterator.next() {
+                result.append(node.id)
+            }
+            
+            XCTFail()
+            
+        } catch {
+            
+            XCTAssertEqual((error as NSError).code, -1)  // we got throw from the closure
+        }
+        
+        let expectedNil = try await iterator.next()  // we should get nil in here
+        XCTAssertNil(expectedNil)
+    }
+    
+    func testAsyncRecursiveMapWithMappedSequenceThrows() async throws {
+        
+        let tree = [
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 2),
+        ]
+        
+        let nodes: AsyncRecursiveMapSequence = tree.async.recursiveMap { $0.children.async.map { node async throws -> Node in
+            if node.id == 4 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
+            return node
+        } }
+        
+        var result: [Int] = []
+        var iterator = nodes.makeAsyncIterator()
+        
+        do {
+            
+            while let node = try await iterator.next() {
+                result.append(node.id)
+            }
+            
+            XCTFail()
+            
+        } catch {
+            
+            XCTAssertEqual((error as NSError).code, -1)  // we got throw from the closure
+        }
+        
+        let expectedNil = try await iterator.next()  // we should get nil in here
+        XCTAssertNil(expectedNil)
+    }
+    
+    func testAsyncThrowingRecursiveMapWithMappedSequenceThrows() async throws {
+        
+        let tree = [
+            Node(id: 1, children: [
+                Node(id: 3),
+                Node(id: 4, children: [
+                    Node(id: 6),
+                ]),
+                Node(id: 5),
+            ]),
+            Node(id: 2),
+        ]
+        
+        let nodes: AsyncThrowingRecursiveMapSequence = tree.async.recursiveMap { $0.children.async.map { node async throws -> Node in
+            if node.id == 4 { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
+            return node
+        } }
+        
+        var result: [Int] = []
+        var iterator = nodes.makeAsyncIterator()
+        
+        do {
+            
+            while let node = try await iterator.next() {
+                result.append(node.id)
+            }
+            
+            XCTFail()
+            
+        } catch {
+            
+            XCTAssertEqual((error as NSError).code, -1)  // we got throw from the closure
+        }
+        
+        let expectedNil = try await iterator.next()  // we should get nil in here
+        XCTAssertNil(expectedNil)
+    }
+    
     func testAsyncThrowingRecursiveMapWithClosureThrows() async throws {
         
         let tree = [
