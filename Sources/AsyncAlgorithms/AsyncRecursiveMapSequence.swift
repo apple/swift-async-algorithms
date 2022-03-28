@@ -10,7 +10,8 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence {
-    /// Returns a sequence containing the original sequence followed by recursive mapped sequence.
+    /// Returns a sequence containing the original sequence and the recursive mapped sequence.
+    /// The order of ouput elements affects by the traversal option.
     ///
     /// ```
     /// struct Node {
@@ -39,7 +40,7 @@ extension AsyncSequence {
     /// ```
     ///
     /// - Parameters:
-    ///   - option: Traversal option. default depth-first.
+    ///   - option: Traversal option. This option affects the element order of the output sequence. default depth-first.
     ///   - transform: A closure that map the element to new sequence.
     /// - Returns: A sequence of the original sequence followed by recursive mapped sequence.
     @inlinable
@@ -51,6 +52,8 @@ extension AsyncSequence {
     }
 }
 
+/// A sequence containing the original sequence and the recursive mapped sequence.
+/// The order of ouput elements affects by the traversal option.
 public struct AsyncRecursiveMapSequence<Base: AsyncSequence, Transformed: AsyncSequence>: AsyncSequence where Base.Element == Transformed.Element {
     
     public typealias Element = Base.Element
@@ -83,10 +86,13 @@ public struct AsyncRecursiveMapSequence<Base: AsyncSequence, Transformed: AsyncS
 
 extension AsyncRecursiveMapSequence {
     
-    public enum TraversalOption: Sendable {
+    /// Traversal option. This option affects the element order of the output sequence.
+    public enum TraversalOption {
         
+        /// The algorithm will go down first and produce the resulting path.
         case depthFirst
         
+        /// The algorithm will go through the previous sequence first and chaining all the occurring sequences.
         case breadthFirst
         
     }

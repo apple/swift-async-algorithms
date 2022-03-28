@@ -7,7 +7,9 @@
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestRecursiveMap.swift)
 ]
 
-Produces a sequence containing the original sequence followed by recursive mapped sequence.
+## Proposed Solution
+
+Produces a sequence containing the original sequence and the recursive mapped sequence. The order of ouput elements affects by the traversal option.
 
 ```swift
 struct Node {
@@ -35,17 +37,23 @@ for await node in tree.async.recursiveMap({ $0.children.async }) {
 // 6
 ```
 
+### Traversal Option
+
+This function comes with two different traversal methods. This option affects the element order of the output sequence.
+
 ## Detailed Design
 
-The `recursiveMap(_:)` method is declared as `AsyncSequence` extensions, and return `AsyncRecursiveMapSequence` or `AsyncThrowingRecursiveMapSequence` instance:
+The `recursiveMap(option:_:)` method is declared as `AsyncSequence` extensions, and return `AsyncRecursiveMapSequence` or `AsyncThrowingRecursiveMapSequence` instance:
 
 ```swift
 extension AsyncSequence {
     public func recursiveMap<S>(
+        option: AsyncRecursiveMapSequence<Self, S>.TraversalOption = .depthFirst,
         _ transform: @Sendable @escaping (Element) async -> S
     ) -> AsyncRecursiveMapSequence<Self, S>
     
     public func recursiveMap<S>(
+        option: AsyncThrowingRecursiveMapSequence<Self, S>.TraversalOption = .depthFirst,
         _ transform: @Sendable @escaping (Element) async throws -> S
     ) -> AsyncThrowingRecursiveMapSequence<Self, S>
 }
