@@ -15,13 +15,13 @@ import AsyncAlgorithms
 #if canImport(Darwin)
 final class TestThroughput: XCTestCase {
   func test_chain2() async {
-    await measureSequenceThroughput(output: 1) {
-      chain($0, [].async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
+      chain($0, $1)
     }
   }
   func test_chain3() async {
-    await measureSequenceThroughput(output: 1) {
-      chain($0, [].async, [].async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2, thirdOutput: 3) {
+      chain($0, $1, $2)
     }
   }
   func test_compacted() async {
@@ -40,13 +40,13 @@ final class TestThroughput: XCTestCase {
     }
   }
   func test_merge2() async {
-    await measureSequenceThroughput(output: 1) {
-      merge($0, (0..<10).async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
+      merge($0, $1)
     }
   }
   func test_merge3() async {
-    await measureSequenceThroughput(output: 1) {
-      merge($0, (0..<10).async, (0..<10).async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2, thirdOutput: 3) {
+      merge($0, $1, $2)
     }
   }
   func test_removeDuplicates() async {
@@ -55,13 +55,13 @@ final class TestThroughput: XCTestCase {
     }
   }
   func test_zip2() async {
-    await measureSequenceThroughput(output: 1) {
-      zip($0, Indefinite(value: 2).async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
+      zip($0, $1)
     }
   }
   func test_zip3() async {
-    await measureSequenceThroughput(output: 1) {
-      zip($0, Indefinite(value: 2).async, Indefinite(value: 3).async)
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2, thirdOutput: 3) {
+      zip($0, $1, $2)
     }
   }
 }

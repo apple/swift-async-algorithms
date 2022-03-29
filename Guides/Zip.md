@@ -6,10 +6,10 @@
 Combines the latest values produced from two or more asynchronous sequences into an asynchronous sequence of tuples.
 
 ```swift
-let appleFeed = URL("http://www.example.com/ticker?symbol=AAPL").lines
-let nasdaqFeed = URL("http://www.example.com/ticker?symbol=^IXIC").lines
+let appleFeed = URL(string: "http://www.example.com/ticker?symbol=AAPL")!.lines
+let nasdaqFeed = URL(string: "http://www.example.com/ticker?symbol=^IXIC")!.lines
 
-for try await (apple, nasdaq) = zip(appleFeed, nasdaqFeed) {
+for try await (apple, nasdaq) in zip(appleFeed, nasdaqFeed) {
   print("APPL: \(apple) NASDAQ: \(nasdaq)")
 }
 ```
@@ -80,6 +80,6 @@ It is common in some libraries to have a `ZipMap` or some other combination of `
 
 **Swift** The swift standard library has an [API definition of zip](https://developer.apple.com/documentation/swift/1541125-zip) as a top level function for combining two sequences.
 
-**ReactiveX** ReactiveX has an [API definition of Zip](https://reactivex.io/documentation/operators/zip.html) as a top level function for combinining Observables.
+**ReactiveX** ReactiveX has an [API definition of Zip](https://reactivex.io/documentation/operators/zip.html) as a top level function for combining Observables.
 
 **Combine** Combine has an [API definition of zip](https://developer.apple.com/documentation/combine/publisher/zip(_:)/) as an operator style method for combining Publishers.
