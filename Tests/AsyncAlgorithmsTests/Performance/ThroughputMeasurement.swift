@@ -17,18 +17,11 @@ import Foundation
 public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
   public typealias Element = Value
   let value: Value
-  let duration: Double
   
   public struct AsyncIterator : AsyncIteratorProtocol, Sendable {
     
     @usableFromInline
     let value: Value
-    
-    @usableFromInline
-    let duration: Double
-    
-    @usableFromInline
-    var start: Double? = nil
     
     @inlinable
     public mutating func next() async throws -> Element? {
@@ -39,7 +32,7 @@ public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
     }
   }
   public func makeAsyncIterator() -> AsyncIterator {
-    return AsyncIterator(value: value, duration: duration)
+    return AsyncIterator(value: value)
   }
 }
 
@@ -68,7 +61,7 @@ extension XCTestCase {
     let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
-      let infSeq = InfiniteAsyncSequence(value: output(), duration: sampleTime)
+      let infSeq = InfiniteAsyncSequence(value: output())
       let seq = sequenceBuilder(infSeq)
       
       let exp = self.expectation(description: "Finished")
@@ -92,8 +85,8 @@ extension XCTestCase {
     let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
-      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput(), duration: sampleTime)
-      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput(), duration: sampleTime)
+      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput())
+      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput())
       let seq = sequenceBuilder(firstInfSeq, secondInfSeq)
       
       let exp = self.expectation(description: "Finished")
@@ -117,9 +110,9 @@ extension XCTestCase {
     let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
-      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput(), duration: sampleTime)
-      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput(), duration: sampleTime)
-      let thirdInfSeq = InfiniteAsyncSequence(value: thirdOutput(), duration: sampleTime)
+      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput())
+      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput())
+      let thirdInfSeq = InfiniteAsyncSequence(value: thirdOutput())
       let seq = sequenceBuilder(firstInfSeq, secondInfSeq, thirdInfSeq)
       
       let exp = self.expectation(description: "Finished")
