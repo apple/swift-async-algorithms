@@ -12,7 +12,7 @@
 import XCTest
 import AsyncAlgorithms
 
-final class TestRangeReplacableCollection: XCTestCase {
+final class TestRangeReplaceableCollection: XCTestCase {
   func test_String() async {
     let source = "abc"
     let expected = source

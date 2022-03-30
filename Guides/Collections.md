@@ -7,7 +7,7 @@
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/RangeReplaceableCollection.swift),
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/SetAlgebra.swift) |
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestDictionary.swift),
-[Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestRangeReplacableCollection.swift),
+[Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestRangeReplaceableCollection.swift),
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestSetAlgebra.swift),
 ]
 
