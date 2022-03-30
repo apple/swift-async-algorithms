@@ -117,6 +117,36 @@ final class TestChannel: XCTestCase {
     XCTAssertNil(value)
   }
   
+  func test_sendCancellation() async {
+    let channel = AsyncChannel<Int>()
+    let notYetDone = expectation(description: "not yet done")
+    notYetDone.isInverted = true
+    let done = expectation(description: "done")
+    let task = Task {
+      await channel.send(1)
+      notYetDone.fulfill()
+      done.fulfill()
+    }
+    wait(for: [notYetDone], timeout: 0.1)
+    task.cancel()
+    wait(for: [done], timeout: 1.0)
+  }
+  
+  func test_sendCancellation_throwing() async {
+    let channel = AsyncThrowingChannel<Int, Error>()
+    let notYetDone = expectation(description: "not yet done")
+    notYetDone.isInverted = true
+    let done = expectation(description: "done")
+    let task = Task {
+      await channel.send(1)
+      notYetDone.fulfill()
+      done.fulfill()
+    }
+    wait(for: [notYetDone], timeout: 0.1)
+    task.cancel()
+    wait(for: [done], timeout: 1.0)
+  }
+  
   func test_cancellation_throwing() async throws {
     let channel = AsyncThrowingChannel<String, Error>()
     let ready = expectation(description: "ready")
