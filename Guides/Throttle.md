@@ -77,6 +77,8 @@ extension AsyncThrottleSequence.Iterator: Sendable
 
 The `AsyncThrottleSequence` and its `Iterator` are conditionally `Sendable` if the base types comprising it are `Sendable`.
 
+The time in which events are measured are from the previous emission if present. If a duration has elapsed between the last emission and the point in time the throttle is measured then that duration is counted as elapsed. The first element is considered not throttled because no interval can be constructed from the start to the first element.
+
 ## Alternatives Considered
 
 It was considered to only provide the "latest" style APIs, however the reduction version grants more flexibility and can act as a funnel to the implementations of `latest`.
