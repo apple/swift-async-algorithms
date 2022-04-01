@@ -42,7 +42,7 @@ extension AsyncSequenceValidationDiagram {
     }
     
     func reconstitute<Theme: AsyncSequenceValidationTheme>(_ events: [Clock.Instant : [Result<String?, Error>]], theme: Theme, end: Clock.Instant) -> String {
-      var now = Clock.Instant(when: .zero)
+      var now = Clock.Instant(when: .steps(1)) // adjust for the offset index
       var reconstituted = ""
       while now <= end {
         if let results = events[now] {

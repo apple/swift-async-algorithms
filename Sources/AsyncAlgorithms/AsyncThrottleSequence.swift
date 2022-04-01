@@ -64,6 +64,7 @@ extension AsyncThrottleSequence: AsyncSequence {
   /// The iterator for an `AsyncThrottleSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
     var base: Base.AsyncIterator
+    var last: C.Instant?
     let interval: C.Instant.Duration
     let clock: C
     let reducing: @Sendable (Reduced?, Base.Element) async -> Reduced
@@ -77,13 +78,15 @@ extension AsyncThrottleSequence: AsyncSequence {
     
     public mutating func next() async rethrows -> Reduced? {
       var reduced: Reduced?
-      let start = clock.now
+      let start = last ?? clock.now
       repeat {
         guard let element = try await base.next() else {
           return nil
         }
         let reduction = await reducing(reduced, element)
-        if start.duration(to: clock.now) >= interval {
+        let now = clock.now
+        if start.duration(to: now) >= interval || last == nil {
+          last = now
           return reduction
         } else {
           reduced = reduction
