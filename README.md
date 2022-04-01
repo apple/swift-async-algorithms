@@ -66,7 +66,7 @@ This package is the home for these APIs. Development and API design take place o
 
 Each algorithm has specific behavioral effects. For throwing effects these can either be if the sequence throws, does not throw, or rethrows errors. Sendability effects in some asynchronous sequences are conditional whereas others require the composed parts to all be sendable to satisfy a requirement of `Sendable`. The effects are [listed here](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Effects.md).
 
-## Adding Swift Algorithms as a Dependency
+## Adding Swift Async Algorithms as a Dependency
 
 To use the `AsyncAlgorithms` library in a SwiftPM project, 
 add the following line to the dependencies in your `Package.swift` file:
