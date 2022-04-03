@@ -64,5 +64,15 @@ final class TestThroughput: XCTestCase {
       zip($0, $1, $2)
     }
   }
+  func test_withLatest() async {
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
+      $1.withLatest(from: $0)
+    }
+  }
+  func test_withLatest2() async {
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2, thirdOutput: 3) {
+      $0.withLatest(from: $1, $2)
+    }
+  }
 }
 #endif
