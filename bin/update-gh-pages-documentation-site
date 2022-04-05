@@ -16,6 +16,8 @@
 # is up-to-date with the content in this repo.
 #
 
+export BUILDING_FOR_DOCUMENTATION_GENERATION=1
+
 set -eu
 
 # A `realpath` alternative using the default C implementation.

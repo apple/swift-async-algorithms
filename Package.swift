@@ -16,9 +16,7 @@ let package = Package(
     .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"]),
     .library(name: "AsyncAlgorithms_XCTest", targets: ["AsyncAlgorithms_XCTest"]),
   ],
-  dependencies: [
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-  ],
+  dependencies: [],
   targets: [
     .target(name: "AsyncAlgorithms"),
     .target(
@@ -43,3 +41,18 @@ let package = Package(
       ]),
   ]
 )
+
+#if canImport(Darwin)
+import Darwin
+let buildingDocs = getenv("BUILDING_FOR_DOCUMENTATION_GENERATION") != nil
+#elseif canImport(Glibc)
+import Glibc
+let buildingDocs = getenv("BUILDING_FOR_DOCUMENTATION_GENERATION") != nil
+#else
+let buildingDocs = false
+#endif
+
+// Only require the docc plugin when building documentation
+package.dependencies += buildingDocs ? [
+  .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+] : []
