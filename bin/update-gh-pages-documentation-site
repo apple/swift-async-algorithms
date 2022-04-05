@@ -28,9 +28,6 @@ filepath() {
 SWIFT_ASYNC_ALGORITHMS_ROOT="$(dirname $(dirname $(filepath $0)))"
 
 ASYNC_ALGORITHMS_BUILD_DIR="$SWIFT_ASYNC_ALGORITHMS_ROOT"/.build/async-algorithms-gh-pages-build
-ASYNC_SEQUENCE_VALIDATION_OUTPUT_DIR="$ASYNC_ALGORITHMS_BUILD_DIR"/async-sequence-validation-docs
-
-mkdir -p "$ASYNC_SEQUENCE_VALIDATION_OUTPUT_DIR"
 
 # Set current directory to the repository root
 cd "$SWIFT_ASYNC_ALGORITHMS_ROOT"
@@ -52,20 +49,6 @@ swift package \
     --transform-for-static-hosting \
     --hosting-base-path swift-async-algorithms \
     --output-path "$SWIFT_ASYNC_ALGORITHMS_ROOT/gh-pages/docs"
-
-# Generate documentation for the 'AsyncSequenceValidation' target and output it
-# to a temporary output directory in the .build directory.
-swift package \
-    --allow-writing-to-directory "$ASYNC_ALGORITHMS_BUILD_DIR" \
-    generate-documentation \
-    --target AsyncSequenceValidation \
-    --disable-indexing \
-    --transform-for-static-hosting \
-    --hosting-base-path swift-async-algorithms \
-    --output-path "$ASYNC_SEQUENCE_VALIDATION_OUTPUT_DIR"
-
-# Merge the AsyncSequenceValidation docs into the primary AsyncAlgorithms docs
-cp -R "$ASYNC_SEQUENCE_VALIDATION_OUTPUT_DIR"/* "$SWIFT_ASYNC_ALGORITHMS_ROOT/gh-pages/docs/"
 
 # Save the current commit we've just built documentation from in a variable
 CURRENT_COMMIT_HASH=`git rev-parse --short HEAD`
