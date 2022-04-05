@@ -11,7 +11,6 @@
 
 import XCTest
 import AsyncAlgorithms
-import AsyncAlgorithms_XCTest
 
 final class TestThrottle: XCTestCase {
   func test_rate_0() {
