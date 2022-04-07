@@ -54,7 +54,7 @@ This package is the home for these APIs. Development and API design take place o
 - [`RangeReplaceableCollection.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new instance of a collection containing the elements of an asynchronous sequence.
 - [`Dictionary.init(uniqueKeysWithValues:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
 - [`Dictionary.init(_:uniquingKeysWith:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence, using a combining closure to determine the value for any duplicate keys.
-- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md):   /// Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
+- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
 - [`SetAlgebra.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new set from an asynchronous sequence of items.
   
 
