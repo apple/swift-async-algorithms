@@ -153,40 +153,69 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     }
   }
   
+  func cancelSend() {
+    let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>], Set<Awaiting>) in
+      if state.terminal {
+        return ([], [])
+      }
+      state.terminal = true
+      switch state.emission {
+      case .idle:
+        return ([], [])
+      case .pending(let nexts):
+        state.emission = .idle
+        return (nexts, [])
+      case .awaiting(let nexts):
+        state.emission = .idle
+        return ([], nexts)
+      }
+    }
+    for send in sends {
+      send.resume(returning: nil)
+    }
+    for next in nexts {
+      next.continuation?.resume(returning: nil)
+    }
+  }
+  
   func _send(_ result: Result<Element?, Error>) async {
-    let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
-      state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-        if state.terminal {
-          return UnsafeResumption(continuation: continuation, success: nil)
-        }
-        switch result {
-        case .success(let value):
-          if value == nil {
+    await withTaskCancellationHandler {
+      cancelSend()
+    } operation: {
+      let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
+        state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
+          if state.terminal {
+            return UnsafeResumption(continuation: continuation, success: nil)
+          }
+          switch result {
+          case .success(let value):
+            if value == nil {
+              state.terminal = true
+            }
+          case .failure:
             state.terminal = true
           }
-        case .failure:
-          state.terminal = true
-        }
-        switch state.emission {
-        case .idle:
-          state.emission = .pending([continuation])
-          return nil
-        case .pending(var sends):
-          sends.append(continuation)
-          state.emission = .pending(sends)
-          return nil
-        case .awaiting(var nexts):
-          let next = nexts.removeFirst().continuation
-          if nexts.count == 0 {
-            state.emission = .idle
-          } else {
-            state.emission = .awaiting(nexts)
+          switch state.emission {
+          case .idle:
+            state.emission = .pending([continuation])
+            return nil
+          case .pending(var sends):
+            sends.append(continuation)
+            state.emission = .pending(sends)
+            return nil
+          case .awaiting(var nexts):
+            let next = nexts.removeFirst().continuation
+            if nexts.count == 0 {
+              state.emission = .idle
+            } else {
+              state.emission = .awaiting(nexts)
+            }
+            return UnsafeResumption(continuation: continuation, success: next)
           }
-          return UnsafeResumption(continuation: continuation, success: next)
-        }
-      }?.resume()
+        }?.resume()
+      }
+      continuation?.resume(with: result)
     }
-    continuation?.resume(with: result)
   }
   
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made.
