@@ -12,6 +12,7 @@
 import XCTest
 import AsyncAlgorithms
 import AsyncSequenceValidation
+@testable import AsyncAlgorithms_XCTest
 
 final class TestValidationDiagram: XCTestCase {
   func test_diagram() {

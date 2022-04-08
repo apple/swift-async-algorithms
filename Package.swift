@@ -13,7 +13,8 @@ let package = Package(
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
-    .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
+    .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"]),
+    .library(name: "AsyncAlgorithms_XCTest", targets: ["AsyncAlgorithms_XCTest"]),
   ],
   dependencies: [],
   targets: [
@@ -22,9 +23,17 @@ let package = Package(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
+    .target(
+      name: "AsyncAlgorithms_XCTest",
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
       swiftSettings: [
         .unsafeFlags([
           "-Xfrontend", "-disable-availability-checking"
