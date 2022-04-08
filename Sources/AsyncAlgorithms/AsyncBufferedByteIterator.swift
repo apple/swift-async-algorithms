@@ -110,6 +110,24 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
     }
     try Task.checkCancellation()
     do {
+      // If two tasks have access to this iterator then the references on
+      // the storage will be non uniquely owned. This means that any reload
+      // must happen into it's own fresh buffer. The consumption of those
+      // bytes between two tasks are inherently defined as potential
+      // duplication by the nature of sending that buffer across the two
+      // tasks - this means that the brief period in which they may be
+      // sharing non reloaded bytes is to be expected; basically in that
+      // edge case of making the iterator and sending that across to two
+      // places to iterate is asking for something bizzare and the answer
+      // should not be crash, but it definitely cannot be consistent.
+      //
+      // The unique ref check is here to prevent the potentials of a crashing
+      // secnario.
+      if !isKnownUniquelyReferenced(&storage) {
+        // The count is not mutated across invocations so the access is safe.
+        let capacity = storage.buffer.count
+        storage = Storage(capacity: capacity)
+      }
       let readSize: Int = try await readFunction(storage.buffer)
       if readSize == 0 {
         finished = true
