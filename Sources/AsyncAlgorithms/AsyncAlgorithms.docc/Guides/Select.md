@@ -50,5 +50,4 @@ This means that `withTaskGroup` is highly suited to run work in parallel, wherea
 ## Future Directions
 
 
-
 ## Credits/Inspiration
