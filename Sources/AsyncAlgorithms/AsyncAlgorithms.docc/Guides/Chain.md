@@ -9,8 +9,8 @@ This operation is available for all `AsyncSequence` types who share the same `El
 
 ```swift
 let preamble = [
-  "// Some header to add as a preamble"
-  "//"
+  "// Some header to add as a preamble",
+  "//",
   ""
 ].async
 let lines = chain(preamble, URL(fileURLWithPath: "/tmp/Sample.swift").lines)
@@ -60,7 +60,7 @@ extension AsyncChain3Sequence.Iterator: Sendable where Base1.AsyncIterator: Send
 
 The `chain(_:...)` function takes two or more sequences as arguments.
 
-The resulting `AsyncChainSequence` type is an asynchronous sequence, with conditional conformance to `Sendable` when the arguments conform.
+The resulting `AsyncChainSequence` type is an asynchronous sequence, with conditional conformance to `Sendable` when the arguments also conform to it.
 
 When any of the asynchronous sequences being chained together come to their end of iteration, the `AsyncChainSequence` iteration proceeds to the next asynchronous sequence. When the last asynchronous sequence reaches the end of iteration, the `AsyncChainSequence` then ends its iteration. 
 
