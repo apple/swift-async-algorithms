@@ -53,6 +53,9 @@ swift package \
 # Save the current commit we've just built documentation from in a variable
 CURRENT_COMMIT_HASH=`git rev-parse --short HEAD`
 
+# Copy the redirect file into the 'gh-pages' directory
+cp lib/redirect.html gh-pages/docs/index.html
+
 # Commit and push our changes to the gh-pages branch
 cd gh-pages
 git add docs
