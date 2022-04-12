@@ -234,8 +234,8 @@ public struct AsyncBufferSequence<Base: AsyncSequence, Buffer: AsyncBuffer> wher
   }
 }
 
-extension AsyncBufferSequence: Sendable where Base: Sendable, Base.AsyncIterator: Sendable, Base.Element: Sendable { }
-extension AsyncBufferSequence.Iterator: Sendable where Base: Sendable, Base.AsyncIterator: Sendable, Base.Element: Sendable { }
+extension AsyncBufferSequence: Sendable where Base: Sendable { }
+extension AsyncBufferSequence.Iterator: Sendable where Base: Sendable { }
 
 extension AsyncBufferSequence: AsyncSequence {
   public typealias Element = Buffer.Output
