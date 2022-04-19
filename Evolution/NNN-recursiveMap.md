@@ -10,7 +10,7 @@
 
 Bring SQL's recursive CTE like operation to Swift. This method traverses all nodes of the tree and produces a flat sequence.
 
-Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
+Swift forums thread: [[Pitch] Add recursiveMap(_:) methods](https://forums.swift.org/t/pitch-add-recursivemap-methods/56810)
 
 ## Proposed Solution
 
