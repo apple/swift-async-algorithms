@@ -1,7 +1,7 @@
 # recursiveMap
 
 * Proposal: [NNNN](NNNN-filename.md)
-* Authors: [Author 1](https://github.com/swiftdev), [Author 2](https://github.com/swiftdev)
+* Authors: [SusanDoggie](https://github.com/SusanDoggie)
 * Review Manager: TBD
 * Status: **Awaiting implementation**
 * Implementation: [apple/swift-async-algorithms#NNNNN](https://github.com/apple/swift-async-algorithms/pull/118)
