@@ -9,7 +9,7 @@
 
 ## Introduction
 
-Producing elements at regular intervals can be useful for composing with other algorithms. These can range from invoking code at specific times to using those regular intervals as a delimter of events. There are other cases this exists in APIs however those do not currently interact with Swift concurrency. These existing APIs are ones like `Timer` or `DispatchTimer` but are bound to internal clocks that are not extensible.
+Producing elements at regular intervals can be useful for composing with other algorithms. These can range from invoking code at specific times to using those regular intervals as a delimiter of events. There are other cases this exists in APIs however those do not currently interact with Swift concurrency. These existing APIs are ones like `Timer` or `DispatchTimer` but are bound to internal clocks that are not extensible.
 
 ## Proposed Solution
 

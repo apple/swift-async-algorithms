@@ -108,7 +108,7 @@ extension AsyncJoinedBySeparatorSequence.Iterator: Sendable
 
 The resulting `AsyncJoinedSequence` or `AsyncJoinedBySeparatorSequence` type is an asynchronous sequence, with conditional conformance to `Sendable` when the arguments conform.
 
-When any of the asynchronous sequences being joined together come to their end of iteration, the `Joined` sequence iteration proceeds to the separator asynchronous sequence, if any. When the separator asynchronous sequence terminates, or if no sepaerator was specified, it proceeds on to the next asynchronous sequence. When the last asynchronous sequence reaches the end of iteration the `AsyncJoinedSequence` or `AsyncJoinedBySeparatorSequence` then ends its iteration. At any point in time if one of the comprising asynchronous sequences ever throws an error during iteration the `AsyncJoinedSequence` or `AsyncJoinedBySeparatorSequence` iteration will throw that error and end iteration.
+When any of the asynchronous sequences being joined together come to their end of iteration, the `Joined` sequence iteration proceeds to the separator asynchronous sequence, if any. When the separator asynchronous sequence terminates, or if no separator was specified, it proceeds on to the next asynchronous sequence. When the last asynchronous sequence reaches the end of iteration the `AsyncJoinedSequence` or `AsyncJoinedBySeparatorSequence` then ends its iteration. At any point in time if one of the comprising asynchronous sequences ever throws an error during iteration the `AsyncJoinedSequence` or `AsyncJoinedBySeparatorSequence` iteration will throw that error and end iteration.
 
 ## Future Directions
 

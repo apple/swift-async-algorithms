@@ -7,7 +7,7 @@
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/RangeReplaceableCollection.swift),
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/SetAlgebra.swift) |
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestDictionary.swift),
-[Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestRangeReplacableCollection.swift),
+[Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestRangeReplaceableCollection.swift),
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestSetAlgebra.swift),
 ]
 
@@ -22,7 +22,7 @@ This type of functionality can be useful for examples and testing, and also for 
 
 Three categories of initializers will be added to provide initializers for those three primary types: `Array`, `Dictionary` and `Set`. However these initializers can be written in a generic fashion such that they can apply to all similar collections.
 
-`RangeReplaceableCollection` will gain a new that constructs a collection given an `AsyncSequence`. This will allow for creating arrays from asynchronous sequences but also allow for creating types like `Data` or `ContiguousArray`. Because of the nature of asynchronous sequences, this initializer must be asynchronous and declare that it rethrows errors from the base asynchronous sequence.
+`RangeReplaceableCollection` will gain a new initializer that constructs a collection given an `AsyncSequence`. This will allow for creating arrays from asynchronous sequences but also allow for creating types like `Data` or `ContiguousArray`. Because of the nature of asynchronous sequences, this initializer must be asynchronous and declare that it rethrows errors from the base asynchronous sequence.
 
 ```swift
 extension RangeReplaceableCollection {

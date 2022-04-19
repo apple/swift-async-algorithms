@@ -6,10 +6,10 @@
 Merges two or more asynchronous sequences sharing the same element type into one singular asynchronous sequence.
 
 ```swift
-let appleFeed = URL("http://www.example.com/ticker?symbol=AAPL").lines.map { "AAPL: " + $0 }
-let nasdaqFeed = URL("http://www.example.com/ticker?symbol=^IXIC").lines.map { "^IXIC: " + $0 }
+let appleFeed = URL(string: "http://www.example.com/ticker?symbol=AAPL")!.lines.map { "AAPL: " + $0 }
+let nasdaqFeed = URL(string:"http://www.example.com/ticker?symbol=^IXIC")!.lines.map { "^IXIC: " + $0 }
 
-for try await ticker = merge(appleFeed, nasdaqFeed) {
+for try await ticker in merge(appleFeed, nasdaqFeed) {
   print(ticker)
 }
 ```

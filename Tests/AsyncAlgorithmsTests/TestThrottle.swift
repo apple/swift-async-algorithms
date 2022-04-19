@@ -49,7 +49,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
-      "-b-d-f-h-j-|"
+      "a-c-e-g-i-k|"
     }
   }
   
@@ -57,7 +57,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
-      "-a-c-e-g-i-|"
+      "a-b-d-f-h-j|"
     }
   }
   
@@ -65,7 +65,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
-      "--c--f--i--|"
+      "a--d--g--j-|"
     }
   }
   
@@ -73,7 +73,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
-      "--a--d--g--|"
+      "a--b--e--h-|"
     }
   }
   
@@ -81,7 +81,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
-      "-b-d-f^"
+      "a-c-e-^"
     }
   }
   
@@ -89,7 +89,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
-      "-a-c-e^"
+      "a-b-d-^"
     }
   }
   
@@ -121,7 +121,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
-      "---b---d---f---h---j---|"
+      "-a---c---e---g---i---k-|"
     }
   }
 }

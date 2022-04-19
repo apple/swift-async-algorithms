@@ -17,18 +17,11 @@ import Foundation
 public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
   public typealias Element = Value
   let value: Value
-  let duration: Double
   
   public struct AsyncIterator : AsyncIteratorProtocol, Sendable {
     
     @usableFromInline
     let value: Value
-    
-    @usableFromInline
-    let duration: Double
-    
-    @usableFromInline
-    var start: Double? = nil
     
     @inlinable
     public mutating func next() async throws -> Element? {
@@ -39,7 +32,7 @@ public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {
     }
   }
   public func makeAsyncIterator() -> AsyncIterator {
-    return AsyncIterator(value: value, duration: duration)
+    return AsyncIterator(value: value)
   }
 }
 
@@ -68,7 +61,7 @@ extension XCTestCase {
     let sampleTime: Double = 0.1
     
     measure(metrics: [metric]) {
-      let infSeq = InfiniteAsyncSequence(value: output(), duration: sampleTime)
+      let infSeq = InfiniteAsyncSequence(value: output())
       let seq = sequenceBuilder(infSeq)
       
       let exp = self.expectation(description: "Finished")
@@ -86,6 +79,57 @@ extension XCTestCase {
       self.wait(for: [exp], timeout: sampleTime * 2)
     }
   }
+  
+  public func measureSequenceThroughput<S: AsyncSequence, Output>(firstOutput: @autoclosure () -> Output, secondOutput: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
+    let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
+    
+    measure(metrics: [metric]) {
+      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput())
+      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput())
+      let seq = sequenceBuilder(firstInfSeq, secondInfSeq)
+      
+      let exp = self.expectation(description: "Finished")
+      let iterTask = Task<Int, Error> {
+        var eventCount = 0
+        for try await _ in seq {
+          eventCount += 1
+        }
+        metric.eventCount = eventCount
+        exp.fulfill()
+        return eventCount
+      }
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
+      iterTask.cancel()
+      self.wait(for: [exp], timeout: sampleTime * 2)
+    }
+  }
+    
+  public func measureSequenceThroughput<S: AsyncSequence, Output>(firstOutput: @autoclosure () -> Output, secondOutput: @autoclosure () -> Output, thirdOutput: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
+    let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
+    
+    measure(metrics: [metric]) {
+      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput())
+      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput())
+      let thirdInfSeq = InfiniteAsyncSequence(value: thirdOutput())
+      let seq = sequenceBuilder(firstInfSeq, secondInfSeq, thirdInfSeq)
+      
+      let exp = self.expectation(description: "Finished")
+      let iterTask = Task<Int, Error> {
+        var eventCount = 0
+        for try await _ in seq {
+          eventCount += 1
+        }
+        metric.eventCount = eventCount
+        exp.fulfill()
+        return eventCount
+      }
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
+      iterTask.cancel()
+      self.wait(for: [exp], timeout: sampleTime * 2)
+    }
+}
   
   public func measureSequenceThroughput<S: AsyncSequence, Source: AsyncSequence>( source: Source, _ sequenceBuilder: (Source) -> S) async where S: Sendable, Source: Sendable {
     let metric = _ThroughputMetric()

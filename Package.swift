@@ -13,7 +13,8 @@ let package = Package(
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),
-    .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"])
+    .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"]),
+    .library(name: "AsyncAlgorithms_XCTest", targets: ["AsyncAlgorithms_XCTest"]),
   ],
   dependencies: [],
   targets: [
@@ -22,9 +23,17 @@ let package = Package(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
+    .target(
+      name: "AsyncAlgorithms_XCTest",
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      swiftSettings: [
+        .unsafeFlags([
+          "-Xfrontend", "-disable-availability-checking"
+        ])
+      ]),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
       swiftSettings: [
         .unsafeFlags([
           "-Xfrontend", "-disable-availability-checking"
@@ -32,3 +41,18 @@ let package = Package(
       ]),
   ]
 )
+
+#if canImport(Darwin)
+import Darwin
+let buildingDocs = getenv("BUILDING_FOR_DOCUMENTATION_GENERATION") != nil
+#elseif canImport(Glibc)
+import Glibc
+let buildingDocs = getenv("BUILDING_FOR_DOCUMENTATION_GENERATION") != nil
+#else
+let buildingDocs = false
+#endif
+
+// Only require the docc plugin when building documentation
+package.dependencies += buildingDocs ? [
+  .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+] : []

@@ -14,59 +14,60 @@ This package has three main goals:
 
  The foundation for AsyncAlgorithms was included in Swift 5.5 from [AsyncSequence](https://github.com/apple/swift-evolution/blob/main/proposals/0298-asyncsequence.md). Swift 5.5 also brings the ability to use a natural `for/in` loop with `await` to process the values in an `AsyncSequence` and `Sequence`-equivalent API like `map` and `filter`. Structured concurrency allows us to write code where intermediate state is simply a local variable, `try` can be used directly on functions that `throw`, and generally treat the logic for asynchronous code similar to that of synchronous code.
 
-This package is the home for these APIs. Development and API design take place on [GitHub](https://github.com/apple/swift-async-algorithms) and the [Swift Forums](https://forums.swift.org/c/related-projects/).
+This package is the home for these APIs. Development and API design take place on [GitHub](https://github.com/apple/swift-async-algorithms) and the [Swift Forums](https://forums.swift.org/c/related-projects/swift-async-algorithms).
 
 ## Contents
 
 #### Combining asynchronous sequences
 
-- [`chain(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Chain.md): Concatenates two or more asynchronous sequences with the same element type. 
-- [`combineLatest(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/CombineLatest.md): Combines two or more asynchronous sequences into an asynchronous sequence producing a tuple of elements from those base asynchronous sequences that updates when any of the base sequences produce a value.
-- [`merge(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Merge.md): Merges two or more asynchronous sequence into a single asynchronous sequence producing the elements of all of the underlying asynchronous sequences.
-- [`zip(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Zip.md): Creates an asynchronous sequence of pairs built out of underlying asynchronous sequences.
-- [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Joined.md): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
+- [`chain(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Chain.md): Concatenates two or more asynchronous sequences with the same element type. 
+- [`combineLatest(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/CombineLatest.md): Combines two or more asynchronous sequences into an asynchronous sequence producing a tuple of elements from those base asynchronous sequences that updates when any of the base sequences produce a value.
+- [`merge(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Merge.md): Merges two or more asynchronous sequence into a single asynchronous sequence producing the elements of all of the underlying asynchronous sequences.
+- [`zip(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Zip.md): Creates an asynchronous sequence of pairs built out of underlying asynchronous sequences.
+- [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Joined.md): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
 
 #### Creating asynchronous sequences
 
-- [`async`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Lazy.md): Create an asynchronous sequence composed from a synchronous sequence.
-- [`AsyncChannel`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Channel.md): An asynchronous sequence with back pressure sending semantics.
-- [`AsyncThrowingChannel`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Channel.md): An asynchronous sequence with back pressure sending semantics that can emit failures.
+- [`async`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Lazy.md): Create an asynchronous sequence composed from a synchronous sequence.
+- [`AsyncChannel`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Channel.md): An asynchronous sequence with back pressure sending semantics.
+- [`AsyncThrowingChannel`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Channel.md): An asynchronous sequence with back pressure sending semantics that can emit failures.
 
 #### Performance optimized asynchronous iterators
 
-- [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
+- [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
 #### Other useful asynchronous sequences
-- [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Chunked.md): Collect values into chunks.
-- [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
-- [`recursiveMap(option:_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RecursiveMap.md): Produces a sequence containing the original sequence and the recursive mapped sequence. The order of ouput elements affects by the traversal option.
-- [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
-- [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
+- [`adjacentPairs()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/AdjacentPairs.md): Collects tuples of adjacent elements.
+- [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Chunked.md): Collect values into chunks.
+- [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
+- [`recursiveMap(option:_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RecursiveMap.md): Produces a sequence containing the original sequence and the recursive mapped sequence. The order of ouput elements affects by the traversal option.
+- [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
+- [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
 
 #### Asynchronous Sequences that transact in time
 
-- [`debounce(for:tolerance:clock:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Debounce.md): Emit values after a quiessence period has been reached.
-- [`throttle(for:clock:reducing:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Throttle.md): Ensure a minimum interval has elapsed between events.
-- [`AsyncTimerSequence`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Timer.md): Emit the value of now at a given interval repeatedly.
+- [`debounce(for:tolerance:clock:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Debounce.md): Emit values after a quiescence period has been reached.
+- [`throttle(for:clock:reducing:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Throttle.md): Ensure a minimum interval has elapsed between events.
+- [`AsyncTimerSequence`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Timer.md): Emit the value of now at a given interval repeatedly.
 
 #### Obtaining all values from an asynchronous sequence
 
-- [`RangeReplaceableCollection.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new instance of a collection containing the elements of an asynchronous sequence.
-- [`Dictionary.init(uniqueKeysWithValues:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
-- [`Dictionary.init(_:uniquingKeysWith:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence, using a combining closure to determine the value for any duplicate keys.
-- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md):   /// Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
-- [`SetAlgebra.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md): Creates a new set from an asynchronous sequence of items.
+- [`RangeReplaceableCollection.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md): Creates a new instance of a collection containing the elements of an asynchronous sequence.
+- [`Dictionary.init(uniqueKeysWithValues:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
+- [`Dictionary.init(_:uniquingKeysWith:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md): Creates a new dictionary from the key-value pairs in the given asynchronous sequence, using a combining closure to determine the value for any duplicate keys.
+- [`Dictionary.init(grouping:by:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md): Creates a new dictionary whose keys are the groupings returned by the given closure and whose values are arrays of the elements that returned each key.
+- [`SetAlgebra.init(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md): Creates a new set from an asynchronous sequence of items.
   
 
 #### Task management
 
-- [`Task.select(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Select.md): Determine the first task to complete of a sequence of tasks.
+- [`Task.select(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Select.md): Determine the first task to complete of a sequence of tasks.
 
 #### Effects
 
-Each algorithm has specific behavioral effects. For throwing effects these can either be if the sequence throws, does not throw, or rethrows errors. Sendability effects in some asynchronous sequences are conditional whereas others require the composed parts to all be sendable to satisfy a requirement of `Sendable`. The effects are [listed here](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Effects.md).
+Each algorithm has specific behavioral effects. For throwing effects these can either be if the sequence throws, does not throw, or rethrows errors. Sendability effects in some asynchronous sequences are conditional whereas others require the composed parts to all be sendable to satisfy a requirement of `Sendable`. The effects are [listed here](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Effects.md).
 
-## Adding Swift Algorithms as a Dependency
+## Adding Swift Async Algorithms as a Dependency
 
 To use the `AsyncAlgorithms` library in a SwiftPM project, 
 add the following line to the dependencies in your `Package.swift` file:

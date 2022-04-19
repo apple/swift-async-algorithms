@@ -1,5 +1,6 @@
-| Type                                                | Throws       | Sendablity  |
+| Type                                                | Throws       | Sendability |
 |-----------------------------------------------------|--------------|-------------|
+| `AsyncAdjacentPairsSequence`                        | rethrows     | Conditional |
 | `AsyncBufferedByteIterator`                         | throws       | Sendable    |
 | `AsyncBufferSequence`                               | rethrows     | Conditional |
 | `AsyncBufferSequence.Iterator`                      | rethrows     | Conditional |
