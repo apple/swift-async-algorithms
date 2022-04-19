@@ -8,9 +8,9 @@
 
 ## Introduction
 
-Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
+Bring SQL's recursive CTE like operation to Swift. This method traverses all nodes of the tree and produces a flat sequence.
 
-## Motivation
+Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
 
 ## Proposed Solution
 
