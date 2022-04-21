@@ -88,7 +88,11 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       switch self {
       case .awaiting(var awaiting):
         let continuation = awaiting.remove(Awaiting(placeholder: generation))?.continuation
-        self = .awaiting(awaiting)
+        if awaiting.isEmpty {
+           self = .idle
+         } else {
+           self = .awaiting(awaiting)
+         }
         return continuation
       case .idle:
         self = .awaiting([Awaiting(cancelled: generation)])
@@ -143,7 +147,11 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
             nexts.remove(Awaiting(placeholder: generation))
             cancelled = true
           }
-          state.emission = .awaiting(nexts)
+          if nexts.isEmpty {
+             state.emission = .idle
+           } else {
+             state.emission = .awaiting(nexts)
+           }
           return nil
         }
       }?.resume()
