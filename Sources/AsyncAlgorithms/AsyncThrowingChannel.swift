@@ -129,10 +129,10 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   func next(_ generation: Int) async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
       var cancelled = false
-      var isTerminal = false
+      var terminal = false
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
         if state.terminal {
-          isTerminal = true
+          terminal = true
           return nil
         }
         switch state.emission {
@@ -160,7 +160,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           return nil
         }
       }?.resume()
-      if cancelled || isTerminal {
+      if cancelled || terminal {
         continuation.resume(returning: nil)
       }
     }
