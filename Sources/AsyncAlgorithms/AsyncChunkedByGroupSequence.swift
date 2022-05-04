@@ -37,7 +37,7 @@ extension AsyncSequence {
 /// error, `AsyncChunkedByGroupSequence` will rethrow that error immediately and discard
 /// any current group.
 ///
-///      let numbers = [10, 20, 30, 10, 40, 40, 10, 20]
+///      let numbers = [10, 20, 30, 10, 40, 40, 10, 20].async
 ///      let chunks = numbers.chunked { $0 <= $1 }
 ///      for await numberChunk in chunks {
 ///        print(numberChunk)
