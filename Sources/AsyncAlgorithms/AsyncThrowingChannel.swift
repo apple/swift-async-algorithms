@@ -129,7 +129,12 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   func next(_ generation: Int) async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
       var cancelled = false
+      var terminal = false
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
+        if state.terminal {
+          terminal = true
+          return nil
+        }
         switch state.emission {
         case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
@@ -155,13 +160,13 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           return nil
         }
       }?.resume()
-      if cancelled {
+      if cancelled || terminal {
         continuation.resume(returning: nil)
       }
     }
   }
   
-  func cancelSend() {
+  func finishAll() {
     let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>], Set<Awaiting>) in
       if state.terminal {
         return ([], [])
@@ -186,23 +191,20 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     }
   }
   
-  func _send(_ result: Result<Element?, Error>) async {
+  func _send(_ result: Result<Element, Error>) async {
     await withTaskCancellationHandler {
-      cancelSend()
+      finishAll()
     } operation: {
       let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
         state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
           if state.terminal {
             return UnsafeResumption(continuation: continuation, success: nil)
           }
-          switch result {
-          case .success(let value):
-            if value == nil {
-              state.terminal = true
-            }
-          case .failure:
+
+          if case .failure = result {
             state.terminal = true
           }
+          
           switch state.emission {
           case .idle:
             state.emission = .pending([continuation])
@@ -222,7 +224,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           }
         }?.resume()
       }
-      continuation?.resume(with: result)
+      continuation?.resume(with: result.map { $0 as Element? })
     }
   }
   
@@ -238,10 +240,9 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     await _send(.failure(error))
   }
   
-  /// Send a finish to an awaiting iteration. This function will resume when the next call to `next()` is made.
-  /// If the channel is already finished then this returns immediately
-  public func finish() async {
-      await _send(.success(nil))
+  /// Send a finish to all awaiting iterations.
+  public func finish() {
+    finishAll()
   }
   
   public func makeAsyncIterator() -> Iterator {
