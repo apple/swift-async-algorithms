@@ -31,7 +31,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   public init(element elementType: Element.Type = Element.self)
   
   public func send(_ element: Element) async
-  public func finish() async
+  public func finish()
   
   public func makeAsyncIterator() -> Iterator
 }
@@ -45,13 +45,13 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   
   public func send(_ element: Element) async
   public func fail(_ error: Error) async where Failure == Error
-  public func finish() async
+  public func finish()
   
   public func makeAsyncIterator() -> Iterator
 }
 ```
 
-Channels are intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via the suspension/resume ensure that the production of values does not exceed the consumption of values from iteration. Each of these methods suspend after enqueuing the event and are resumed when the next call to `next()` on the `Iterator` is made. 
+Channels are intended to be used as communication types between tasks. Particularly when one task produces values and another task consumes said values. On the one hand, the back pressure applied by `send(_:)` and `fail(_:)` via the suspension/resume ensure that the production of values does not exceed the consumption of values from iteration. Each of these methods suspend after enqueuing the event and are resumed when the next call to `next()` on the `Iterator` is made. On the other hand, the call to `finish()` immediately resumes all the pending operations for every producers and consumers. Thus, every suspended `send(_:)` operations instantly resume, so as every suspended `next()` operations by producing a nil value, indicating the termination of the iterations. Further calls to `send(_:)` will immediately resume.
 
 ```swift
 let channel = AsyncChannel<String>()
@@ -59,7 +59,7 @@ Task {
   while let resultOfLongCalculation = doLongCalculations() {
     await channel.send(resultOfLongCalculation)
   }
-  await channel.finish()
+  channel.finish()
 }
 
 for await calculationResult in channel {
