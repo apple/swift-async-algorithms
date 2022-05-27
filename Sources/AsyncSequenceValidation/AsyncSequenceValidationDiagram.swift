@@ -11,7 +11,7 @@
 
 import _CAsyncSequenceValidationSupport
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 @resultBuilder
 public struct AsyncSequenceValidationDiagram : Sendable {
   public struct Component<T> {
