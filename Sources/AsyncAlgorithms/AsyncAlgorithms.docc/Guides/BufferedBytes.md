@@ -17,7 +17,7 @@ struct AsyncBytes: AsyncSequence {
   }
 
   public func makeAsyncIterator() -> AsyncBufferedByteIterator {
-    return BufferedAsyncByteIterator(capacity: 16384) { buffer in
+    return AsyncBufferedByteIterator(capacity: 16384) { buffer in
       // This runs once every 16384 invocations of next()
       return try await handle.read(into: buffer)
     }
