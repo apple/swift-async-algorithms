@@ -13,117 +13,153 @@
 import AsyncAlgorithms
 
 final class TestMerge2: XCTestCase {
-  func test_even_values() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_all_have_same_size() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6]
+
+    let merged = merge(first.async, second.async)
     var collected = [Int]()
+    let expected = Set(first + second).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6]).sorted()
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
   
-  func test_longer_first() async {
-    let merged = merge([1, 2, 3, 4, 5, 6, 7].async, [8, 9, 10].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_first_is_longer() async {
+    let first = [1, 2, 3, 4, 5, 6, 7]
+    let second = [8, 9, 10]
+
+    let merged = merge(first.async, second.async)
     var collected = [Int]()
+    let expected = Set(first + second).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).sorted()
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
   
-  func test_longer_second() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6, 7].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_second_is_longer() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6, 7]
+
+    let merged = merge(first.async, second.async)
     var collected = [Int]()
+    let expected = Set(first + second).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected)
-    let b = Set([1, 2, 3, 4, 5, 6, 7])
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
   
-  func test_throwing_first() async throws {
-    let merged = merge([1, 2, 3, 4, 5].async.map { try throwOn(4, $0) }, [6, 7, 8].async)
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8]
+
+    let merged = merge(first.async.map { try throwOn(4, $0) }, second.async)
     var collected = Set<Int>()
+    let expected = Set([1, 2, 3])
+
     var iterator = merged.makeAsyncIterator()
     do {
       while let item = try await iterator.next() {
         collected.insert(item)
       }
-      XCTFail()
+      XCTFail("Merged sequence should throw after collecting three first elements from the first sequence")
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(collected.intersection([1, 2, 3]), Set([1, 2, 3]))
     let pastEnd = try await iterator.next()
+
     XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
   }
   
-  func test_longer_second_throwing_first() async throws {
-    let merged = merge([1, 2, 3, 4, 5].async.map { try throwOn(4, $0) }, [6, 7, 8, 9, 10, 11].async)
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8, 9, 10, 11]
+
+    let merged = merge(first.async.map { try throwOn(4, $0) }, second.async)
     var collected = Set<Int>()
+    let expected = Set([1, 2, 3])
+
     var iterator = merged.makeAsyncIterator()
     do {
       while let item = try await iterator.next() {
         collected.insert(item)
       }
-      XCTFail()
+      XCTFail("Merged sequence should throw after collecting three first elements from the first sequence")
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(collected.intersection([1, 2, 3]), Set([1, 2, 3]))
     let pastEnd = try await iterator.next()
+
     XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
   }
   
-  func test_throwing_second() async throws {
-    let merged = merge([1, 2, 3].async, [4, 5, 6, 7, 8].async.map { try throwOn(7, $0) })
+  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6, 7, 8]
+
+    let merged = merge(first.async, second.async.map { try throwOn(7, $0) })
     var collected = Set<Int>()
+    let expected = Set([4, 5, 6])
+
     var iterator = merged.makeAsyncIterator()
     do {
       while let item = try await iterator.next() {
         collected.insert(item)
       }
-      XCTFail()
+      XCTFail("Merged sequence should throw after collecting three first elements from the second sequence")
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(collected.intersection([4, 5, 6]), Set([4, 5, 6]))
     let pastEnd = try await iterator.next()
+
     XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
   }
   
-  func test_longer_first_throwing_second() async throws {
-    let merged = merge([1, 2, 3, 4, 5, 6, 7].async, [7, 8, 9, 10, 11].async.map { try throwOn(10, $0) })
+  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5, 6, 7]
+    let second = [7, 8, 9, 10, 11]
+
+    let merged = merge(first.async, second.async.map { try throwOn(10, $0) })
     var collected = Set<Int>()
+    let expected = Set([7, 8, 9])
+
     var iterator = merged.makeAsyncIterator()
     do {
       while let item = try await iterator.next() {
         collected.insert(item)
       }
-      XCTFail()
+      XCTFail("Merged sequence should throw after collecting three first elements from the second sequence")
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
-    XCTAssertEqual(collected.intersection([7, 8, 9]), Set([7, 8, 9]))
     let pastEnd = try await iterator.next()
+
     XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
   }
   
-  func test_diagram() {
+  func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a-c-e-g-|"
       "-b-d-f-h"
@@ -132,7 +168,7 @@ final class TestMerge2: XCTestCase {
     }
   }
   
-  func test_cancellation() async {
+  func test_merge_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
     let sequence = merge(source1.async, source2.async)
@@ -158,159 +194,284 @@ final class TestMerge2: XCTestCase {
 }
 
 final class TestMerge3: XCTestCase {
-  func test_even_values() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6].async, [7, 8, 9].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_all_have_same_size() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6]
+    let third = [7, 8, 9]
+
+    let merged = merge(first.async, second.async, third.async)
     var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9]).sorted()
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
 
-  func test_longer_first() async {
-    let merged = merge([1, 2, 3, 4, 5].async, [6, 7, 8].async, [9, 10, 11].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_first_is_longer() async {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8]
+    let third = [9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
     var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 11]).sorted()
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
 
-  func test_longer_second() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6, 7, 8].async, [9, 10, 11].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_second_is_longer() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6, 7, 8]
+    let third = [9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
     var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
+
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 11]).sorted()
-    XCTAssertEqual(a, b)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
 
-  func test_longer_third() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6].async, [7, 8, 9, 10, 11].async)
+  func test_merge_makes_sequence_with_elements_from_sources_when_third_is_longer() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6]
+    let third = [7, 8, 9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
     var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
     var iterator = merged.makeAsyncIterator()
     while let item = await iterator.next() {
       collected.append(item)
     }
     let pastEnd = await iterator.next()
-    XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 11]).sorted()
-    XCTAssertEqual(a, b)
-  }
 
-  func test_longer_first_and_third() async {
-    let merged = merge([1, 2, 3, 4, 5].async, [6, 7].async, [8, 9, 10, 11].async)
-    var collected = [Int]()
-    var iterator = merged.makeAsyncIterator()
-    while let item = await iterator.next() {
-      collected.append(item)
-    }
-    let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 11]).sorted()
-    XCTAssertEqual(a, b)
-  }
-
-  func test_longer_second_and_third() async {
-    let merged = merge([1, 2, 3].async, [4, 5, 6, 7].async, [8, 9, 10, 11].async)
-    var collected = [Int]()
-    var iterator = merged.makeAsyncIterator()
-    while let item = await iterator.next() {
-      collected.append(item)
-    }
-    let pastEnd = await iterator.next()
-    XCTAssertNil(pastEnd)
-    let a = Set(collected).sorted()
-    let b = Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 11]).sorted()
-    XCTAssertEqual(a, b)
-  }
-
-  func test_throwing_first() async throws {
-    let merged = merge([1, 2, 3, 4, 5].async.map { try throwOn(4, $0) }, [6, 7, 8].async, [9, 10, 11].async)
-    var collected = Set<Int>()
-    var iterator = merged.makeAsyncIterator()
-    do {
-      while let item = try await iterator.next() {
-        collected.insert(item)
-      }
-      XCTFail()
-    } catch {
-      XCTAssertEqual(Failure(), error as? Failure)
-    }
-    XCTAssertEqual(collected.intersection([1, 2, 3]), Set([1, 2, 3]))
-    let pastEnd = try await iterator.next()
-    XCTAssertNil(pastEnd)
-  }
-
-  func test_longer_second_throwing_first() async throws {
-    let merged = merge([1, 2, 3, 4, 5].async.map { try throwOn(4, $0) }, [6, 7, 8, 9, 10, 11].async, [12, 13, 14].async)
-    var collected = Set<Int>()
-    var iterator = merged.makeAsyncIterator()
-    do {
-      while let item = try await iterator.next() {
-        collected.insert(item)
-      }
-      XCTFail()
-    } catch {
-      XCTAssertEqual(Failure(), error as? Failure)
-    }
-    XCTAssertEqual(collected.intersection([1, 2, 3]), Set([1, 2, 3]))
-    let pastEnd = try await iterator.next()
-    XCTAssertNil(pastEnd)
-  }
-
-  func test_throwing_second() async throws {
-    let merged = merge([1, 2, 3].async, [4, 5, 6, 7, 8].async.map { try throwOn(7, $0) }, [9, 10, 11].async)
-    var collected = Set<Int>()
-    var iterator = merged.makeAsyncIterator()
-    do {
-      while let item = try await iterator.next() {
-        collected.insert(item)
-      }
-      XCTFail()
-    } catch {
-      XCTAssertEqual(Failure(), error as? Failure)
-    }
-    XCTAssertEqual(collected.intersection([4, 5, 6]), Set([4, 5, 6]))
-    let pastEnd = try await iterator.next()
-    XCTAssertNil(pastEnd)
-  }
-
-  func test_longer_first_throwing_second() async throws {
-    let merged = merge([1, 2, 3, 4, 5, 6, 7].async, [7, 8, 9, 10, 11].async.map { try throwOn(10, $0) }, [12, 13, 14].async)
-    var collected = Set<Int>()
-    var iterator = merged.makeAsyncIterator()
-    do {
-      while let item = try await iterator.next() {
-        collected.insert(item)
-      }
-      XCTFail()
-    } catch {
-      XCTAssertEqual(Failure(), error as? Failure)
-    }
-    XCTAssertEqual(collected.intersection([7, 8, 9]), Set([7, 8, 9]))
-    let pastEnd = try await iterator.next()
-    XCTAssertNil(pastEnd)
+    XCTAssertEqual(Set(collected).sorted(), expected)
   }
   
-  func test_diagram() {
+  func test_merge_makes_sequence_with_elements_from_sources_when_first_and_second_are_longer() async {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8, 9]
+    let third = [10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
+    var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
+    var iterator = merged.makeAsyncIterator()
+    while let item = await iterator.next() {
+      collected.append(item)
+    }
+    let pastEnd = await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(Set(collected).sorted(), expected)
+  }
+
+  func test_merge_makes_sequence_with_elements_from_sources_when_first_and_third_are_longer() async {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7]
+    let third = [8, 9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
+    var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
+    var iterator = merged.makeAsyncIterator()
+    while let item = await iterator.next() {
+      collected.append(item)
+    }
+    let pastEnd = await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(Set(collected).sorted(), expected)
+  }
+
+  func test_merge_makes_sequence_with_elements_from_sources_when_second_and_third_are_longer() async {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6, 7]
+    let third = [8, 9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async)
+    var collected = [Int]()
+    let expected = Set(first + second + third).sorted()
+
+    var iterator = merged.makeAsyncIterator()
+    while let item = await iterator.next() {
+      collected.append(item)
+    }
+    let pastEnd = await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(Set(collected).sorted(), expected)
+  }
+
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8]
+    let third = [9, 10, 11]
+
+    let merged = merge(first.async.map { try throwOn(4, $0) }, second.async, third.async)
+    var collected = Set<Int>()
+    let expected = Set([1, 2, 3])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the first sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5]
+    let second = [6, 7, 8, 9, 10, 11]
+    let third = [12, 13, 14]
+
+    let merged = merge(first.async.map { try throwOn(4, $0) }, second.async, third.async)
+    var collected = Set<Int>()
+    let expected = Set([1, 2, 3])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the first sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+
+  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6, 7, 8]
+    let third = [9, 10, 11]
+
+    let merged = merge(first.async, second.async.map { try throwOn(7, $0) }, third.async)
+    var collected = Set<Int>()
+    let expected = Set([4, 5, 6])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the second sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+
+  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5, 6, 7]
+    let second = [7, 8, 9, 10, 11]
+    let third = [12, 13, 14]
+
+    let merged = merge(first.async, second.async.map { try throwOn(10, $0) }, third.async)
+    var collected = Set<Int>()
+    let expected = Set([7, 8, 9])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the second sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+  
+  func test_merge_produces_three_elements_from_third_and_throws_when_third_is_longer_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3]
+    let second = [4, 5, 6]
+    let third = [7, 8, 9, 10, 11]
+
+    let merged = merge(first.async, second.async, third.async.map { try throwOn(10, $0) })
+    var collected = Set<Int>()
+    let expected = Set([7, 8, 9])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the third sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+
+  func test_merge_produces_three_elements_from_third_and_throws_when_third_is_shorter_and_throws_after_three_elements() async throws {
+    let first = [1, 2, 3, 4, 5, 6, 7]
+    let second = [7, 8, 9, 10, 11]
+    let third = [12, 13, 14, 15]
+
+    let merged = merge(first.async, second.async, third.async.map { try throwOn(15, $0) })
+    var collected = Set<Int>()
+    let expected = Set([12, 13, 14])
+
+    var iterator = merged.makeAsyncIterator()
+    do {
+      while let item = try await iterator.next() {
+        collected.insert(item)
+      }
+      XCTFail("Merged sequence should throw after collecting three first elements from the third sequence")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    let pastEnd = try await iterator.next()
+
+    XCTAssertNil(pastEnd)
+    XCTAssertEqual(collected.intersection(expected), expected)
+  }
+  
+  func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a---e---|"
       "-b-d-f-h|"
@@ -320,7 +481,7 @@ final class TestMerge3: XCTestCase {
     }
   }
 
-  func test_cancellation() async {
+  func test_merge_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
     let source3 = Indefinite(value: "test3")
