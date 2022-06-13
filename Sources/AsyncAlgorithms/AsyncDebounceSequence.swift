@@ -12,14 +12,14 @@
 extension AsyncSequence {
   /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
   /// has elapsed by using a specified Clock.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   public func debounce<C: Clock>(for interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncDebounceSequence<Self, C> {
     AsyncDebounceSequence(self, interval: interval, tolerance: tolerance, clock: clock)
   }
   
   /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
   /// has elapsed.
-  @available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   public func debounce(for interval: Duration, tolerance: Duration? = nil) -> AsyncDebounceSequence<Self, ContinuousClock> {
     debounce(for: interval, tolerance: tolerance, clock: .continuous)
   }
@@ -27,7 +27,7 @@ extension AsyncSequence {
 
 /// An `AsyncSequence` that emits the latest element after a given quiescence period
 /// has elapsed.
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
   where Base.AsyncIterator: Sendable, Base.Element: Sendable, Base: Sendable {
   let base: Base
@@ -43,7 +43,7 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
   }
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncDebounceSequence: AsyncSequence {
   public typealias Element = Base.Element
   

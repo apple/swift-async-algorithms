@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 /// An `AsyncSequence` that produces elements at regular intervals.
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   public typealias Element = C.Instant
   
@@ -71,7 +71,7 @@ public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   }
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncTimerSequence {
   /// Create an `AsyncTimerSequence` with a given repeating interval.
   public static func repeating(every interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) -> AsyncTimerSequence<C> {
@@ -79,7 +79,7 @@ extension AsyncTimerSequence {
   }
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncTimerSequence where C == SuspendingClock {
   /// Create an `AsyncTimerSequence` with a given repeating interval.
   public static func repeating(every interval: Duration, tolerance: Duration? = nil) -> AsyncTimerSequence<SuspendingClock> {
@@ -87,8 +87,8 @@ extension AsyncTimerSequence where C == SuspendingClock {
   }
 }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncTimerSequence: Sendable { }
 
-@available(macOS 9999, iOS 9999, tvOS 9999, watchOS 9999, *)
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncTimerSequence.Iterator: Sendable { }
