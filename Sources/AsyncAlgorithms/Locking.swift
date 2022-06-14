@@ -17,7 +17,7 @@
 @_implementationOnly import WinSDK
 #endif
 
-internal struct Lock {
+private final class Lock {
 #if canImport(Darwin)
   typealias Primitive = os_unfair_lock
 #elseif canImport(Glibc)
@@ -25,92 +25,61 @@ internal struct Lock {
 #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
 #endif
-  
-  typealias PlatformLock = UnsafeMutablePointer<Primitive>
-  let platformLock: PlatformLock
 
-  private init(_ platformLock: PlatformLock) {
-    self.platformLock = platformLock
-  }
-  
-  fileprivate static func initialize(_ platformLock: PlatformLock) {
+  private let _lock: UnsafeMutablePointer<Primitive>
+
+  init() {
+    _lock = UnsafeMutablePointer<Primitive>.allocate(capacity: 1)
 #if canImport(Darwin)
-    platformLock.initialize(to: os_unfair_lock())
+    _lock.initialize(to: os_unfair_lock())
 #elseif canImport(Glibc)
-    pthread_mutex_init(platformLock, nil)
+    pthread_mutex_init(_lock, nil)
 #elseif canImport(WinSDK)
-    InitializeSRWLock(platformLock)
+    InitializeSRWLock(_lock)
 #endif
   }
-  
-  fileprivate static func deinitialize(_ platformLock: PlatformLock) {
+
+  deinit {
 #if canImport(Glibc)
-    pthread_mutex_destroy(platformLock)
+    pthread_mutex_destroy(_lock)
 #endif
-    platformLock.deinitialize(count: 1)
-  }
-  
-  fileprivate static func lock(_ platformLock: PlatformLock) {
-#if canImport(Darwin)
-    os_unfair_lock_lock(platformLock)
-#elseif canImport(Glibc)
-    pthread_mutex_lock(platformLock)
-#elseif canImport(WinSDK)
-    AcquireSRWLockExclusive(platformLock)
-#endif
-  }
-  
-  fileprivate static func unlock(_ platformLock: PlatformLock) {
-#if canImport(Darwin)
-    os_unfair_lock_unlock(platformLock)
-#elseif canImport(Glibc)
-    pthread_mutex_unlock(platformLock)
-#elseif canImport(WinSDK)
-    ReleaseSRWLockExclusive(platformLock)
-#endif
-  }
-
-  static func allocate() -> Lock {
-    let platformLock = PlatformLock.allocate(capacity: 1)
-    initialize(platformLock)
-    return Lock(platformLock)
-  }
-
-  func deinitialize() {
-    Lock.deinitialize(platformLock)
+    _lock.deinitialize(count: 1)
+    _lock.deallocate()
   }
 
   func lock() {
-    Lock.lock(platformLock)
+#if canImport(Darwin)
+    os_unfair_lock_lock(_lock)
+#elseif canImport(Glibc)
+    pthread_mutex_lock(_lock)
+#elseif canImport(WinSDK)
+    AcquireSRWLockExclusive(_lock)
+#endif
   }
 
   func unlock() {
-    Lock.unlock(platformLock)
+#if canImport(Darwin)
+    os_unfair_lock_unlock(_lock)
+#elseif canImport(Glibc)
+    pthread_mutex_unlock(_lock)
+#elseif canImport(WinSDK)
+    ReleaseSRWLockExclusive(_lock)
+#endif
   }
 }
 
-struct ManagedCriticalState<State> {
-  private final class LockedBuffer: ManagedBuffer<State, Lock.Primitive> {
-    deinit {
-      withUnsafeMutablePointerToElements { Lock.deinitialize($0) }
-    }
-  }
-  
-  private let buffer: ManagedBuffer<State, Lock.Primitive>
+final class ManagedCriticalState<State> {  
+  private let _lock = Lock()
+  private var _state: State
   
   init(_ initial: State) {
-    buffer = LockedBuffer.create(minimumCapacity: 1) { buffer in
-      buffer.withUnsafeMutablePointerToElements { Lock.initialize($0) }
-      return initial
-    }
+    _state = initial
   }
   
   func withCriticalRegion<R>(_ critical: (inout State) throws -> R) rethrows -> R {
-    try buffer.withUnsafeMutablePointers { header, lock in
-      Lock.lock(lock)
-      defer { Lock.unlock(lock) }
-      return try critical(&header.pointee)
-    }
+    Lock.lock(lock)
+    defer { Lock.unlock(lock) }
+    return try critical(&_state)
   }
 }
 
