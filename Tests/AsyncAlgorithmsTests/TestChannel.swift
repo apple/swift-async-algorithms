@@ -63,11 +63,12 @@ final class TestChannel: XCTestCase {
     XCTAssertEqual(collected, expected)
   }
   
-  func test_asyncThrowingChannel_throws_when_fail_is_called() async {
+  func test_asyncThrowingChannel_throws_and_discards_additional_sent_values_when_fail_is_called() async {
+    let sendImmediatelyResumes = expectation(description: "Send immediately resumes after fail")
+
     let channel = AsyncThrowingChannel<String, Error>()
-    Task {
-      await channel.fail(Failure())
-    }
+    channel.fail(Failure())
+
     var iterator = channel.makeAsyncIterator()
     do {
       let _ = try await iterator.next()
@@ -75,6 +76,17 @@ final class TestChannel: XCTestCase {
     } catch {
       XCTAssertEqual(error as? Failure, Failure())
     }
+
+    do {
+      let pastFailure = try await iterator.next()
+      XCTAssertNil(pastFailure)
+    } catch {
+      XCTFail("The AsyncThrowingChannel should not fail when failure has already been fired")
+    }
+
+    await channel.send("send")
+    sendImmediatelyResumes.fulfill()
+    wait(for: [sendImmediatelyResumes], timeout: 1.0)
   }
 
   func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
