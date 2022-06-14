@@ -77,8 +77,8 @@ final class ManagedCriticalState<State> {
   }
   
   func withCriticalRegion<R>(_ critical: (inout State) throws -> R) rethrows -> R {
-    Lock.lock(lock)
-    defer { Lock.unlock(lock) }
+    Lock.lock(_lock)
+    defer { Lock.unlock(_lock) }
     return try critical(&_state)
   }
 }
