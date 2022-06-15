@@ -25,20 +25,10 @@ let package = Package(
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms_XCTest",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
-      swiftSettings: [
-        .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking"
-        ])
-      ]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
-      swiftSettings: [
-        .unsafeFlags([
-          "-Xfrontend", "-disable-availability-checking"
-        ])
-      ]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"]),
   ]
 )
 

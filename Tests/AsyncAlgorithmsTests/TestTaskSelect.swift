@@ -14,6 +14,7 @@ import Dispatch
 import AsyncAlgorithms
 
 final class TestTaskSelect: XCTestCase {
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_first() async {
     let firstValue = await Task.select(Task {
       return 1
@@ -24,6 +25,7 @@ final class TestTaskSelect: XCTestCase {
     XCTAssertEqual(firstValue, 1)
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_second() async {
     let firstValue = await Task.select(Task {
       try! await Task.sleep(until: .now + .seconds(2), clock: .continuous)
@@ -34,6 +36,7 @@ final class TestTaskSelect: XCTestCase {
     XCTAssertEqual(firstValue, 2)
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_throwing() async {
     do {
       _ = try await Task.select(Task { () async throws -> Int in
@@ -48,6 +51,7 @@ final class TestTaskSelect: XCTestCase {
     }
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_cancellation() async {
     let firstReady = expectation(description: "first ready")
     let secondReady = expectation(description: "second ready")

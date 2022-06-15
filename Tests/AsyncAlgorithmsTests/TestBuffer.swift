@@ -431,6 +431,7 @@ final class TestBuffer: XCTestCase {
     XCTAssertEqual(1, [task1Results, task2Results].compactMap{ $0.1 }.count)
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingOldest() async {
     validate {
       "X-12-   34-    5   |"
@@ -439,6 +440,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingOldest_noDrops() async {
     validate {
       "X-12   3   4   5   |"
@@ -447,6 +449,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingOldest_error() async {
     validate {
       "X-12345^"
@@ -455,6 +458,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingNewest() async {
     validate {
       "X-12-   34    -5|"
@@ -463,6 +467,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingNewest_noDrops() async {
     validate {
       "X-12   3   4   5   |"
@@ -471,6 +476,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_bufferingNewest_error() async {
     validate {
       "X-12345^"

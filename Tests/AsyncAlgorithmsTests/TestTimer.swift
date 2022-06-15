@@ -13,6 +13,7 @@ import XCTest
 import AsyncAlgorithms
 import AsyncSequenceValidation
 
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 final class TestTimer: XCTestCase {
   func test_tick1() {
     validate {

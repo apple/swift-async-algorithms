@@ -123,6 +123,7 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_diagram() {
     validate {
       "a-c-e-g-|"
@@ -310,6 +311,7 @@ final class TestMerge3: XCTestCase {
     XCTAssertNil(pastEnd)
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_diagram() {
     validate {
       "a---e---|"

@@ -24,6 +24,7 @@ extension XCTestCase {
 #endif
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     var expectations = expectedFailures
     var result: AsyncSequenceValidationDiagram.ExpectationResult?
@@ -62,14 +63,17 @@ extension XCTestCase {
     }
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func validate<Test: AsyncSequenceValidationTest>(expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: expectedFailures, build, file: file, line: line)
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: theme, expectedFailures: [], build, file: file, line: line)
   }
   
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: [], build, file: file, line: line)
   }

@@ -14,6 +14,7 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 @testable import AsyncAlgorithms_XCTest
 
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 final class TestValidationDiagram: XCTestCase {
   func test_diagram() {
     validate {
@@ -309,6 +310,7 @@ final class TestValidationDiagram: XCTestCase {
   }
 }
 
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 struct LaggingAsyncSequence<Base: AsyncSequence, C: Clock> : AsyncSequence {
   typealias Element = Base.Element
 
