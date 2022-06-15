@@ -22,7 +22,6 @@ func concatCharacters(_ array: [String]) -> String {
 }
 
 final class TestChunk: XCTestCase {
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signal_equalChunks() {
     validate {
       "ABC-    DEF-    GHI-     |"
@@ -32,7 +31,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signal_unequalChunks() {
     validate {
       "AB-   A-ABCDEFGH-         |"
@@ -42,7 +40,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signal_emptyChunks() {
     validate {
       "--1--|"
@@ -52,7 +49,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signal_error() {
     validate {
       "AB^"
@@ -62,7 +58,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signal_unsignaledTrailingChunk() {
     validate {
       "111-111|"
@@ -72,7 +67,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signalAndCount_signalAlwaysPrevails() {
     validate {
       "AB-   A-ABCDEFGH-         |"
@@ -82,7 +76,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signalAndCount_countAlwaysPrevails() {
     validate {
       "AB   --A-B   -|"
@@ -92,7 +85,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signalAndCount_countResetsAfterCount() {
     validate {
       "ABCDE      -ABCDE      |"
@@ -102,7 +94,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signalAndCount_countResetsAfterSignal() {
     validate {
       "AB-   ABCDE      |"
@@ -112,7 +103,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_signalAndCount_error() {
     validate {
       "ABC^"
@@ -122,8 +112,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_time_equalChunks() {
+  func test_time_equalChunks() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "ABC-    DEF-    GHI-     |"
       $0.inputs[0].chunked(by: .repeating(every: .steps(4), clock: $0.clock)).map(concatCharacters)
@@ -131,8 +121,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_time_unequalChunks() {
+  func test_time_unequalChunks() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB------    A------- ABCDEFG-         |"
       $0.inputs[0].chunked(by: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -140,8 +130,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_time_emptyChunks() {
+  func test_time_emptyChunks() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-- 1- --|"
       $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock)).map(concatCharacters)
@@ -149,8 +139,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_time_error() {
+  func test_time_error() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB^"
       $0.inputs[0].chunked(by: .repeating(every: .steps(5), clock: $0.clock)).map(concatCharacters)
@@ -158,8 +148,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_time_unsignaledTrailingChunk() {
+  func test_time_unsignaledTrailingChunk() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "111-111|"
       $0.inputs[0].chunked(by: .repeating(every: .steps(4), clock: $0.clock)).map(sumCharacters)
@@ -167,8 +157,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_timeAndCount_timeAlwaysPrevails() {
+  func test_timeAndCount_timeAlwaysPrevails() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB------    A------- ABCDEFG-         |"
       $0.inputs[0].chunks(ofCount: 42, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -176,8 +166,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_timeAndCount_countAlwaysPrevails() {
+  func test_timeAndCount_countAlwaysPrevails() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB   --A-B   -|"
       $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -185,8 +175,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_timeAndCount_countResetsAfterCount() {
+  func test_timeAndCount_countResetsAfterCount() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "ABCDE      --- ABCDE      |"
       $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -194,8 +184,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_timeAndCount_countResetsAfterSignal() {
+  func test_timeAndCount_countResetsAfterSignal() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB------    ABCDE      |"
       $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -203,8 +193,8 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  func test_timeAndCount_error() {
+  func test_timeAndCount_error() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "ABC^"
       $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
@@ -212,7 +202,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_count() {
     validate {
       "ABC    DEF    |"
@@ -221,7 +210,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_count_nonuniformTiming() {
     validate {
       "A--B-C    --DE-F    |"
@@ -230,7 +218,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_count_trailingChunk() {
     validate {
       "11111|"
@@ -239,7 +226,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_count_error() {
     validate {
       "AB^"
@@ -248,7 +234,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_group() {
     validate {
       "ABC    def    GH   ij   Kl|"
@@ -257,7 +242,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_group_singleValue() {
     validate {
       "A----|"
@@ -266,7 +250,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_group_singleGroup() {
     validate {
       "ABCDE|"
@@ -275,7 +258,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_group_error() {
     validate {
       "AB^"
@@ -284,7 +266,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_projection() {
     validate {
       "A'Aa''ab'    b'BB''bb'    'cc''CC'      |"
@@ -293,7 +274,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_projection_singleValue() {
     validate {
       "A----|"
@@ -302,7 +282,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_projection_singleGroup() {
     validate {
       "ABCDE|"
@@ -311,7 +290,6 @@ final class TestChunk: XCTestCase {
     }
   }
 
-  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_projection_error() {
     validate {
       "Aa^"
