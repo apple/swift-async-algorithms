@@ -19,22 +19,20 @@ internal func _swiftJobRun(
   _ executor: UnownedSerialExecutor
 ) -> ()
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
   var output: AsyncSequenceValidationDiagram.Specification { get }
   
-  func test<C: Clock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
+  func test<C: TestClock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncSequenceValidationDiagram {
   struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
     let inputs: [Specification]
     let sequence: Operation
     let output: Specification
     
-    func test<C: _Concurrency.Clock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
+    func test<C: TestClock>(with clock: C, activeTicks: [C.Instant], output: Specification, _ event: (String) -> Void) async throws {
       var iterator = sequence.makeAsyncIterator()
       do {
         for tick in activeTicks {
@@ -265,7 +263,7 @@ extension AsyncSequenceValidationDiagram {
     @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
     let diagram = AsyncSequenceValidationDiagram()
-    let clock = diagram.clock
+    let clock = diagram._clock
     let test = build(diagram)
     for index in 0..<test.inputs.count {
       // fault in all inputs

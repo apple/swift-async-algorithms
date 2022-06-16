@@ -14,28 +14,32 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 
 final class TestTimer: XCTestCase {
-  func test_tick1() {
+  func test_tick1() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       AsyncTimerSequence(interval: .steps(1), clock: $0.clock).map { _ in "x" }
       "xxxxxxx[;|]"
     }
   }
   
-  func test_tick2() {
+  func test_tick2() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       AsyncTimerSequence(interval: .steps(2), clock: $0.clock).map { _ in "x" }
       "-x-x-x-[;|]"
     }
   }
   
-  func test_tick3() {
+  func test_tick3() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       AsyncTimerSequence(interval: .steps(3), clock: $0.clock).map { _ in "x" }
       "--x--x-[;|]"
     }
   }
   
-  func test_tick2_event_skew3() {
+  func test_tick2_event_skew3() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate { diagram in
       AsyncTimerSequence(interval: .steps(2), clock: diagram.clock).map { [diagram] (_) -> String in
         try? await diagram.clock.sleep(until: diagram.clock.now.advanced(by: .steps(3)))

@@ -292,7 +292,8 @@ final class TestValidationDiagram: XCTestCase {
     }
   }
 
-  func test_delayNext_into_emptyTick() {
+  func test_delayNext_into_emptyTick() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "xx|"
       LaggingAsyncSequence($0.inputs[0], delayBy: .steps(3), using: $0.clock)
@@ -309,6 +310,7 @@ final class TestValidationDiagram: XCTestCase {
   }
 }
 
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 struct LaggingAsyncSequence<Base: AsyncSequence, C: Clock> : AsyncSequence {
   typealias Element = Base.Element
 

@@ -11,7 +11,6 @@
 
 import AsyncAlgorithms
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncSequenceValidationDiagram {
   public struct Clock {
     let queue: WorkQueue
@@ -22,8 +21,20 @@ extension AsyncSequenceValidationDiagram {
   }
 }
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-extension AsyncSequenceValidationDiagram.Clock: Clock {
+
+public protocol TestClock: Sendable {
+  associatedtype Instant: TestInstant
+  
+  var now: Instant { get }
+  
+  func sleep(until deadline: Self.Instant, tolerance: Self.Instant.Duration?) async throws
+}
+
+public protocol TestInstant: Equatable {
+  associatedtype Duration
+}
+
+extension AsyncSequenceValidationDiagram.Clock {
   public struct Step: DurationProtocol, Hashable, CustomStringConvertible {
     internal var rawValue: Int
     
@@ -66,7 +77,7 @@ extension AsyncSequenceValidationDiagram.Clock: Clock {
     }
   }
   
-  public struct Instant: InstantProtocol, CustomStringConvertible {
+  public struct Instant: CustomStringConvertible {
     public typealias Duration = Step
     
     let when: Step
@@ -111,3 +122,13 @@ extension AsyncSequenceValidationDiagram.Clock: Clock {
     }
   }
 }
+
+extension AsyncSequenceValidationDiagram.Clock.Instant: TestInstant { }
+
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+extension AsyncSequenceValidationDiagram.Clock.Instant: InstantProtocol { }
+
+extension AsyncSequenceValidationDiagram.Clock: TestClock { }
+
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+extension AsyncSequenceValidationDiagram.Clock: Clock { }
