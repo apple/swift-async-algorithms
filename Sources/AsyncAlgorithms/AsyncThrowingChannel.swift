@@ -103,10 +103,15 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     }
   }
   
+  enum Termination {
+    case finished
+    case failed(Error)
+  }
+  
   struct State {
     var emission: Emission = .idle
     var generation = 0
-    var terminal = false
+    var terminal: Termination?
   }
   
   let state = ManagedCriticalState(State())
@@ -129,10 +134,11 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   func next(_ generation: Int) async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
       var cancelled = false
-      var terminal = false
+      var terminal: Termination?
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-        if state.terminal {
-          terminal = true
+        if let termination = state.terminal {
+          state.terminal = .finished
+          terminal = termination
           return nil
         }
         switch state.emission {
@@ -160,18 +166,26 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           return nil
         }
       }?.resume()
-      if cancelled || terminal {
+      if cancelled {
         continuation.resume(returning: nil)
+      }
+      if let terminal = terminal {
+        switch terminal {
+        case .finished:
+          continuation.resume(returning: nil)
+        case .failed(let error):
+          continuation.resume(throwing: error)
+        }
       }
     }
   }
   
   func finishAll() {
     let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>], Set<Awaiting>) in
-      if state.terminal {
+      if state.terminal != nil {
         return ([], [])
       }
-      state.terminal = true
+      state.terminal = .finished
       switch state.emission {
       case .idle:
         return ([], [])
@@ -197,12 +211,12 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     } operation: {
       let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
         state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-          if state.terminal {
+          if state.terminal != nil {
             return UnsafeResumption(continuation: continuation, success: nil)
           }
 
-          if case .failure = result {
-            state.terminal = true
+          if case .failure(let error) = result {
+            state.terminal = .failed(error)
           }
           
           switch state.emission {

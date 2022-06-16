@@ -75,6 +75,12 @@ final class TestChannel: XCTestCase {
     } catch {
       XCTAssertEqual(error as? Failure, Failure())
     }
+    do {
+      let value = try await iterator.next()
+      XCTAssertNil(value)
+    } catch {
+      XCTFail("Unexpected throw of error after iteration producing error")
+    }
   }
 
   func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
