@@ -14,6 +14,7 @@ import AsyncAlgorithms
 
 final class TestDebounce: XCTestCase {
   func test_delayingValues() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcd----e---f-g----|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
