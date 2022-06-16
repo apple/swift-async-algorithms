@@ -263,7 +263,7 @@ extension AsyncSequenceValidationDiagram {
     @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test
   ) throws -> (ExpectationResult, [ExpectationFailure]) {
     let diagram = AsyncSequenceValidationDiagram()
-    let clock = diagram.clock
+    let clock = diagram._clock
     let test = build(diagram)
     for index in 0..<test.inputs.count {
       // fault in all inputs

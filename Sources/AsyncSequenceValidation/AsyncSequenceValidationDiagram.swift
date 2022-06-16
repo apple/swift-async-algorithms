@@ -96,15 +96,20 @@ public struct AsyncSequenceValidationDiagram : Sendable {
   }
   
   let queue: WorkQueue
+  let _clock: Clock
   
   public var inputs: InputList
-  public let clock: Clock
+  
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+  public var clock: Clock {
+    _clock
+  }
   
   internal init() {
     let queue = WorkQueue()
     self.queue = queue
     self.inputs = InputList(queue: queue)
-    self.clock = Clock(queue: queue)
+    self._clock = Clock(queue: queue)
   }
 }
 
