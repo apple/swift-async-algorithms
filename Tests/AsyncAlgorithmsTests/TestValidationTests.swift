@@ -14,7 +14,6 @@ import AsyncAlgorithms
 import AsyncSequenceValidation
 @testable import AsyncAlgorithms_XCTest
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 final class TestValidationDiagram: XCTestCase {
   func test_diagram() {
     validate {
@@ -293,7 +292,8 @@ final class TestValidationDiagram: XCTestCase {
     }
   }
 
-  func test_delayNext_into_emptyTick() {
+  func test_delayNext_into_emptyTick() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "xx|"
       LaggingAsyncSequence($0.inputs[0], delayBy: .steps(3), using: $0.clock)

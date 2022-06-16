@@ -12,9 +12,9 @@
 import XCTest
 import AsyncAlgorithms
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 final class TestThrottle: XCTestCase {
-  func test_rate_0() {
+  func test_rate_0() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(0), clock: $0.clock)
@@ -22,7 +22,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_0_leading_edge() {
+  func test_rate_0_leading_edge() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(0), clock: $0.clock, latest: false)
@@ -30,7 +31,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_1() {
+  func test_rate_1() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
@@ -38,7 +40,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_1_leading_edge() {
+  func test_rate_1_leading_edge() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock, latest: false)
@@ -46,7 +49,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_2() {
+  func test_rate_2() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
@@ -54,7 +58,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_2_leading_edge() {
+  func test_rate_2_leading_edge() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
@@ -62,7 +67,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_3() {
+  func test_rate_3() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
@@ -70,7 +76,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_rate_3_leading_edge() {
+  func test_rate_3_leading_edge() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
@@ -78,7 +85,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_throwing() {
+  func test_throwing() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
@@ -86,7 +94,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_throwing_leading_edge() {
+  func test_throwing_leading_edge() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdef^hijk|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
@@ -94,7 +103,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_emission_2_rate_1() {
+  func test_emission_2_rate_1() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
@@ -102,7 +112,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_emission_2_rate_2() {
+  func test_emission_2_rate_2() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
@@ -110,7 +121,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_emission_3_rate_2() {
+  func test_emission_3_rate_2() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "--a--b--c--d--e--f--g|"
       $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
@@ -118,7 +130,8 @@ final class TestThrottle: XCTestCase {
     }
   }
   
-  func test_emission_2_rate_3() {
+  func test_emission_2_rate_3() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
