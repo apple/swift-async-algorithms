@@ -41,7 +41,7 @@ The syntax is trivially parsable (and consequently customizable). By default, th
 |  Symbol |  Description      | Example    |  
 | ------- | ----------------- | ---------- |
 |   `-`   | Advance time      | `"a--b--"` |
-|   `|`   | Termination       | `"ab-|"`   |
+|   `\|`  | Termination       | `"ab-\|"`  |
 |   `^`   | Thrown error      | `"ab-^"`   |
 |   `;`   | Cancellation      | `"ab;-"`   |
 |   `[`   | Begin group       | `"[ab]-"`  |
