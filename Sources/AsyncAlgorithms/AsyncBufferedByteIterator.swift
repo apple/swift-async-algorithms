@@ -31,7 +31,7 @@
 ///       }
 ///
 ///       public func makeAsyncIterator() -> AsyncBufferedByteIterator {
-///         return BufferedAsyncByteIterator(capacity: 16384) { buffer in
+///         return AsyncBufferedByteIterator(capacity: 16384) { buffer in
 ///           // This runs once every 16384 invocations of next()
 ///           return try await handle.read(into: buffer)
 ///         }
@@ -112,7 +112,7 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
     do {
       // If two tasks have access to this iterator then the references on
       // the storage will be non uniquely owned. This means that any reload
-      // must happen into it's own fresh buffer. The consumption of those
+      // must happen into its own fresh buffer. The consumption of those
       // bytes between two tasks are inherently defined as potential
       // duplication by the nature of sending that buffer across the two
       // tasks - this means that the brief period in which they may be
@@ -122,7 +122,7 @@ internal struct _AsyncBytesBuffer: @unchecked Sendable {
       // should not be crash, but it definitely cannot be consistent.
       //
       // The unique ref check is here to prevent the potentials of a crashing
-      // secnario.
+      // scenario.
       if !isKnownUniquelyReferenced(&storage) {
         // The count is not mutated across invocations so the access is safe.
         let capacity = storage.buffer.count
