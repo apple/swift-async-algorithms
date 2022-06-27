@@ -11,7 +11,13 @@
 
 /// An error-throwing channel for sending elements from on task to another with back pressure.
 ///
-/// The `AsyncThrowingChannel` class is intended to be used as a communication types between tasks, particularly when one task produces values and another task consumes those values. The back pressure applied by `send(_:)`, `fail(_:)` and `finish()` via suspension/resume ensures that the production of values does not exceed the consumption of values from iteration. Each of these methods suspends after enqueuing the event and is resumed when the next call to `next()` on the `Iterator` is made.
+/// The `AsyncThrowingChannel` class is intended to be used as a communication types between tasks,
+/// particularly when one task produces values and another task consumes those values. The back
+/// pressure applied by `send(_:)` via suspension/resume ensures that the production of values does
+/// not exceed the consumption of values from iteration. This method suspends after enqueuing the event
+/// and is resumed when the next call to `next()` on the `Iterator` is made, or when `finish()`/`fail(_:)` is called
+/// from another Task. As `finish()` and `fail(_:)` induce a terminal state, there is no need for a back pressure management.
+/// Those functions do not suspend and will finish all the pending iterations.
 public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
   /// The iterator for an `AsyncThrowingChannel` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
@@ -78,12 +84,23 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       return lhs.generation == rhs.generation
     }
   }
+
+  enum Termination {
+    case finished
+    case failed(Error)
+  }
   
   enum Emission {
     case idle
     case pending([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>])
     case awaiting(Set<Awaiting>)
-    
+    case terminated(Termination)
+
+    var isTerminated: Bool {
+      guard case .terminated = self else { return false }
+      return true
+    }
+
     mutating func cancel(_ generation: Int) -> UnsafeContinuation<Element?, Error>? {
       switch self {
       case .awaiting(var awaiting):
@@ -106,9 +123,8 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   struct State {
     var emission: Emission = .idle
     var generation = 0
-    var terminal = false
   }
-  
+
   let state = ManagedCriticalState(State())
   
   public init(_ elementType: Element.Type = Element.self) { }
@@ -129,12 +145,9 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   func next(_ generation: Int) async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
       var cancelled = false
-      var terminal = false
+      var potentialTermination: Termination?
+
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-        if state.terminal {
-          terminal = true
-          return nil
-        }
         switch state.emission {
         case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
@@ -158,53 +171,78 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
              state.emission = .awaiting(nexts)
            }
           return nil
+        case .terminated(let termination):
+          potentialTermination = termination
+          state.emission = .terminated(.finished)
+          return nil
         }
       }?.resume()
-      if cancelled || terminal {
+
+      if cancelled {
         continuation.resume(returning: nil)
+        return
+      }
+
+      switch potentialTermination {
+      case .none:
+        return
+      case .failed(let error):
+        continuation.resume(throwing: error)
+        return
+      case .finished:
+        continuation.resume(returning: nil)
+        return
       }
     }
   }
-  
-  func finishAll() {
+
+  func terminateAll(error: Failure? = nil) {
     let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>], Set<Awaiting>) in
-      if state.terminal {
-        return ([], [])
+
+      let nextState: Emission
+      if let error = error {
+        nextState = .terminated(.failed(error))
+      } else {
+        nextState = .terminated(.finished)
       }
-      state.terminal = true
+
       switch state.emission {
       case .idle:
+        state.emission = nextState
         return ([], [])
       case .pending(let nexts):
-        state.emission = .idle
+        state.emission = nextState
         return (nexts, [])
       case .awaiting(let nexts):
-        state.emission = .idle
+        state.emission = nextState
         return ([], nexts)
+      case .terminated:
+        return ([], [])
       }
     }
+
     for send in sends {
       send.resume(returning: nil)
     }
-    for next in nexts {
-      next.continuation?.resume(returning: nil)
+
+    if let error = error {
+      for next in nexts {
+        next.continuation?.resume(throwing: error)
+      }
+    } else {
+      for next in nexts {
+        next.continuation?.resume(returning: nil)
+      }
     }
+
   }
   
-  func _send(_ result: Result<Element, Error>) async {
+  func _send(_ element: Element) async {
     await withTaskCancellationHandler {
-      finishAll()
+      terminateAll()
     } operation: {
       let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
         state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-          if state.terminal {
-            return UnsafeResumption(continuation: continuation, success: nil)
-          }
-
-          if case .failure = result {
-            state.terminal = true
-          }
-          
           switch state.emission {
           case .idle:
             state.emission = .pending([continuation])
@@ -221,28 +259,32 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
               state.emission = .awaiting(nexts)
             }
             return UnsafeResumption(continuation: continuation, success: next)
+          case .terminated:
+            return UnsafeResumption(continuation: continuation, success: nil)
           }
         }?.resume()
       }
-      continuation?.resume(with: result.map { $0 as Element? })
+      continuation?.resume(returning: element)
     }
   }
   
-  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
+  /// or when a call to `finish()`/`fail(_:)` is made from another Task.
   /// If the channel is already finished then this returns immediately
   public func send(_ element: Element) async {
-      await _send(.success(element))
+      await _send(element)
   }
   
-  /// Send an error to an awaiting iteration. This function will resume when the next call to `next()` is made.
-  /// If the channel is already finished then this returns immediately
-  public func fail(_ error: Error) async where Failure == Error {
-    await _send(.failure(error))
+  /// Send an error to all awaiting iterations.
+  /// All subsequent calls to `next(_:)` will resume immediately.
+  public func fail(_ error: Error) where Failure == Error {
+    terminateAll(error: error)
   }
   
   /// Send a finish to all awaiting iterations.
+  /// All subsequent calls to `next(_:)` will resume immediately.
   public func finish() {
-    finishAll()
+    terminateAll()
   }
   
   public func makeAsyncIterator() -> Iterator {

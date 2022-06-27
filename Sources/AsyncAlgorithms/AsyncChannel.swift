@@ -13,10 +13,12 @@
 ///
 /// The `AsyncChannel` class is intended to be used as a communication type between tasks,
 /// particularly when one task produces values and another task consumes those values. The back
-/// pressure applied by `send(_:)` and `finish()` via the suspension/resume ensures that
-/// the production of values does not exceed the consumption of values from iteration. Each of these
-/// methods suspends after enqueuing the event and is resumed when the next call to `next()`
-/// on the `Iterator` is made.
+/// pressure applied by `send(_:)` via the suspension/resume ensures that
+/// the production of values does not exceed the consumption of values from iteration. This method
+/// suspends after enqueuing the event and is resumed when the next call to `next()`
+/// on the `Iterator` is made, or when `finish()` is called from another Task.
+/// As `finish()` induces a terminal state, there is no need for a back pressure management.
+/// This function does not suspend and will finish all the pending iterations.
 public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// The iterator for a `AsyncChannel` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
@@ -168,7 +170,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     }
   }
   
-  func finishAll() {
+  func terminateAll() {
     let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>], Set<Awaiting>) in
       if state.terminal {
         return ([], [])
@@ -195,7 +197,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   func _send(_ element: Element) async {
     await withTaskCancellationHandler {
-      finishAll()
+      terminateAll()
     } operation: {
       let continuation: UnsafeContinuation<Element?, Never>? = await withUnsafeContinuation { continuation in
         state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
@@ -225,15 +227,17 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     }
   }
   
-  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made.
+  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
+  /// or when a call to `finish()` is made from another Task.
   /// If the channel is already finished then this returns immediately
   public func send(_ element: Element) async {
     await _send(element)
   }
   
   /// Send a finish to all awaiting iterations.
+  /// All subsequent calls to `next(_:)` will resume immediately.
   public func finish() {
-    finishAll()
+    terminateAll()
   }
   
   /// Create an `Iterator` for iteration of an `AsyncChannel`
