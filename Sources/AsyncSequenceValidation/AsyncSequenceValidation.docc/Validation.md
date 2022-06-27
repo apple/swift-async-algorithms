@@ -218,15 +218,15 @@ Access to the validation diagram input list is done through calls such as `$0.in
 |  Symbol | Token                     |  Description      | Example    |  
 | ------- | ------------------------- | ----------------- | ---------- |
 |   `-`   | `.step`                   | Advance time      | `"a--b--"` |
-|   `|`   | `.finish`                 | Termination       | `"ab-|"`   |
+|   `\|`   | `.finish`                 | Termination       | `"ab-\|"`   |
 |   `^`   | `.error`                  | Thrown error      | `"ab-^"`   |
 |   `;`   | `.cancel`                 | Cancellation      | `"ab;-"`   |
 |   `[`   | `.beginGroup`             | Begin group       | `"[ab]-"`  |
 |   `]`   | `.endGroup`               | End group         | `"[ab]-"`  |
 |   `'`   | `.beginValue` `.endValue` | Begin/End Value   | `"'foo'-"` |
 |   `,`   | `.delayNext`              | Delay next        | `",[a,]b"` |
-|   ` `   | `.skip`                   | Skip/Ignore       | `"a b- |"` |
-|         | `.value`                  | Values.           | `"ab-|"`   |
+|   ` `   | `.skip`                   | Skip/Ignore       | `"a b- \|"` |
+|         | `.value`                  | Values.           | `"ab-\|"`   |
 
 There are some diagram input specifications that are not valid. The three cases are:
 
