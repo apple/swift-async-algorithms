@@ -1,6 +1,6 @@
 # Compacted
 
-* Proposal: [NNNN](NNNN-compacted.md)
+* Proposal: [0003](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0003-compacted.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
 
