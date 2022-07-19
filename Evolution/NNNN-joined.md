@@ -32,7 +32,7 @@ These algorithms iterate over the elements of each `AsyncSequence` one bye one, 
  let appleFeed = URL("http://www.example.com/ticker?symbol=AAPL").lines
  let nasdaqFeed = URL("http://www.example.com/ticker?symbol=^IXIC").lines
 
- for try await line in [appleFeed, nasdaqFeed].joined() {
+ for try await line in [appleFeed, nasdaqFeed].async.joined() {
    print("\(line)")
  }
  ```
@@ -58,7 +58,7 @@ The throwing behaviour of `AsyncJoinedSequence` and `AsyncJoinedBySeparatorSeque
 ### Naming
 
 The naming follows to current method naming of the standard library's [`joined`](https://developer.apple.com/documentation/swift/array/joined(separator:)-7uber) method.
-Prior art in the reactive community often names this method `concat`; however, we think that an alignment with the current method on `Sequence` are better.
+Prior art in the reactive community often names this method `concat`; however, we think that an alignment with the current method on `Sequence` is better.
 
 ### Comparison with other libraries
 
