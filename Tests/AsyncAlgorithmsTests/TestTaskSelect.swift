@@ -16,6 +16,7 @@ import AsyncAlgorithms
 final class TestTaskSelect: XCTestCase {
   func test_first() async {
     let firstValue = await Task.select(Task {
+      try! await Task.sleep(until: .now + .microseconds(100), clock: .continuous)
       return 1
     }, Task {
       if #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) {
@@ -37,6 +38,7 @@ final class TestTaskSelect: XCTestCase {
       }
       return 1
     }, Task {
+      try! await Task.sleep(until: .now + .microseconds(100), clock: .continuous)
       return 2
     }).value
     XCTAssertEqual(firstValue, 2)
@@ -52,6 +54,7 @@ final class TestTaskSelect: XCTestCase {
         }
         return 1
       }, Task { () async throws -> Int in
+        try! await Task.sleep(until: .now + .microseconds(100), clock: .continuous)
         throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
       }).value
       XCTFail()
