@@ -25,6 +25,8 @@ This package is the home for these APIs. Development and API design take place o
 - [`merge(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Merge.md): Merges two or more asynchronous sequence into a single asynchronous sequence producing the elements of all of the underlying asynchronous sequences.
 - [`zip(_:...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Zip.md): Creates an asynchronous sequence of pairs built out of underlying asynchronous sequences.
 - [`joined(separator:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Joined.md): Concatenated elements of an asynchronous sequence of asynchronous sequences, inserting the given separator between each element.
+- [`zipLatest(from:)`](https://github.com/twittemb/swift-async-algorithms/blob/zipLatestFrom/Evolution/0000-implement-zipLatestFrom.md): Combines self with another AsyncSequence into a single AsyncSequence 
+wher$
 
 #### Creating asynchronous sequences
 
