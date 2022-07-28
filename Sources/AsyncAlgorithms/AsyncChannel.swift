@@ -235,6 +235,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
   /// or when a call to `finish()` is made from another Task.
   /// If the channel is already finished then this returns immediately
+  /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
     let generation = establish()
     let sendTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
