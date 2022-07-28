@@ -232,7 +232,7 @@ final class TestChannel: XCTestCase {
     let notYetDone = expectation(description: "not yet done")
     notYetDone.isInverted = true
     let done = expectation(description: "done")
-    let task1 = Task {
+    let task = Task {
       await channel.send(1)
       notYetDone.fulfill()
       done.fulfill()
@@ -243,7 +243,7 @@ final class TestChannel: XCTestCase {
     }
 
     wait(for: [notYetDone], timeout: 0.1)
-    task1.cancel()
+    task.cancel()
     wait(for: [done], timeout: 1.0)
 
     var iterator = channel.makeAsyncIterator()
@@ -251,7 +251,7 @@ final class TestChannel: XCTestCase {
     XCTAssertEqual(received, 2)
   }
   
-  func test_asyncThrowingChannel_resumes_send_when_task_is_cancelled() async {
+  func test_asyncThrowingChannel_resumes_send_when_task_is_cancelled_and_continue_remaining_send_tasks() async throws {
     let channel = AsyncThrowingChannel<Int, Error>()
     let notYetDone = expectation(description: "not yet done")
     notYetDone.isInverted = true
@@ -261,8 +261,17 @@ final class TestChannel: XCTestCase {
       notYetDone.fulfill()
       done.fulfill()
     }
+
+    Task {
+      await channel.send(2)
+    }
+
     wait(for: [notYetDone], timeout: 0.1)
     task.cancel()
     wait(for: [done], timeout: 1.0)
+
+    var iterator = channel.makeAsyncIterator()
+    let received = try await iterator.next()
+    XCTAssertEqual(received, 2)
   }
 }
