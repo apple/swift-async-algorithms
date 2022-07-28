@@ -88,12 +88,12 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     case idle
     case pending(Set<Pending>)
     case awaiting(Set<Awaiting>)
+    case finished
   }
   
   struct State {
     var emission: Emission = .idle
     var generation = 0
-    var terminal = false
   }
 
   let state = ManagedCriticalState(State())
@@ -145,10 +145,6 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           return nil
         }
 
-        if state.terminal {
-          terminal = true
-          return nil
-        }
         switch state.emission {
         case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
@@ -164,6 +160,9 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
         case .awaiting(var nexts):
           nexts.update(with: Awaiting(generation: generation, continuation: continuation))
           state.emission = .awaiting(nexts)
+          return nil
+        case .finished:
+          terminal = true
           return nil
         }
       }?.resume()
@@ -205,7 +204,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     let continuation = await withUnsafeContinuation { continuation in
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
 
-        if sendTokenStatus.withCriticalRegion({ $0 }) == .cancelled || state.terminal {
+        if sendTokenStatus.withCriticalRegion({ $0 }) == .cancelled {
           return UnsafeResumption(continuation: continuation, success: nil)
         }
 
@@ -225,6 +224,8 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
             state.emission = .awaiting(nexts)
           }
           return UnsafeResumption(continuation: continuation, success: next)
+        case .finished:
+          return UnsafeResumption(continuation: continuation, success: nil)
         }
       }?.resume()
     }
@@ -249,20 +250,22 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// All subsequent calls to `next(_:)` will resume immediately.
   public func finish() {
     let (sends, nexts) = state.withCriticalRegion { state -> (Set<Pending>, Set<Awaiting>) in
-      if state.terminal {
-        return ([], [])
-      }
-      state.terminal = true
+      let result: (Set<Pending>, Set<Awaiting>)
+
       switch state.emission {
       case .idle:
-        return ([], [])
+        result = ([], [])
       case .pending(let nexts):
-        state.emission = .idle
-        return (nexts, [])
+        result = (nexts, [])
       case .awaiting(let nexts):
-        state.emission = .idle
-        return ([], nexts)
+        result = ([], nexts)
+      case .finished:
+        result = ([], [])
       }
+
+      state.emission = .finished
+
+      return result
     }
     for send in sends {
       send.continuation?.resume(returning: nil)
