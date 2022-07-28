@@ -50,41 +50,44 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     }
   }
   
-  struct Awaiting: Hashable {
+  typealias Pending = ChannelToken<UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>>
+  typealias Awaiting = ChannelToken<UnsafeContinuation<Element?, Never>>
+
+  struct ChannelToken<Continuation>: Hashable {
     var generation: Int
-    var continuation: UnsafeContinuation<Element?, Never>?
+    var continuation: Continuation?
     let cancelled: Bool
-    
-    init(generation: Int, continuation: UnsafeContinuation<Element?, Never>) {
+
+    init(generation: Int, continuation: Continuation) {
       self.generation = generation
       self.continuation = continuation
       cancelled = false
     }
-    
+
     init(placeholder generation: Int) {
       self.generation = generation
       self.continuation = nil
       cancelled = false
     }
-    
+
     init(cancelled generation: Int) {
       self.generation = generation
       self.continuation = nil
       cancelled = true
     }
-    
+
     func hash(into hasher: inout Hasher) {
       hasher.combine(generation)
     }
-    
-    static func == (_ lhs: Awaiting, _ rhs: Awaiting) -> Bool {
+
+    static func == (_ lhs: ChannelToken, _ rhs: ChannelToken) -> Bool {
       return lhs.generation == rhs.generation
     }
   }
   
   enum Emission {
     case idle
-    case pending([UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>])
+    case pending([Pending])
     case awaiting(Set<Awaiting>)
     
     mutating func cancel(_ generation: Int) -> UnsafeContinuation<Element?, Never>? {
@@ -131,7 +134,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   }
   
   func next(_ generation: Int) async -> Element? {
-    return await withUnsafeContinuation { continuation in
+    return await withUnsafeContinuation { (continuation: UnsafeContinuation<Element?, Never>) in
       var cancelled = false
       var terminal = false
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
@@ -150,7 +153,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           } else {
             state.emission = .pending(sends)
           }
-          return UnsafeResumption(continuation: send, success: continuation)
+          return UnsafeResumption(continuation: send.continuation, success: continuation)
         case .awaiting(var nexts):
           if nexts.update(with: Awaiting(generation: generation, continuation: continuation)) != nil {
             nexts.remove(Awaiting(placeholder: generation))
@@ -171,7 +174,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   }
   
   func terminateAll() {
-    let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>], Set<Awaiting>) in
+    let (sends, nexts) = state.withCriticalRegion { state -> ([Pending], Set<Awaiting>) in
       if state.terminal {
         return ([], [])
       }
@@ -188,7 +191,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
       }
     }
     for send in sends {
-      send.resume(returning: nil)
+      send.continuation?.resume(returning: nil)
     }
     for next in nexts {
       next.continuation?.resume(returning: nil)
@@ -196,6 +199,8 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   }
   
   func _send(_ element: Element) async {
+    let generation = establish()
+
     await withTaskCancellationHandler {
       terminateAll()
     } operation: {
@@ -206,10 +211,10 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           }
           switch state.emission {
           case .idle:
-            state.emission = .pending([continuation])
+            state.emission = .pending([Pending(generation: generation, continuation: continuation)])
             return nil
           case .pending(var sends):
-            sends.append(continuation)
+            sends.append(Pending(generation: generation, continuation: continuation))
             state.emission = .pending(sends)
             return nil
           case .awaiting(var nexts):
