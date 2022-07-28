@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import OrderedCollections
+
 /// A channel for sending elements from one task to another with back pressure.
 ///
 /// The `AsyncChannel` class is intended to be used as a communication type between tasks,
@@ -86,8 +88,8 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   enum Emission {
     case idle
-    case pending(Set<Pending>)
-    case awaiting(Set<Awaiting>)
+    case pending(OrderedSet<Pending>)
+    case awaiting(OrderedSet<Awaiting>)
     case finished
   }
   
@@ -158,7 +160,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           }
           return UnsafeResumption(continuation: send.continuation, success: continuation)
         case .awaiting(var nexts):
-          nexts.update(with: Awaiting(generation: generation, continuation: continuation))
+          nexts.updateOrAppend(Awaiting(generation: generation, continuation: continuation))
           state.emission = .awaiting(nexts)
           return nil
         case .finished:
@@ -213,7 +215,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           state.emission = .pending([Pending(generation: generation, continuation: continuation)])
           return nil
         case .pending(var sends):
-          sends.update(with: Pending(generation: generation, continuation: continuation))
+          sends.updateOrAppend(Pending(generation: generation, continuation: continuation))
           state.emission = .pending(sends)
           return nil
         case .awaiting(var nexts):
@@ -235,6 +237,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
   /// or when a call to `finish()` is made from another Task.
   /// If the channel is already finished then this returns immediately
+  /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
     let generation = establish()
     let sendTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
@@ -249,8 +252,8 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// Send a finish to all awaiting iterations.
   /// All subsequent calls to `next(_:)` will resume immediately.
   public func finish() {
-    let (sends, nexts) = state.withCriticalRegion { state -> (Set<Pending>, Set<Awaiting>) in
-      let result: (Set<Pending>, Set<Awaiting>)
+    let (sends, nexts) = state.withCriticalRegion { state -> (OrderedSet<Pending>, OrderedSet<Awaiting>) in
+      let result: (OrderedSet<Pending>, OrderedSet<Awaiting>)
 
       switch state.emission {
       case .idle:

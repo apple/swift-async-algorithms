@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import OrderedCollections
+
 /// An error-throwing channel for sending elements from on task to another with back pressure.
 ///
 /// The `AsyncThrowingChannel` class is intended to be used as a communication types between tasks,
@@ -95,8 +97,8 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   
   enum Emission {
     case idle
-    case pending(Set<Pending>)
-    case awaiting(Set<Awaiting>)
+    case pending(OrderedSet<Pending>)
+    case awaiting(OrderedSet<Awaiting>)
     case terminated(Termination)
   }
   
@@ -167,7 +169,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           }
           return UnsafeResumption(continuation: send.continuation, success: continuation)
         case .awaiting(var nexts):
-          nexts.update(with: Awaiting(generation: generation, continuation: continuation))
+          nexts.updateOrAppend(Awaiting(generation: generation, continuation: continuation))
           state.emission = .awaiting(nexts)
           return nil
         case .terminated(let termination):
@@ -235,7 +237,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           state.emission = .pending([Pending(generation: generation, continuation: continuation)])
           return nil
         case .pending(var sends):
-          sends.update(with: Pending(generation: generation, continuation: continuation))
+          sends.updateOrAppend(Pending(generation: generation, continuation: continuation))
           state.emission = .pending(sends)
           return nil
         case .awaiting(var nexts):
@@ -255,7 +257,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   }
 
   func terminateAll(error: Failure? = nil) {
-    let (sends, nexts) = state.withCriticalRegion { state -> (Set<Pending>, Set<Awaiting>) in
+    let (sends, nexts) = state.withCriticalRegion { state -> (OrderedSet<Pending>, OrderedSet<Awaiting>) in
 
       let nextState: Emission
       if let error = error {
@@ -297,6 +299,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
   /// or when a call to `finish()`/`fail(_:)` is made from another Task.
   /// If the channel is already finished then this returns immediately
+  /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
     let generation = establish()
     let sendTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
