@@ -1,6 +1,6 @@
 # Combine Latest
 
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-combineLatest.md)
+* Proposal: [SAA-0006](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0006-combineLatest.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
 
