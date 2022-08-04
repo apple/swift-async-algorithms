@@ -1,6 +1,6 @@
 # AdjacentPairs
 
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-adjacent-pairs.md)
+* Proposal: [SAA-0005](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0005-adjacent-pairs.md)
 * Author(s): [László Teveli](https://github.com/tevelee)
 * Review Manager: [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
