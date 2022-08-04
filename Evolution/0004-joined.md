@@ -1,6 +1,6 @@
 # Joined
 
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-joined.md)
+* Proposal: [SAA-0004](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0004-joined.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Review Manager: [Franz Busch](https://github.com/FranzBusch)
 * Status: **Implemented**
