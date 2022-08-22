@@ -88,12 +88,10 @@ public actor AsyncExpectation {
     }
     
     let timeout = Task {
-      do {
-        try await Task.sleep(seconds: timeout)
-        for exp in expectations {
-          await exp.timeOut(file: file, line: line)
-        }
-      } catch {}
+      try? await Task.sleep(seconds: timeout)
+      for exp in expectations {
+        await exp.timeOut(file: file, line: line)
+      }
     }
     
     await waitUsingTaskGroup(expectations)
@@ -105,9 +103,7 @@ public actor AsyncExpectation {
     await withTaskGroup(of: Void.self) { group in
       for exp in expectations {
         group.addTask {
-          do {
-            try await exp.wait()
-          } catch {}
+          try? await exp.wait()
         }
       }
     }
