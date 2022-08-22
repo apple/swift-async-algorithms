@@ -64,7 +64,7 @@ final class TestChannel: XCTestCase {
   }
   
   func test_asyncThrowingChannel_throws_and_discards_additional_sent_values_when_fail_is_called() async {
-    let sendImmediatelyResumes = expectation(description: "Send immediately resumes after fail")
+    let sendImmediatelyResumes = asyncExpectation(description: "Send immediately resumes after fail")
 
     let channel = AsyncThrowingChannel<String, Error>()
     channel.fail(Failure())
@@ -85,14 +85,17 @@ final class TestChannel: XCTestCase {
     }
 
     await channel.send("send")
-    sendImmediatelyResumes.fulfill()
-    wait(for: [sendImmediatelyResumes], timeout: 1.0)
+    await sendImmediatelyResumes.fulfill()
+    await waitForExpectations([sendImmediatelyResumes])
   }
 
   func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async throws {
     let channel = AsyncChannel<String>()
     let complete = ManagedCriticalState(false)
-    let finished = AsyncExpectation.expectation(description: "finished")
+    let finished = asyncExpectation(description: "finished")
+    let received = asyncExpectation(description: "received", expectedFulfillmentCount: 2)
+    let pastEnd = asyncExpectation(description: "pastEnd", expectedFulfillmentCount: 2)
+    let additionalSend = asyncExpectation(description: "additional send")
 
     Task {
       channel.finish()
@@ -102,10 +105,6 @@ final class TestChannel: XCTestCase {
 
     let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
     let valueFromConsumer2 = ManagedCriticalState<String?>(nil)
-
-    let received = AsyncExpectation.expectation(description: "received", expectedFulfillmentCount: 2)
-
-    let pastEnd = AsyncExpectation.expectation(description: "pastEnd", expectedFulfillmentCount: 2)
 
     Task {
       var iterator = channel.makeAsyncIterator()
@@ -127,25 +126,27 @@ final class TestChannel: XCTestCase {
       await pastEnd.fulfill()
     }
     
-    try await AsyncExpectation.waitForExpectations([finished, received], timeout: 1.0)
+    await waitForExpectations([finished, received])
 
     XCTAssertTrue(complete.withCriticalRegion { $0 })
     XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)
     XCTAssertEqual(valueFromConsumer2.withCriticalRegion { $0 }, nil)
 
-    try await AsyncExpectation.waitForExpectations([pastEnd], timeout: 1.0)
-    let additionalSend = AsyncExpectation.expectation(description: "additional send")
+    await waitForExpectations([pastEnd])
     Task {
       await channel.send("test")
       await additionalSend.fulfill()
     }
-    try await AsyncExpectation.waitForExpectations([additionalSend], timeout: 1.0)
+    await waitForExpectations([additionalSend])
   }
   
   func test_asyncThrowingChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async throws {
     let channel = AsyncThrowingChannel<String, Error>()
     let complete = ManagedCriticalState(false)
-    let finished = AsyncExpectation.expectation(description: "finished")
+    let finished = asyncExpectation(description: "finished")
+    let received = asyncExpectation(description: "received", expectedFulfillmentCount: 2)
+    let pastEnd = asyncExpectation(description: "pastEnd", expectedFulfillmentCount: 2)
+    let additionalSend = asyncExpectation(description: "additional send")
     
     Task {
       channel.finish()
@@ -155,10 +156,6 @@ final class TestChannel: XCTestCase {
 
     let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
     let valueFromConsumer2 = ManagedCriticalState<String?>(nil)
-
-    let received = AsyncExpectation.expectation(description: "received", expectedFulfillmentCount: 2)
-
-    let pastEnd = AsyncExpectation.expectation(description: "pastEnd", expectedFulfillmentCount: 2)
 
     Task {
       var iterator = channel.makeAsyncIterator()
@@ -180,92 +177,83 @@ final class TestChannel: XCTestCase {
       await pastEnd.fulfill()
     }
     
-    try await AsyncExpectation.waitForExpectations([finished, received], timeout: 1.0)
+    await waitForExpectations([finished, received])
 
     XCTAssertTrue(complete.withCriticalRegion { $0 })
     XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)
     XCTAssertEqual(valueFromConsumer2.withCriticalRegion { $0 }, nil)
 
-    try await AsyncExpectation.waitForExpectations([pastEnd], timeout: 1.0)
-    let additionalSend = AsyncExpectation.expectation(description: "additional send")
+    await waitForExpectations([pastEnd])
     Task {
       await channel.send("test")
       await additionalSend.fulfill()
     }
-    try await AsyncExpectation.waitForExpectations([additionalSend], timeout: 1.0)
+    await waitForExpectations([additionalSend])
   }
   
   func test_asyncChannel_ends_iterator_when_task_is_cancelled() async {
     let channel = AsyncChannel<String>()
-    let ready = expectation(description: "ready")
+    let ready = asyncExpectation(description: "ready")
+    let done = asyncExpectation(description: "done")
     let task: Task<String?, Never> = Task {
       var iterator = channel.makeAsyncIterator()
-      ready.fulfill()
+      await ready.fulfill()
       return await iterator.next()
     }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([ready])
     task.cancel()
-    let done = expectation(description: "done")
     Task {
       let value = await task.value
       XCTAssertNil(value)
-      done.fulfill()
+      await done.fulfill()
     }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([done])
   }
 
   func test_asyncThrowingChannel_ends_iterator_when_task_is_cancelled() async throws {
     let channel = AsyncThrowingChannel<String, Error>()
-    let ready = expectation(description: "ready")
+    let ready = asyncExpectation(description: "ready")
+    let done = asyncExpectation(description: "done")
     let task: Task<String?, Error> = Task {
       var iterator = channel.makeAsyncIterator()
-      ready.fulfill()
+      await ready.fulfill()
       return try await iterator.next()
     }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([ready])
     task.cancel()
-    let done = expectation(description: "done")
     Task {
       let value = try await task.value
       XCTAssertNil(value)
-      done.fulfill()
+      await done.fulfill()
     }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([done])
   }
   
   func test_asyncChannel_resumes_send_when_task_is_cancelled() async {
     let channel = AsyncChannel<Int>()
-    let notYetDone = expectation(description: "not yet done")
-    notYetDone.isInverted = true
+    let notYetDone = asyncExpectation(description: "not yet done", isInverted: true)
+    let done = asyncExpectation(description: "done")
     let task = Task {
       await channel.send(1)
-      notYetDone.fulfill()
+      await notYetDone.fulfill()
+      await done.fulfill()
     }
-    await waitForExpectations(timeout: 0.1)
+    await waitForExpectations([notYetDone], timeout: 0.1)
     task.cancel()
-    let done = expectation(description: "done")
-    Task {
-        _ = await task.value
-        done.fulfill()
-    }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([done])
   }
   
   func test_asyncThrowingChannel_resumes_send_when_task_is_cancelled() async {
     let channel = AsyncThrowingChannel<Int, Error>()
-    let notYetDone = expectation(description: "not yet done")
-    notYetDone.isInverted = true
+    let notYetDone = asyncExpectation(description: "not yet done", isInverted: true)
+    let done = asyncExpectation(description: "done")
     let task = Task {
       await channel.send(1)
-      notYetDone.fulfill()
+      await notYetDone.fulfill()
+      await done.fulfill()
     }
-    await waitForExpectations(timeout: 0.1)
+    await waitForExpectations([notYetDone], timeout: 0.1)
     task.cancel()
-    let done = expectation(description: "done")
-    Task {
-        _ = await task.value
-        done.fulfill()
-    }
-    await waitForExpectations(timeout: 1.0)
+    await waitForExpectations([done])
   }
 }
