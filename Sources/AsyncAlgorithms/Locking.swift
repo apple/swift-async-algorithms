@@ -96,7 +96,7 @@ internal struct Lock {
     ///
     /// - Parameter body: The block to execute while holding the lock.
     /// - Returns: The value returned by the block.
-    public func withLock<T>(_ body: () throws -> T) rethrows -> T {
+    func withLock<T>(_ body: () throws -> T) rethrows -> T {
         self.lock()
         defer {
             self.unlock()
@@ -105,7 +105,7 @@ internal struct Lock {
     }
 
     // specialise Void return (for performance)
-    public func withLockVoid(_ body: () throws -> Void) rethrows -> Void {
+    func withLockVoid(_ body: () throws -> Void) rethrows -> Void {
         try self.withLock(body)
     }
 }
