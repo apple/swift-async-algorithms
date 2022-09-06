@@ -9,46 +9,40 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// Creates an asynchronous sequence of elements from two underlying asynchronous sequences
-public func merge<Base1: AsyncSequence, Base2: AsyncSequence>(
-  _ base1: Base1,
-  _ base2: Base2
-) -> AsyncMerge2Sequence<Base1, Base2>{
-  AsyncMerge2Sequence(base1, base2)
+/// Creates an asynchronous sequence of elements from many underlying asynchronous sequences
+public func merge<Base: AsyncSequence>(
+  _ bases: Base...
+) -> AsyncMergeSequence<Base>{
+  AsyncMergeSequence(bases)
 }
 
-/// An asynchronous sequence of elements from two underlying asynchronous sequences
+/// An asynchronous sequence of elements from many underlying asynchronous sequences
 ///
-/// In a `AsyncMerge2Sequence` instance, the *i*th element is the *i*th element
+/// In a `AsyncMergeSequence` instance, the *i*th element is the *i*th element
 /// resolved in sequential order out of the two underlying asynchronous sequences.
-/// Use the `merge(_:_:)` function to create an `AsyncMerge2Sequence`.
-public struct AsyncMerge2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: AsyncSequence
-where Base1.Element == Base2.Element {
-  public typealias Element = Base1.Element
+/// Use the `merge(...)` function to create an `AsyncMergeSequence`.
+public struct AsyncMergeSequence<Base: AsyncSequence>: AsyncSequence {
+  public typealias Element = Base.Element
   public typealias AsyncIterator = Iterator
 
-  let base1: Base1
-  let base2: Base2
+  let bases: [Base]
 
-  public init(_ base1: Base1, _ base2: Base2) {
-    self.base1 = base1
-    self.base2 = base2
+  public init(_ bases: [Base]) {
+    self.bases = bases
   }
 
   public func makeAsyncIterator() -> Iterator {
     Iterator(
-      base1: self.base1,
-      base2: self.base2
+      bases: self.bases
     )
   }
 
   public struct Iterator: AsyncIteratorProtocol {
     let mergeStateMachine: MergeStateMachine<Element>
 
-    init(base1: Base1, base2: Base2) {
+    init(bases: [Base]) {
       self.mergeStateMachine = MergeStateMachine(
-        base1,
-        base2
+        bases
       )
     }
 
@@ -64,5 +58,5 @@ where Base1.Element == Base2.Element {
   }
 }
 
-extension AsyncMerge2Sequence: Sendable where Base1: Sendable, Base2: Sendable {}
-extension AsyncMerge2Sequence.Iterator: Sendable where Base1: Sendable, Base2: Sendable {}
+extension AsyncMergeSequence: Sendable where Base: Sendable {}
+extension AsyncMergeSequence.Iterator: Sendable where Base: Sendable {}

@@ -104,7 +104,7 @@ extension XCTestCase {
       self.wait(for: [exp], timeout: sampleTime * 2)
     }
   }
-    
+
   public func measureSequenceThroughput<S: AsyncSequence, Output>(firstOutput: @autoclosure () -> Output, secondOutput: @autoclosure () -> Output, thirdOutput: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
     let metric = _ThroughputMetric()
     let sampleTime: Double = 0.1
@@ -129,7 +129,40 @@ extension XCTestCase {
       iterTask.cancel()
       self.wait(for: [exp], timeout: sampleTime * 2)
     }
-}
+  }
+
+  public func measureSequenceThroughput<S: AsyncSequence, Output>(
+    firstOutput: @autoclosure () -> Output,
+    secondOutput: @autoclosure () -> Output,
+    thirdOutput: @autoclosure () -> Output,
+    fourthOutput: @autoclosure () -> Output,
+    _ sequenceBuilder: (InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>, InfiniteAsyncSequence<Output>
+    ) -> S) async where S: Sendable {
+    let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
+
+    measure(metrics: [metric]) {
+      let firstInfSeq = InfiniteAsyncSequence(value: firstOutput())
+      let secondInfSeq = InfiniteAsyncSequence(value: secondOutput())
+      let thirdInfSeq = InfiniteAsyncSequence(value: thirdOutput())
+      let fourthInfSeq = InfiniteAsyncSequence(value: thirdOutput())
+      let seq = sequenceBuilder(firstInfSeq, secondInfSeq, thirdInfSeq, fourthInfSeq)
+
+      let exp = self.expectation(description: "Finished")
+      let iterTask = Task<Int, Error> {
+        var eventCount = 0
+        for try await _ in seq {
+          eventCount += 1
+        }
+        metric.eventCount = eventCount
+        exp.fulfill()
+        return eventCount
+      }
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
+      iterTask.cancel()
+      self.wait(for: [exp], timeout: sampleTime * 2)
+    }
+  }
   
   public func measureSequenceThroughput<S: AsyncSequence, Source: AsyncSequence>( source: Source, _ sequenceBuilder: (Source) -> S) async where S: Sendable, Source: Sendable {
     let metric = _ThroughputMetric()

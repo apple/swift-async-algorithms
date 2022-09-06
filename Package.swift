@@ -16,9 +16,14 @@ let package = Package(
     .library(name: "_CAsyncSequenceValidationSupport", type: .static, targets: ["AsyncSequenceValidation"]),
     .library(name: "AsyncAlgorithms_XCTest", targets: ["AsyncAlgorithms_XCTest"]),
   ],
-  dependencies: [],
+  dependencies: [
+    .package(url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.0.3"))
+  ],
   targets: [
-    .target(name: "AsyncAlgorithms"),
+    .target(
+      name: "AsyncAlgorithms",
+      dependencies: [.product(name: "Collections", package: "swift-collections")]
+    ),
     .target(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),

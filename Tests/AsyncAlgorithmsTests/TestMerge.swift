@@ -84,6 +84,7 @@ final class TestMerge2: XCTestCase {
     } catch {
       XCTAssertEqual(Failure(), error as? Failure)
     }
+
     let pastEnd = try await iterator.next()
 
     XCTAssertNil(pastEnd)

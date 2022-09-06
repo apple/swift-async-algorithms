@@ -60,34 +60,50 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
 
   public typealias Element = Collected
 
+  enum Either {
+    case first(Base.Element)
+    case second(Signal.Element)
+  }
+
   /// The iterator for a `AsyncChunksOfCountOrSignalSequence` instance.
   public struct Iterator: AsyncIteratorProtocol, Sendable {
     let count: Int?
-    var state: Merge2StateMachine<Base, Signal>
-    init(base: Base.AsyncIterator, count: Int?, signal: Signal.AsyncIterator) {
+    let state: MergeStateMachine<Either>
+    init(base: Base, count: Int?, signal: Signal) {
       self.count = count
-      self.state = Merge2StateMachine(base, terminatesOnNil: true, signal)
+      let eitherBase = base.map { Either.first($0) }
+      let eitherSignal = signal.map { Either.second($0) }
+      self.state = MergeStateMachine(eitherBase, terminatesOnNil: true, eitherSignal)
     }
-    
+
     public mutating func next() async rethrows -> Collected? {
-      var result : Collected?
-      while let next = try await state.next() {
-        switch next {
-          case .first(let element):
-            if result == nil {
-              result = Collected()
-            }
-            result!.append(element)
-            if result?.count == count {
-              return result
-            }
-          case .second(_):
-            if result != nil {
-              return result
-            }
-        }
+      var collected: Collected?
+
+    loop: while true {
+      let next = await state.next()
+
+      switch next {
+        case .termination:
+          break loop
+        case .element(let result):
+          let element = try result._rethrowGet()
+          switch element {
+            case .first(let element):
+              if collected == nil {
+                collected = Collected()
+              }
+              collected!.append(element)
+              if collected?.count == count {
+                return collected
+              }
+            case .second(_):
+              if collected != nil {
+                return collected
+              }
+          }
       }
-      return result
+    }
+      return collected
     }
   }
 
@@ -105,6 +121,6 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
   }
 
   public func makeAsyncIterator() -> Iterator {
-    return Iterator(base: base.makeAsyncIterator(), count: count, signal: signal.makeAsyncIterator())
+    return Iterator(base: base, count: count, signal: signal)
   }
 }

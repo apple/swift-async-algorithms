@@ -49,6 +49,11 @@ final class TestThroughput: XCTestCase {
       merge($0, $1, $2)
     }
   }
+  func test_merge4() async {
+    await measureSequenceThroughput(firstOutput: 1, secondOutput: 2, thirdOutput: 3, fourthOutput: 4) {
+      merge($0, $1, $2, $3)
+    }
+  }
   func test_removeDuplicates() async {
     await measureSequenceThroughput(source: (1...).async) {
       $0.removeDuplicates()

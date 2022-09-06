@@ -28,7 +28,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     init(_ channel: AsyncChannel<Element>) {
       self.channel = channel
     }
-    
+
     /// Await the next sent element or finish.
     public mutating func next() async -> Element? {
       guard active else {
@@ -116,7 +116,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   
   /// Create a new `AsyncChannel` given an element type.
   public init(element elementType: Element.Type = Element.self) { }
-  
+
   func establish() -> Int {
     state.withCriticalRegion { state in
       defer { state.generation &+= 1 }
@@ -152,7 +152,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           }
           return UnsafeResumption(continuation: send, success: continuation)
         case .awaiting(var nexts):
-          if nexts.update(with: Awaiting(generation: generation, continuation: continuation)) != nil {
+            if nexts.update(with: Awaiting(generation: generation, continuation: continuation)) != nil {
             nexts.remove(Awaiting(placeholder: generation))
             cancelled = true
           }
