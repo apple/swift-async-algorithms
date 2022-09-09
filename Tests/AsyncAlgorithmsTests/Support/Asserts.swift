@@ -150,3 +150,18 @@ fileprivate func ==<A: Equatable, B: Equatable, C: Equatable>(_ lhs: [(A, B, C)]
 public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(_ expression1: @autoclosure () throws -> [(A, B, C)], _ expression2: @autoclosure () throws -> [(A, B, C)], _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
+
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+internal func XCTAssertThrowsError<T>(
+    _ expression: @autoclosure () async throws -> T,
+    file: StaticString = #file,
+    line: UInt = #line,
+    verify: (Error) -> Void = { _ in }
+) async {
+    do {
+        _ = try await expression()
+        XCTFail("Expression did not throw error", file: file, line: line)
+    } catch {
+        verify(error)
+    }
+}

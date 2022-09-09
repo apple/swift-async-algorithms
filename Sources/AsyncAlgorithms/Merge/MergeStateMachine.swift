@@ -92,12 +92,12 @@ struct MergeStateMachine<
             // An iterator was created and we deinited the sequence.
             // This is an expected pattern and we just continue on normal.
             // Importantly since we are a unicast sequence no more iterators can be created
-            break
+            return
 
         case .finished:
             // We are already finished so there is nothing left to clean up.
             // This is just the references dropping afterwards.
-            break
+            return
 
         case .modifying:
             preconditionFailure("Invalid state")
@@ -160,7 +160,7 @@ struct MergeStateMachine<
         case .upstreamFailure:
             // The iterator was dropped which signals that the consumer is finished.
             // We can transition to finished now. The cleanup already happened when we
-            // transitioned to `upstreamThrew`.
+            // transitioned to `upstreamFailure`.
             state = .finished
 
             return .none

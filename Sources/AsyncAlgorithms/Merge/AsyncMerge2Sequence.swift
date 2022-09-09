@@ -79,8 +79,8 @@ extension AsyncMerge2Sequence: AsyncSequence {
     }
 }
 
-public extension AsyncMerge2Sequence {
-    struct AsyncIterator: AsyncIteratorProtocol {
+extension AsyncMerge2Sequence {
+    public struct AsyncIterator: AsyncIteratorProtocol {
         /// This class is needed to hook the deinit to observe once all references to the ``AsyncIterator`` are dropped.
         ///
         /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncIterator`` struct itself.
