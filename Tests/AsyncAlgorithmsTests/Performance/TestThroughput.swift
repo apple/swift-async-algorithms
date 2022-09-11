@@ -64,5 +64,11 @@ final class TestThroughput: XCTestCase {
       zip($0, $1, $2)
     }
   }
+  @available(macOS 13.0, *)
+  func test_debounce() async {
+      await measureSequenceThroughput(source: (1...).async) {
+          $0.debounce(for: .zero, clock: ContinuousClock())
+      }
+  }
 }
 #endif

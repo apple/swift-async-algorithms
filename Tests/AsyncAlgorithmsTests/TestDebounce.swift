@@ -58,4 +58,14 @@ final class TestDebounce: XCTestCase {
       "----|"
     }
   }
+
+    func test_Rethrows() async throws {
+        guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
+
+        let debounce = [1].async.debounce(for: .zero, clock: ContinuousClock())
+        for await _ in debounce {}
+
+        let throwingDebounce = [1].async.map { try throwOn(2, $0) }.debounce(for: .zero, clock: ContinuousClock())
+        for try await _ in throwingDebounce {}
+    }
 }
