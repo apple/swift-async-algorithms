@@ -325,6 +325,15 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
         )
+        /// Indicates that the downstream continuation should be resumed with `nil` and
+        /// the task and the upstream continuation should be cancelled.
+        case resumeContinuationWithElementAndCancelTaskAndUpstreamAndClockContinuation(
+            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            element: Element,
+            task: Task<Void, Never>,
+            upstreamContinuation: UnsafeContinuation<Void, Error>?,
+            clockContinuation: UnsafeContinuation<C.Instant, Error>?
+        )
         /// Indicates that nothing should be done.
         case none
     }
@@ -372,13 +381,14 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
                 clockContinuation: clockContinuation
             )
 
-        case .debouncing(let task, let upstreamContinuation, let downstreamContinuation, _):
+        case .debouncing(let task, let upstreamContinuation, let downstreamContinuation, let currentElement):
             // We are debouncing and the upstream finished. At this point
-            // we can just resume the downstream continuation with nil and cancel everything else
+            // we can just resume the downstream continuation with element and cancel everything else
             self.state = .finished
 
-            return .resumeContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
+            return .resumeContinuationWithElementAndCancelTaskAndUpstreamAndClockContinuation(
                 downstreamContinuation: downstreamContinuation,
+                element: currentElement.element,
                 task: task,
                 upstreamContinuation: upstreamContinuation,
                 clockContinuation: nil

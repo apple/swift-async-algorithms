@@ -27,7 +27,7 @@ final class TestDebounce: XCTestCase {
     validate {
       "abcd----e---f-g-|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
-      "------d----e----|"
+      "------d----e----[g|]"
     }
   }
 
@@ -37,7 +37,7 @@ final class TestDebounce: XCTestCase {
     validate {
       "a|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
-      "-|"
+      "-[a|]"
     }
   }
   
