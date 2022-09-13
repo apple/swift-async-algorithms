@@ -29,28 +29,10 @@ extension AsyncSequence {
 /// has elapsed.
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable where Base: Sendable {
-    /// This class is needed to hook the deinit to observe once all references to the ``AsyncDebounceSequence`` are dropped.
-    ///
-    /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncDebounceSequence`` struct itself.
-    final class InternalClass: Sendable {
-        fileprivate let storage: DebounceStorage<Base, C>
-
-        fileprivate init(storage: DebounceStorage<Base, C>) {
-            self.storage = storage
-        }
-
-        deinit {
-            storage.sequenceDeinitialized()
-        }
-    }
-
-    /// The internal class to hook the `deinit`.
-    let internalClass: InternalClass
-
-    /// The underlying storage
-    fileprivate var storage: DebounceStorage<Base, C> {
-        self.internalClass.storage
-    }
+    private let base: Base
+    private let clock: C
+    private let interval: C.Instant.Duration
+    private let tolerance: C.Instant.Duration?
 
     /// Initializes a new ``AsyncDebounceSequence``.
     ///
@@ -60,13 +42,10 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable whe
     ///   - tolerance: The tolerance of the clock.
     ///   - clock: The clock.
     public init(_ base: Base, interval: C.Instant.Duration, tolerance: C.Instant.Duration?, clock: C) {
-        let storage = DebounceStorage<Base, C>(
-            base: base,
-            interval: interval,
-            tolerance: tolerance,
-            clock: clock
-        )
-        self.internalClass = .init(storage: storage)
+        self.base = base
+        self.interval = interval
+        self.tolerance = tolerance
+        self.clock = clock
     }
 }
 
@@ -75,7 +54,13 @@ extension AsyncDebounceSequence: AsyncSequence {
     public typealias Element = Base.Element
 
     public func makeAsyncIterator() -> AsyncIterator {
-        AsyncIterator(storage: self.internalClass.storage)
+        let storage = DebounceStorage(
+            base: self.base,
+            interval: self.interval,
+            tolerance: self.tolerance,
+            clock: self.clock
+        )
+        return AsyncIterator(storage: storage)
     }
 }
 

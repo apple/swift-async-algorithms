@@ -13,10 +13,8 @@
 final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable where Base: Sendable {
     typealias Element = Base.Element
 
-    /// The lock that protects our state.
-    private let lock = Lock.allocate()
-    /// The state machine.
-    private var stateMachine: DebounceStateMachine<Base, C>
+    /// The state machine protected with a lock.
+    private let stateMachine: ManagedCriticalState<DebounceStateMachine<Base, C>>
     /// The interval to debounce.
     private let interval: C.Instant.Duration
     /// The tolerance for the clock.
@@ -25,23 +23,19 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
     private let clock: C
 
     init(base: Base, interval: C.Instant.Duration, tolerance: C.Instant.Duration?, clock: C) {
-        self.stateMachine = .init(base: base, clock: clock, interval: interval)
+        self.stateMachine = .init(.init(base: base, clock: clock, interval: interval))
         self.interval = interval
         self.tolerance = tolerance
         self.clock = clock
     }
 
-    deinit {
-        self.lock.deinitialize()
-    }
-
     func sequenceDeinitialized() {
-        self.lock.withLock { self.stateMachine.sequenceDeinitialized() }
+        self.stateMachine.withCriticalRegion { $0.sequenceDeinitialized() }
     }
 
     func iteratorInitialized() {
-        self.lock.withLockVoid {
-            let action = self.stateMachine.iteratorInitialized()
+        self.stateMachine.withCriticalRegion {
+            let action = $0.iteratorInitialized()
 
             switch action {
             case .startTask(let base):
@@ -58,9 +52,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                 // if the downstream consumer called `next` to signal his demand
                                 // and until the Clock sleep finished.
                                 try await withUnsafeThrowingContinuation { continuation in
-                                    let action = self.lock.withLock {
-                                        self.stateMachine.upstreamTaskSuspended(continuation)
-                                    }
+                                    let action = self.stateMachine.withCriticalRegion { $0.upstreamTaskSuspended(continuation) }
 
                                     switch action {
                                     case .resumeContinuation(let continuation):
@@ -80,9 +72,9 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                 // We got signalled from the downstream that we have demand so let's
                                 // request a new element from the upstream
                                 if let element = try await iterator.next() {
-                                    let action = self.lock.withLock {
+                                    let action = self.stateMachine.withCriticalRegion {
                                         let deadline = self.clock.now.advanced(by: self.interval)
-                                        return self.stateMachine.elementProduced(element, deadline: deadline)
+                                        return $0.elementProduced(element, deadline: deadline)
                                     }
 
                                     switch action {
@@ -94,9 +86,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                     }
                                 } else {
                                     // The upstream returned `nil` which indicates that it finished
-                                    let action = self.lock.withLock {
-                                        self.stateMachine.upstreamFinished()
-                                    }
+                                    let action = self.stateMachine.withCriticalRegion { $0.upstreamFinished() }
 
                                     // All of this is mostly cleanup around the Task and the outstanding
                                     // continuations used for signalling.
@@ -116,7 +106,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                         clockContinuation?.resume(throwing: CancellationError())
                                         task.cancel()
 
-                                        downstreamContinuation.resume(returning: nil)
+                                        downstreamContinuation.resume(returning: .success(nil))
 
                                         break loop
 
@@ -131,10 +121,9 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                         clockContinuation?.resume(throwing: CancellationError())
                                         task.cancel()
 
-                                        downstreamContinuation.resume(returning: element)
+                                        downstreamContinuation.resume(returning: .success(element))
 
                                         break loop
-
 
                                     case .none:
 
@@ -151,9 +140,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                                     // We are creating a continuation sleeping on the Clock.
                                     // This continuation is only resumed if the downstream consumer called `next`.
                                     let deadline: C.Instant = try await withUnsafeThrowingContinuation { continuation in
-                                        let action = self.lock.withLock {
-                                            self.stateMachine.clockTaskSuspended(continuation)
-                                        }
+                                        let action = self.stateMachine.withCriticalRegion { $0.clockTaskSuspended(continuation) }
 
                                         switch action {
                                         case .resumeContinuation(let continuation, let deadline):
@@ -172,13 +159,11 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
 
                                     try await self.clock.sleep(until: deadline, tolerance: self.tolerance)
 
-                                    let action = self.lock.withLock {
-                                        self.stateMachine.clockSleepFinished()
-                                    }
+                                    let action = self.stateMachine.withCriticalRegion { $0.clockSleepFinished() }
 
                                     switch action {
                                     case .resumeDownStreamContinuation(let downStreamContinuation, let element):
-                                        downStreamContinuation.resume(returning: element)
+                                        downStreamContinuation.resume(returning: .success(element))
 
                                     case .none:
                                         break
@@ -197,9 +182,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                             try await group.waitForAll()
                         } catch {
                             // The upstream sequence threw an error
-                            let action = self.lock.withLock {
-                                self.stateMachine.upstreamThrew(error)
-                            }
+                            let action = self.stateMachine.withCriticalRegion { $0.upstreamThrew(error) }
 
                             switch action {
                             case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
@@ -214,7 +197,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
 
                                 task.cancel()
 
-                                downstreamContinuation.resume(throwing: error)
+                                downstreamContinuation.resume(returning: .failure(error))
 
                             case .cancelTaskAndClockContinuation(
                                 let task,
@@ -232,13 +215,13 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                     }
                 }
 
-                self.stateMachine.taskStarted(task)
+                $0.taskStarted(task)
             }
         }
     }
 
     func iteratorDeinitialized() {
-        let action = self.lock.withLock { self.stateMachine.iteratorDeinitialized() }
+        let action = self.stateMachine.withCriticalRegion { $0.iteratorDeinitialized() }
 
         switch action {
         case .cancelTaskAndUpstreamAndClockContinuations(
@@ -262,10 +245,8 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
         return try await withTaskCancellationHandler {
             // We always suspend since we can never return an element right away
 
-            self.lock.lock()
-            return try await withUnsafeThrowingContinuation { continuation in
-                let action = self.stateMachine.next(for: continuation)
-                self.lock.unlock()
+            let result: Result<Element?, Error> = await withUnsafeContinuation { continuation in
+                let action = self.stateMachine.withCriticalRegion { $0.next(for: continuation) }
 
                 switch action {
                 case .resumeUpstreamContinuation(let upstreamContinuation):
@@ -280,14 +261,16 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                     clockContinuation?.resume(returning: deadline)
 
                 case .resumeDownstreamContinuationWithNil(let continuation):
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: .success(nil))
 
                 case .resumeDownstreamContinuationWithError(let continuation, let error):
-                    continuation.resume(throwing: error)
+                    continuation.resume(returning: .failure(error))
                 }
             }
+
+            return try result._rethrowGet()
         } onCancel: {
-            let action = self.lock.withLock { self.stateMachine.cancelled() }
+            let action = self.stateMachine.withCriticalRegion { $0.cancelled() }
 
             switch action {
             case .resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
@@ -301,7 +284,7 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
 
                 task.cancel()
 
-                downstreamContinuation.resume(returning: nil)
+                downstreamContinuation.resume(returning: .success(nil))
 
             case .none:
                 break

@@ -30,14 +30,14 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         case demandSignalled(
             task: Task<Void, Never>,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?,
-            downstreamContinuation: UnsafeContinuation<Element?, Error>
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>
         )
 
         /// The state while we are consuming the upstream and waiting for the Clock.sleep to finish.
         case debouncing(
             task: Task<Void, Never>,
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
-            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             currentElement: (element: Element, deadline: C.Instant)
         )
 
@@ -110,11 +110,9 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func iteratorDeinitialized() -> IteratorDeinitializedAction {
+    mutating func iteratorDeinitialized() -> IteratorDeinitializedAction? {
         switch self.state {
         case .initial:
             // An iterator needs to be initialized before it can be deinitialized.
@@ -179,11 +177,9 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             upstreamContinuation: UnsafeContinuation<Void, Error>,
             error: Error
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func upstreamTaskSuspended(_ continuation: UnsafeContinuation<Void, Error>) -> UpstreamTaskSuspendedAction {
+    mutating func upstreamTaskSuspended(_ continuation: UnsafeContinuation<Void, Error>) -> UpstreamTaskSuspendedAction? {
         switch self.state {
         case .initial:
             // Child tasks are only created after we transitioned to `merging`
@@ -240,11 +236,9 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             clockContinuation: UnsafeContinuation<C.Instant, Error>?,
             deadline: C.Instant
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func elementProduced(_ element: Element, deadline: C.Instant) -> ElementProducedAction {
+    mutating func elementProduced(_ element: Element, deadline: C.Instant) -> ElementProducedAction? {
         switch self.state {
         case .initial:
             // Child tasks that are producing elements are only created after we transitioned to `merging`
@@ -320,7 +314,7 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         /// Indicates that the downstream continuation should be resumed with `nil` and
         /// the task and the upstream continuation should be cancelled.
         case resumeContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
-            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             task: Task<Void, Never>,
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
@@ -328,17 +322,15 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         /// Indicates that the downstream continuation should be resumed with `nil` and
         /// the task and the upstream continuation should be cancelled.
         case resumeContinuationWithElementAndCancelTaskAndUpstreamAndClockContinuation(
-            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             element: Element,
             task: Task<Void, Never>,
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func upstreamFinished() -> UpstreamFinishedAction {
+    mutating func upstreamFinished() -> UpstreamFinishedAction? {
         switch self.state {
         case .initial:
             preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamFinished()")
@@ -410,17 +402,15 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         /// Indicates that the downstream continuation should be resumed with the `error` and
         /// the task and the upstream continuation should be cancelled.
         case resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
-            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             error: Error,
             task: Task<Void, Never>,
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func upstreamThrew(_ error: Error) -> UpstreamThrewAction {
+    mutating func upstreamThrew(_ error: Error) -> UpstreamThrewAction? {
         switch self.state {
         case .initial:
             preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamThrew()")
@@ -495,11 +485,9 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             clockContinuation: UnsafeContinuation<C.Instant, Error>,
             error: Error
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func clockTaskSuspended(_ continuation: UnsafeContinuation<C.Instant, Error>) -> ClockTaskSuspendedAction {
+    mutating func clockTaskSuspended(_ continuation: UnsafeContinuation<C.Instant, Error>) -> ClockTaskSuspendedAction? {
         switch self.state {
         case .initial:
             // Child tasks are only created after we transitioned to `merging`
@@ -568,14 +556,12 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
     enum ClockSleepFinishedAction {
         /// Indicates that the downstream continuation should be resumed with the given element.
         case resumeDownStreamContinuation(
-            downStreamContinuation: UnsafeContinuation<Element?, Error>,
+            downStreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             element: Element
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func clockSleepFinished() -> ClockSleepFinishedAction {
+    mutating func clockSleepFinished() -> ClockSleepFinishedAction? {
         switch self.state {
         case .initial:
             // Child tasks are only created after we transitioned to `merging`
@@ -625,16 +611,14 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         /// Indicates that the downstream continuation needs to be resumed and
         /// task and the upstream continuations should be cancelled.
         case resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
-            downstreamContinuation: UnsafeContinuation<Element?, Error>,
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             task: Task<Void, Never>,
             upstreamContinuation: UnsafeContinuation<Void, Error>?,
             clockContinuation: UnsafeContinuation<C.Instant, Error>?
         )
-        /// Indicates that nothing should be done.
-        case none
     }
 
-    mutating func cancelled() -> CancelledAction {
+    mutating func cancelled() -> CancelledAction? {
         switch self.state {
         case .initial:
             // Since we are transitioning to `merging` before we return from `makeAsyncIterator`
@@ -696,15 +680,15 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             deadline: C.Instant
         )
         /// Indicates that the downstream continuation should be resumed with `nil`.
-        case resumeDownstreamContinuationWithNil(UnsafeContinuation<Element?, Error>)
+        case resumeDownstreamContinuationWithNil(UnsafeContinuation<Result<Element?, Error>, Never>)
         /// Indicates that the downstream continuation should be resumed with the error.
         case resumeDownstreamContinuationWithError(
-            UnsafeContinuation<Element?, Error>,
+            UnsafeContinuation<Result<Element?, Error>, Never>,
             Error
         )
     }
 
-    mutating func next(for continuation: UnsafeContinuation<Element?, Error>) -> NextAction {
+    mutating func next(for continuation: UnsafeContinuation<Result<Element?, Error>, Never>) -> NextAction {
         switch self.state {
         case .initial:
             preconditionFailure("Internal inconsistency current state \(self.state) and received next()")
