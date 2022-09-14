@@ -29,10 +29,6 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
         self.clock = clock
     }
 
-    func sequenceDeinitialized() {
-        self.stateMachine.withCriticalRegion { $0.sequenceDeinitialized() }
-    }
-
     func iteratorInitialized() {
         self.stateMachine.withCriticalRegion {
             let action = $0.iteratorInitialized()
