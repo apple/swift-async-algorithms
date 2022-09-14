@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import OrderedCollections
+
 /// An error-throwing channel for sending elements from on task to another with back pressure.
 ///
 /// The `AsyncThrowingChannel` class is intended to be used as a communication types between tasks,
@@ -32,12 +34,15 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       guard active else {
         return nil
       }
+
       let generation = channel.establish()
+      let nextTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
+
       do {
-        let value: Element? = try await withTaskCancellationHandler { [channel] in
-          channel.cancel(generation)
+        let value = try await withTaskCancellationHandler { [channel] in
+          channel.cancelNext(nextTokenStatus, generation)
         } operation: {
-          try await channel.next(generation)
+          try await channel.next(nextTokenStatus, generation)
         }
         
         if let value = value {
@@ -52,37 +57,37 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       }
     }
   }
-  
-  struct Awaiting: Hashable {
+
+  typealias Pending = ChannelToken<UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>>
+  typealias Awaiting = ChannelToken<UnsafeContinuation<Element?, Error>>
+
+  struct ChannelToken<Continuation>: Hashable {
     var generation: Int
-    var continuation: UnsafeContinuation<Element?, Error>?
-    let cancelled: Bool
-    
-    init(generation: Int, continuation: UnsafeContinuation<Element?, Error>) {
+    var continuation: Continuation?
+
+    init(generation: Int, continuation: Continuation) {
       self.generation = generation
       self.continuation = continuation
-      cancelled = false
     }
-    
+
     init(placeholder generation: Int) {
       self.generation = generation
       self.continuation = nil
-      cancelled = false
     }
-    
-    init(cancelled generation: Int) {
-      self.generation = generation
-      self.continuation = nil
-      cancelled = true
-    }
-    
+
     func hash(into hasher: inout Hasher) {
       hasher.combine(generation)
     }
-    
-    static func == (_ lhs: Awaiting, _ rhs: Awaiting) -> Bool {
+
+    static func == (_ lhs: ChannelToken, _ rhs: ChannelToken) -> Bool {
       return lhs.generation == rhs.generation
     }
+  }
+
+
+  enum ChannelTokenStatus: Equatable {
+    case new
+    case cancelled
   }
 
   enum Termination {
@@ -92,32 +97,9 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   
   enum Emission {
     case idle
-    case pending([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>])
-    case awaiting(Set<Awaiting>)
+    case pending(OrderedSet<Pending>)
+    case awaiting(OrderedSet<Awaiting>)
     case terminated(Termination)
-
-    var isTerminated: Bool {
-      guard case .terminated = self else { return false }
-      return true
-    }
-
-    mutating func cancel(_ generation: Int) -> UnsafeContinuation<Element?, Error>? {
-      switch self {
-      case .awaiting(var awaiting):
-        let continuation = awaiting.remove(Awaiting(placeholder: generation))?.continuation
-        if awaiting.isEmpty {
-           self = .idle
-         } else {
-           self = .awaiting(awaiting)
-         }
-        return continuation
-      case .idle:
-        self = .awaiting([Awaiting(cancelled: generation)])
-        return nil
-      default:
-        return nil
-      }
-    }
   }
   
   struct State {
@@ -135,19 +117,45 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       return state.generation
     }
   }
-  
-  func cancel(_ generation: Int) {
-    state.withCriticalRegion { state in
-      state.emission.cancel(generation)
+
+  func cancelNext(_ nextTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) {
+    state.withCriticalRegion { state -> UnsafeContinuation<Element?, Error>? in
+      let continuation: UnsafeContinuation<Element?, Error>?
+
+      switch state.emission {
+      case .awaiting(var nexts):
+        continuation = nexts.remove(Awaiting(placeholder: generation))?.continuation
+        if nexts.isEmpty {
+          state.emission = .idle
+        } else {
+          state.emission = .awaiting(nexts)
+        }
+      default:
+        continuation = nil
+      }
+
+      nextTokenStatus.withCriticalRegion { status in
+        if status == .new {
+          status = .cancelled
+        }
+      }
+
+      return continuation
     }?.resume(returning: nil)
   }
   
-  func next(_ generation: Int) async throws -> Element? {
-    return try await withUnsafeThrowingContinuation { continuation in
+  func next(_ nextTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) async throws -> Element? {
+    return try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Element?, Error>) in
       var cancelled = false
       var potentialTermination: Termination?
 
       state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
+
+        if nextTokenStatus.withCriticalRegion({ $0 }) == .cancelled {
+          cancelled = true
+          return nil
+        }
+
         switch state.emission {
         case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
@@ -159,17 +167,10 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           } else {
             state.emission = .pending(sends)
           }
-          return UnsafeResumption(continuation: send, success: continuation)
+          return UnsafeResumption(continuation: send.continuation, success: continuation)
         case .awaiting(var nexts):
-          if nexts.update(with: Awaiting(generation: generation, continuation: continuation)) != nil {
-            nexts.remove(Awaiting(placeholder: generation))
-            cancelled = true
-          }
-          if nexts.isEmpty {
-             state.emission = .idle
-           } else {
-             state.emission = .awaiting(nexts)
-           }
+          nexts.updateOrAppend(Awaiting(generation: generation, continuation: continuation))
+          state.emission = .awaiting(nexts)
           return nil
         case .terminated(let termination):
           potentialTermination = termination
@@ -196,8 +197,67 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     }
   }
 
+  func cancelSend(_ sendTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) {
+    state.withCriticalRegion { state -> UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>? in
+      let continuation: UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>?
+
+      switch state.emission {
+      case .pending(var sends):
+        let send = sends.remove(Pending(placeholder: generation))
+        if sends.isEmpty {
+          state.emission = .idle
+        } else {
+          state.emission = .pending(sends)
+        }
+        continuation = send?.continuation
+      default:
+        continuation = nil
+      }
+
+      sendTokenStatus.withCriticalRegion { status in
+        if status == .new {
+          status = .cancelled
+        }
+      }
+
+      return continuation
+    }?.resume(returning: nil)
+  }
+  
+  func send(_ sendTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int, _ element: Element) async {
+    let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
+      state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
+
+        if sendTokenStatus.withCriticalRegion({ $0 }) == .cancelled {
+          return UnsafeResumption(continuation: continuation, success: nil)
+        }
+
+        switch state.emission {
+        case .idle:
+          state.emission = .pending([Pending(generation: generation, continuation: continuation)])
+          return nil
+        case .pending(var sends):
+          sends.updateOrAppend(Pending(generation: generation, continuation: continuation))
+          state.emission = .pending(sends)
+          return nil
+        case .awaiting(var nexts):
+          let next = nexts.removeFirst().continuation
+          if nexts.count == 0 {
+            state.emission = .idle
+          } else {
+            state.emission = .awaiting(nexts)
+          }
+          return UnsafeResumption(continuation: continuation, success: next)
+        case .terminated:
+          return UnsafeResumption(continuation: continuation, success: nil)
+        }
+      }?.resume()
+    }
+    continuation?.resume(returning: element)
+  }
+
   func terminateAll(error: Failure? = nil) {
-    let (sends, nexts) = state.withCriticalRegion { state -> ([UnsafeContinuation<UnsafeContinuation<Element?, Error>?, Never>], Set<Awaiting>) in
+    let (sends, nexts) = state.withCriticalRegion { state -> (OrderedSet<Pending>, OrderedSet<Awaiting>) in
 
       let nextState: Emission
       if let error = error {
@@ -222,7 +282,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
     }
 
     for send in sends {
-      send.resume(returning: nil)
+      send.continuation?.resume(returning: nil)
     }
 
     if let error = error {
@@ -234,45 +294,21 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
         next.continuation?.resume(returning: nil)
       }
     }
-
-  }
-  
-  func _send(_ element: Element) async {
-    await withTaskCancellationHandler {
-      terminateAll()
-    } operation: {
-      let continuation: UnsafeContinuation<Element?, Error>? = await withUnsafeContinuation { continuation in
-        state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Error>?, Never>? in
-          switch state.emission {
-          case .idle:
-            state.emission = .pending([continuation])
-            return nil
-          case .pending(var sends):
-            sends.append(continuation)
-            state.emission = .pending(sends)
-            return nil
-          case .awaiting(var nexts):
-            let next = nexts.removeFirst().continuation
-            if nexts.count == 0 {
-              state.emission = .idle
-            } else {
-              state.emission = .awaiting(nexts)
-            }
-            return UnsafeResumption(continuation: continuation, success: next)
-          case .terminated:
-            return UnsafeResumption(continuation: continuation, success: nil)
-          }
-        }?.resume()
-      }
-      continuation?.resume(returning: element)
-    }
   }
   
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
   /// or when a call to `finish()`/`fail(_:)` is made from another Task.
   /// If the channel is already finished then this returns immediately
+  /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
-      await _send(element)
+    let generation = establish()
+    let sendTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
+
+    await withTaskCancellationHandler { [weak self] in
+      self?.cancelSend(sendTokenStatus, generation)
+    } operation: {
+      await send(sendTokenStatus, generation, element)
+    }
   }
   
   /// Send an error to all awaiting iterations.
