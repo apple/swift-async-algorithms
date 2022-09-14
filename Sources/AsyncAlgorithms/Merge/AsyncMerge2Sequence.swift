@@ -32,28 +32,8 @@ public struct AsyncMerge2Sequence<
 {
     public typealias Element = Base1.Element
 
-    /// This class is needed to hook the deinit to observe once all references to the ``AsyncMerge2Sequence`` are dropped.
-    ///
-    /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncMerge2Sequence`` struct itself.
-    final class InternalClass: Sendable {
-        fileprivate let storage: MergeStorage<Base1, Base2, Base1>
-
-        fileprivate init(storage: MergeStorage<Base1, Base2, Base1>) {
-            self.storage = storage
-        }
-
-        deinit {
-            storage.sequenceDeinitialized()
-        }
-    }
-
-    /// The internal class to hook the `deinit`.
-    let internalClass: InternalClass
-
-    /// The underlying storage
-    fileprivate var storage: MergeStorage<Base1, Base2, Base1> {
-        internalClass.storage
-    }
+    private let base1: Base1
+    private let base2: Base2
 
     /// Initializes a new ``AsyncMerge2Sequence``.
     ///
@@ -64,18 +44,19 @@ public struct AsyncMerge2Sequence<
         _ base1: Base1,
         _ base2: Base2
     ) {
-        let storage = MergeStorage<Base1, Base2, Base1>(
-            base1: base1,
-            base2: base2,
-            base3: nil
-        )
-        internalClass = .init(storage: storage)
+        self.base1 = base1
+        self.base2 = base2
     }
 }
 
 extension AsyncMerge2Sequence: AsyncSequence {
     public func makeAsyncIterator() -> AsyncIterator {
-        AsyncIterator(storage: internalClass.storage)
+        let storage = MergeStorage<Base1, Base2, Base1>(
+            base1: base1,
+            base2: base2,
+            base3: nil
+        )
+        return AsyncIterator(storage: storage)
     }
 }
 

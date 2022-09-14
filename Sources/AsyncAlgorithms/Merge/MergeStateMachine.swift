@@ -82,28 +82,6 @@ struct MergeStateMachine<
         }
     }
 
-    mutating func sequenceDeinitialized() {
-        switch state {
-        case .initial:
-            // The references to the sequence were dropped before any iterator was ever created
-            state = .finished
-
-        case .merging, .upstreamFailure:
-            // An iterator was created and we deinited the sequence.
-            // This is an expected pattern and we just continue on normal.
-            // Importantly since we are a unicast sequence no more iterators can be created
-            return
-
-        case .finished:
-            // We are already finished so there is nothing left to clean up.
-            // This is just the references dropping afterwards.
-            return
-
-        case .modifying:
-            preconditionFailure("Invalid state")
-        }
-    }
-
     /// Actions returned by `iteratorInitialized()`.
     enum IteratorInitializedAction {
         /// Indicates that a new `Task` should be created that consumed the sequences.

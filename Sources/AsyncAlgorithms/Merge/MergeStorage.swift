@@ -38,10 +38,6 @@ final class MergeStorage<
         self.lock.deinitialize()
     }
 
-    func sequenceDeinitialized() {
-        lock.withLock { self.stateMachine.sequenceDeinitialized() }
-    }
-
     func iteratorInitialized() {
         lock.withLockVoid {
             let action = self.stateMachine.iteratorInitialized()
