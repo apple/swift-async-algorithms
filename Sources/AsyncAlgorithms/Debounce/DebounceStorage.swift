@@ -29,193 +29,6 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
         self.clock = clock
     }
 
-    func iteratorInitialized() {
-        self.stateMachine.withCriticalRegion {
-            let action = $0.iteratorInitialized()
-
-            switch action {
-            case .startTask(let base):
-                let task = Task {
-                    await withThrowingTaskGroup(of: Void.self) { group in
-                        // The task that consumes the upstream sequence
-                        group.addTask {
-                            var iterator = base.makeAsyncIterator()
-
-                            // This is our upstream consumption loop
-                            loop: while true {
-                                // We are creating a continuation before requesting the next
-                                // element from upstream. This continuation is only resumed
-                                // if the downstream consumer called `next` to signal his demand
-                                // and until the Clock sleep finished.
-                                try await withUnsafeThrowingContinuation { continuation in
-                                    let action = self.stateMachine.withCriticalRegion { $0.upstreamTaskSuspended(continuation) }
-
-                                    switch action {
-                                    case .resumeContinuation(let continuation):
-                                        // This happens if there is outstanding demand
-                                        // and we need to demand from upstream right away
-                                        continuation.resume(returning: ())
-
-                                    case .resumeContinuationWithError(let continuation, let error):
-                                        // This happens if the task got cancelled.
-                                        continuation.resume(throwing: error)
-
-                                    case .none:
-                                        break
-                                    }
-                                }
-
-                                // We got signalled from the downstream that we have demand so let's
-                                // request a new element from the upstream
-                                if let element = try await iterator.next() {
-                                    let action = self.stateMachine.withCriticalRegion {
-                                        let deadline = self.clock.now.advanced(by: self.interval)
-                                        return $0.elementProduced(element, deadline: deadline)
-                                    }
-
-                                    switch action {
-                                    case .resumeClockContinuation(let clockContinuation, let deadline):
-                                        clockContinuation?.resume(returning: deadline)
-
-                                    case .none:
-                                        break
-                                    }
-                                } else {
-                                    // The upstream returned `nil` which indicates that it finished
-                                    let action = self.stateMachine.withCriticalRegion { $0.upstreamFinished() }
-
-                                    // All of this is mostly cleanup around the Task and the outstanding
-                                    // continuations used for signalling.
-                                    switch action {
-                                    case .cancelTaskAndClockContinuation(let task, let clockContinuation):
-                                        task.cancel()
-                                        clockContinuation?.resume(throwing: CancellationError())
-
-                                        break loop
-                                    case .resumeContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
-                                        let downstreamContinuation,
-                                        let task,
-                                        let upstreamContinuation,
-                                        let clockContinuation
-                                    ):
-                                        upstreamContinuation?.resume(throwing: CancellationError())
-                                        clockContinuation?.resume(throwing: CancellationError())
-                                        task.cancel()
-
-                                        downstreamContinuation.resume(returning: .success(nil))
-
-                                        break loop
-
-                                    case .resumeContinuationWithElementAndCancelTaskAndUpstreamAndClockContinuation(
-                                        let downstreamContinuation,
-                                        let element,
-                                        let task,
-                                        let upstreamContinuation,
-                                        let clockContinuation
-                                    ):
-                                        upstreamContinuation?.resume(throwing: CancellationError())
-                                        clockContinuation?.resume(throwing: CancellationError())
-                                        task.cancel()
-
-                                        downstreamContinuation.resume(returning: .success(element))
-
-                                        break loop
-
-                                    case .none:
-
-                                        break loop
-                                    }
-                                }
-                            }
-                        }
-
-                        group.addTask {
-                            // This is our clock scheduling loop
-                            loop: while true {
-                                do {
-                                    // We are creating a continuation sleeping on the Clock.
-                                    // This continuation is only resumed if the downstream consumer called `next`.
-                                    let deadline: C.Instant = try await withUnsafeThrowingContinuation { continuation in
-                                        let action = self.stateMachine.withCriticalRegion { $0.clockTaskSuspended(continuation) }
-
-                                        switch action {
-                                        case .resumeContinuation(let continuation, let deadline):
-                                            // This happens if there is outstanding demand
-                                            // and we need to demand from upstream right away
-                                            continuation.resume(returning: deadline)
-
-                                        case .resumeContinuationWithError(let continuation, let error):
-                                            // This happens if the task got cancelled.
-                                            continuation.resume(throwing: error)
-
-                                        case .none:
-                                            break
-                                        }
-                                    }
-
-                                    try await self.clock.sleep(until: deadline, tolerance: self.tolerance)
-
-                                    let action = self.stateMachine.withCriticalRegion { $0.clockSleepFinished() }
-
-                                    switch action {
-                                    case .resumeDownStreamContinuation(let downStreamContinuation, let element):
-                                        downStreamContinuation.resume(returning: .success(element))
-
-                                    case .none:
-                                        break
-                                    }
-                                } catch {
-                                    // The only error that we expect is the `CancellationError`
-                                    // thrown from the Clock.sleep or from the withUnsafeContinuation.
-                                    // This happens if we are cleaning everything up. We can just drop that error and break our loop
-                                    precondition(error is CancellationError, "Received unexpected error \(error) in the Clock loop")
-                                    break loop
-                                }
-                            }
-                        }
-
-                        do {
-                            try await group.waitForAll()
-                        } catch {
-                            // The upstream sequence threw an error
-                            let action = self.stateMachine.withCriticalRegion { $0.upstreamThrew(error) }
-
-                            switch action {
-                            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
-                                let downstreamContinuation,
-                                let error,
-                                let task,
-                                let upstreamContinuation,
-                                let clockContinuation
-                            ):
-                                upstreamContinuation?.resume(throwing: CancellationError())
-                                clockContinuation?.resume(throwing: CancellationError())
-
-                                task.cancel()
-
-                                downstreamContinuation.resume(returning: .failure(error))
-
-                            case .cancelTaskAndClockContinuation(
-                                let task,
-                                let clockContinuation
-                            ):
-                                clockContinuation?.resume(throwing: CancellationError())
-                                task.cancel()
-
-                            case .none:
-                                break
-                            }
-
-                            group.cancelAll()
-                        }
-                    }
-                }
-
-                $0.taskStarted(task)
-            }
-        }
-    }
-
     func iteratorDeinitialized() {
         let action = self.stateMachine.withCriticalRegion { $0.iteratorDeinitialized() }
 
@@ -242,25 +55,34 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
             // We always suspend since we can never return an element right away
 
             let result: Result<Element?, Error> = await withUnsafeContinuation { continuation in
-                let action = self.stateMachine.withCriticalRegion { $0.next(for: continuation) }
+                self.stateMachine.withCriticalRegion {
+                    let action = $0.next(for: continuation)
 
-                switch action {
-                case .resumeUpstreamContinuation(let upstreamContinuation):
-                    // This is signalling the upstream task that is consuming the upstream
-                    // sequence to signal demand.
-                    upstreamContinuation?.resume(returning: ())
+                    switch action {
+                    case .startTask(let base):
+                        self.startTask(
+                            stateMachine: &$0,
+                            base: base,
+                            downstreamContinuation: continuation
+                        )
 
-                case .resumeUpstreamAndClockContinuation(let upstreamContinuation, let clockContinuation, let deadline):
-                    // This is signalling the upstream task that is consuming the upstream
-                    // sequence to signal demand and start the clock task.
-                    upstreamContinuation?.resume(returning: ())
-                    clockContinuation?.resume(returning: deadline)
+                    case .resumeUpstreamContinuation(let upstreamContinuation):
+                        // This is signalling the upstream task that is consuming the upstream
+                        // sequence to signal demand.
+                        upstreamContinuation?.resume(returning: ())
 
-                case .resumeDownstreamContinuationWithNil(let continuation):
-                    continuation.resume(returning: .success(nil))
+                    case .resumeUpstreamAndClockContinuation(let upstreamContinuation, let clockContinuation, let deadline):
+                        // This is signalling the upstream task that is consuming the upstream
+                        // sequence to signal demand and start the clock task.
+                        upstreamContinuation?.resume(returning: ())
+                        clockContinuation?.resume(returning: deadline)
 
-                case .resumeDownstreamContinuationWithError(let continuation, let error):
-                    continuation.resume(returning: .failure(error))
+                    case .resumeDownstreamContinuationWithNil(let continuation):
+                        continuation.resume(returning: .success(nil))
+
+                    case .resumeDownstreamContinuationWithError(let continuation, let error):
+                        continuation.resume(returning: .failure(error))
+                    }
                 }
             }
 
@@ -286,5 +108,189 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                 break
             }
         }
+    }
+
+    private func startTask(
+        stateMachine: inout DebounceStateMachine<Base, C>,
+        base: Base,
+        downstreamContinuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>
+    ) {
+        let task = Task {
+            await withThrowingTaskGroup(of: Void.self) { group in
+                // The task that consumes the upstream sequence
+                group.addTask {
+                    var iterator = base.makeAsyncIterator()
+
+                    // This is our upstream consumption loop
+                    loop: while true {
+                        // We are creating a continuation before requesting the next
+                        // element from upstream. This continuation is only resumed
+                        // if the downstream consumer called `next` to signal his demand
+                        // and until the Clock sleep finished.
+                        try await withUnsafeThrowingContinuation { continuation in
+                            let action = self.stateMachine.withCriticalRegion { $0.upstreamTaskSuspended(continuation) }
+
+                            switch action {
+                            case .resumeContinuation(let continuation):
+                                // This happens if there is outstanding demand
+                                // and we need to demand from upstream right away
+                                continuation.resume(returning: ())
+
+                            case .resumeContinuationWithError(let continuation, let error):
+                                // This happens if the task got cancelled.
+                                continuation.resume(throwing: error)
+
+                            case .none:
+                                break
+                            }
+                        }
+
+                        // We got signalled from the downstream that we have demand so let's
+                        // request a new element from the upstream
+                        if let element = try await iterator.next() {
+                            let action = self.stateMachine.withCriticalRegion {
+                                let deadline = self.clock.now.advanced(by: self.interval)
+                                return $0.elementProduced(element, deadline: deadline)
+                            }
+
+                            switch action {
+                            case .resumeClockContinuation(let clockContinuation, let deadline):
+                                clockContinuation?.resume(returning: deadline)
+
+                            case .none:
+                                break
+                            }
+                        } else {
+                            // The upstream returned `nil` which indicates that it finished
+                            let action = self.stateMachine.withCriticalRegion { $0.upstreamFinished() }
+
+                            // All of this is mostly cleanup around the Task and the outstanding
+                            // continuations used for signalling.
+                            switch action {
+                            case .cancelTaskAndClockContinuation(let task, let clockContinuation):
+                                task.cancel()
+                                clockContinuation?.resume(throwing: CancellationError())
+
+                                break loop
+                            case .resumeContinuationWithNilAndCancelTaskAndUpstreamAndClockContinuation(
+                                let downstreamContinuation,
+                                let task,
+                                let upstreamContinuation,
+                                let clockContinuation
+                            ):
+                                upstreamContinuation?.resume(throwing: CancellationError())
+                                clockContinuation?.resume(throwing: CancellationError())
+                                task.cancel()
+
+                                downstreamContinuation.resume(returning: .success(nil))
+
+                                break loop
+
+                            case .resumeContinuationWithElementAndCancelTaskAndUpstreamAndClockContinuation(
+                                let downstreamContinuation,
+                                let element,
+                                let task,
+                                let upstreamContinuation,
+                                let clockContinuation
+                            ):
+                                upstreamContinuation?.resume(throwing: CancellationError())
+                                clockContinuation?.resume(throwing: CancellationError())
+                                task.cancel()
+
+                                downstreamContinuation.resume(returning: .success(element))
+
+                                break loop
+
+                            case .none:
+
+                                break loop
+                            }
+                        }
+                    }
+                }
+
+                group.addTask {
+                    // This is our clock scheduling loop
+                    loop: while true {
+                        do {
+                            // We are creating a continuation sleeping on the Clock.
+                            // This continuation is only resumed if the downstream consumer called `next`.
+                            let deadline: C.Instant = try await withUnsafeThrowingContinuation { continuation in
+                                let action = self.stateMachine.withCriticalRegion { $0.clockTaskSuspended(continuation) }
+
+                                switch action {
+                                case .resumeContinuation(let continuation, let deadline):
+                                    // This happens if there is outstanding demand
+                                    // and we need to demand from upstream right away
+                                    continuation.resume(returning: deadline)
+
+                                case .resumeContinuationWithError(let continuation, let error):
+                                    // This happens if the task got cancelled.
+                                    continuation.resume(throwing: error)
+
+                                case .none:
+                                    break
+                                }
+                            }
+
+                            try await self.clock.sleep(until: deadline, tolerance: self.tolerance)
+
+                            let action = self.stateMachine.withCriticalRegion { $0.clockSleepFinished() }
+
+                            switch action {
+                            case .resumeDownStreamContinuation(let downStreamContinuation, let element):
+                                downStreamContinuation.resume(returning: .success(element))
+
+                            case .none:
+                                break
+                            }
+                        } catch {
+                            // The only error that we expect is the `CancellationError`
+                            // thrown from the Clock.sleep or from the withUnsafeContinuation.
+                            // This happens if we are cleaning everything up. We can just drop that error and break our loop
+                            precondition(error is CancellationError, "Received unexpected error \(error) in the Clock loop")
+                            break loop
+                        }
+                    }
+                }
+
+                do {
+                    try await group.waitForAll()
+                } catch {
+                    // The upstream sequence threw an error
+                    let action = self.stateMachine.withCriticalRegion { $0.upstreamThrew(error) }
+
+                    switch action {
+                    case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
+                        let downstreamContinuation,
+                        let error,
+                        let task,
+                        let upstreamContinuation,
+                        let clockContinuation
+                    ):
+                        upstreamContinuation?.resume(throwing: CancellationError())
+                        clockContinuation?.resume(throwing: CancellationError())
+
+                        task.cancel()
+
+                        downstreamContinuation.resume(returning: .failure(error))
+
+                    case .cancelTaskAndClockContinuation(
+                        let task,
+                        let clockContinuation
+                    ):
+                        clockContinuation?.resume(throwing: CancellationError())
+                        task.cancel()
+
+                    case .none:
+                        break
+                    }
+
+                    group.cancelAll()
+                }
+            }
+        }
+
+        stateMachine.taskStarted(task, downstreamContinuation: downstreamContinuation)
     }
 }

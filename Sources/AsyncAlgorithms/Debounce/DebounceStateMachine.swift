@@ -14,7 +14,7 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
     typealias Element = Base.Element
 
     private enum State {
-        /// The initial state before a call to `makeAsyncIterator` happened.
+        /// The initial state before a call to `next` happened.
         case initial(base: Base)
 
         /// The state while we are waiting for downstream demand.
@@ -64,24 +64,6 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         self.interval = interval
     }
 
-    /// Actions returned by `iteratorInitialized()`.
-    enum IteratorInitializedAction {
-        /// Indicates that a new `Task` should be created that consumes the sequence.
-        case startTask(Base)
-    }
-
-    mutating func iteratorInitialized() -> IteratorInitializedAction {
-        switch self.state {
-        case .initial(let base):
-            // This is the first iterator being created and we need to create our `Task`
-            // that is consuming the upstream sequences.
-            return .startTask(base)
-
-        case .waitingForDemand, .demandSignalled, .debouncing, .upstreamFailure, .finished:
-            fatalError("debounce allows only a single AsyncIterator to be created")
-        }
-    }
-
     /// Actions returned by `iteratorDeinitialized()`.
     enum IteratorDeinitializedAction {
         /// Indicates that the `Task` needs to be cancelled and
@@ -96,8 +78,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
     mutating func iteratorDeinitialized() -> IteratorDeinitializedAction? {
         switch self.state {
         case .initial:
-            // An iterator needs to be initialized before it can be deinitialized.
-            preconditionFailure("Internal inconsistency current state \(self.state) and received iteratorDeinitialized()")
+            // Nothing to do here. No demand was signalled until now
+            return .none
 
         case .debouncing, .demandSignalled:
             // An iterator was deinitialized while we have a suspended continuation.
@@ -129,16 +111,15 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
         }
     }
 
-    mutating func taskStarted(_ task: Task<Void, Never>) {
+    mutating func taskStarted(_ task: Task<Void, Never>, downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>) {
         switch self.state {
         case .initial:
-            // The user called `makeAsyncIterator` and we are starting the `Task`
+            // The user called `next` and we are starting the `Task`
             // to consume the upstream sequence
-            self.state = .waitingForDemand(
+            self.state = .demandSignalled(
                 task: task,
-                upstreamContinuation: nil,
                 clockContinuation: nil,
-                bufferedElement: nil
+                downstreamContinuation: downstreamContinuation
             )
 
         case .debouncing, .demandSignalled, .waitingForDemand, .upstreamFailure, .finished:
@@ -652,6 +633,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
 
     /// Actions returned by `next()`.
     enum NextAction {
+        /// Indicates that a new `Task` should be created that consumes the sequence.
+        case startTask(Base)
         case resumeUpstreamContinuation(
             upstreamContinuation: UnsafeContinuation<Void, Error>?
         )
@@ -671,8 +654,10 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
 
     mutating func next(for continuation: UnsafeContinuation<Result<Element?, Error>, Never>) -> NextAction {
         switch self.state {
-        case .initial:
-            preconditionFailure("Internal inconsistency current state \(self.state) and received next()")
+        case .initial(let base):
+            // This is the first time we get demand singalled so we have to start the task
+            // The transition to the next state is done in the taskStarted method
+            return .startTask(base)
 
         case .demandSignalled, .debouncing:
             // We already got demand signalled and have suspended the downstream task

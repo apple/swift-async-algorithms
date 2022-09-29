@@ -75,7 +75,6 @@ extension AsyncDebounceSequence {
 
             fileprivate init(storage: DebounceStorage<Base, C>) {
                 self.storage = storage
-                self.storage.iteratorInitialized()
             }
 
             deinit {
