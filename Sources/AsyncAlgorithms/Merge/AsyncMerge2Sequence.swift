@@ -70,7 +70,6 @@ extension AsyncMerge2Sequence {
 
             fileprivate init(storage: MergeStorage<Base1, Base2, Base1>) {
                 self.storage = storage
-                self.storage.iteratorInitialized()
             }
 
             deinit {

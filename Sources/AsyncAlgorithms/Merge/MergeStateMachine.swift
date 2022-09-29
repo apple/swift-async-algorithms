@@ -82,27 +82,6 @@ struct MergeStateMachine<
         }
     }
 
-    /// Actions returned by `iteratorInitialized()`.
-    enum IteratorInitializedAction {
-        /// Indicates that a new `Task` should be created that consumed the sequences.
-        case startTask(Base1, Base2, Base3?)
-    }
-
-    mutating func iteratorInitialized() -> IteratorInitializedAction {
-        switch state {
-        case let .initial(base1, base2, base3):
-            // This is the first iterator being created and we need to create our `Task`
-            // that is consuming the upstream sequences.
-            return .startTask(base1, base2, base3)
-
-        case .merging, .upstreamFailure, .finished:
-            fatalError("merge allows only a single AsyncIterator to be created")
-
-        case .modifying:
-            preconditionFailure("Invalid state")
-        }
-    }
-
     /// Actions returned by `iteratorDeinitialized()`.
     enum IteratorDeinitializedAction {
         /// Indicates that the `Task` needs to be cancelled and
@@ -118,8 +97,8 @@ struct MergeStateMachine<
     mutating func iteratorDeinitialized() -> IteratorDeinitializedAction {
         switch state {
         case .initial:
-            // An iterator needs to be initialized before it can be deinitialized.
-            preconditionFailure("Internal inconsistency current state \(self.state) and received iteratorDeinitialized()")
+            // Nothing to do here. No demand was signalled until now
+            return .none
 
         case .merging(_, _, _, _, .some):
             // An iterator was deinitialized while we have a suspended continuation.
@@ -531,6 +510,8 @@ struct MergeStateMachine<
 
     /// Actions returned by `next()`.
     enum NextAction {
+        /// Indicates that a new `Task` should be created that consumes the sequence and the downstream must be supsended
+        case startTaskAndSuspendDownstreamTask(Base1, Base2, Base3?)
         /// Indicates that the `element` should be returned.
         case returnElement(Result<Element, Error>)
         /// Indicates that `nil` should be returned.
@@ -543,8 +524,10 @@ struct MergeStateMachine<
 
     mutating func next() -> NextAction {
         switch state {
-        case .initial:
-            preconditionFailure("Internal inconsistency current state \(self.state) and received next()")
+        case .initial(let base1, let base2, let base3):
+            // This is the first time we got demand signalled. We need to start the task now
+            // We are transitioning to merging in the taskStarted method.
+            return .startTaskAndSuspendDownstreamTask(base1, base2, base3)
 
         case .merging(_, _, _, _, .some):
             // We have multiple AsyncIterators iterating the sequence

@@ -81,7 +81,6 @@ public extension AsyncMerge3Sequence {
 
             fileprivate init(storage: MergeStorage<Base1, Base2, Base3>) {
                 self.storage = storage
-                self.storage.iteratorInitialized()
             }
 
             deinit {
