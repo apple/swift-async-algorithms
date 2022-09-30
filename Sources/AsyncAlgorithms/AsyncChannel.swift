@@ -111,7 +111,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   }
 
   func cancelNext(_ nextTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) {
-    state.withCriticalRegion { state -> UnsafeContinuation<Element?, Never>? in
+    state.withCriticalRegion { state in
       let continuation: UnsafeContinuation<Element?, Never>?
 
       switch state.emission {
@@ -132,25 +132,23 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
         }
       }
 
-      return continuation
-    }?.resume(returning: nil)
+      continuation?.resume(returning: nil)
+    }
   }
 
   func next(_ nextTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) async -> Element? {
     return await withUnsafeContinuation { (continuation: UnsafeContinuation<Element?, Never>) in
       var cancelled = false
       var terminal = false
-      state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
+      state.withCriticalRegion { state in
 
         if nextTokenStatus.withCriticalRegion({ $0 }) == .cancelled {
           cancelled = true
-          return nil
         }
 
         switch state.emission {
         case .idle:
           state.emission = .awaiting([Awaiting(generation: generation, continuation: continuation)])
-          return nil
         case .pending(var sends):
           let send = sends.removeFirst()
           if sends.count == 0 {
@@ -158,16 +156,14 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           } else {
             state.emission = .pending(sends)
           }
-          return UnsafeResumption(continuation: send.continuation, success: continuation)
+          send.continuation?.resume(returning: continuation)
         case .awaiting(var nexts):
           nexts.updateOrAppend(Awaiting(generation: generation, continuation: continuation))
           state.emission = .awaiting(nexts)
-          return nil
         case .finished:
           terminal = true
-          return nil
         }
-      }?.resume()
+      }
 
       if cancelled || terminal {
         continuation.resume(returning: nil)
@@ -176,7 +172,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   }
 
   func cancelSend(_ sendTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int) {
-    state.withCriticalRegion { state -> UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>? in
+    state.withCriticalRegion { state in
       let continuation: UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>?
 
       switch state.emission {
@@ -198,26 +194,25 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
         }
       }
 
-      return continuation
-    }?.resume(returning: nil)
+      continuation?.resume(returning: nil)
+    }
   }
 
   func send(_ sendTokenStatus: ManagedCriticalState<ChannelTokenStatus>, _ generation: Int, _ element: Element) async {
-    let continuation = await withUnsafeContinuation { continuation in
-      state.withCriticalRegion { state -> UnsafeResumption<UnsafeContinuation<Element?, Never>?, Never>? in
+    let continuation: UnsafeContinuation<Element?, Never>? = await withUnsafeContinuation { continuation in
+      state.withCriticalRegion { state in
 
         if sendTokenStatus.withCriticalRegion({ $0 }) == .cancelled {
-          return UnsafeResumption(continuation: continuation, success: nil)
+          continuation.resume(returning: nil)
+          return
         }
 
         switch state.emission {
         case .idle:
           state.emission = .pending([Pending(generation: generation, continuation: continuation)])
-          return nil
         case .pending(var sends):
           sends.updateOrAppend(Pending(generation: generation, continuation: continuation))
           state.emission = .pending(sends)
-          return nil
         case .awaiting(var nexts):
           let next = nexts.removeFirst().continuation
           if nexts.count == 0 {
@@ -225,11 +220,11 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
           } else {
             state.emission = .awaiting(nexts)
           }
-          return UnsafeResumption(continuation: continuation, success: next)
+          continuation.resume(returning: next)
         case .finished:
-          return UnsafeResumption(continuation: continuation, success: nil)
+          continuation.resume(returning: nil)
         }
-      }?.resume()
+      }
     }
     continuation?.resume(returning: element)
   }
@@ -252,30 +247,25 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// Send a finish to all awaiting iterations.
   /// All subsequent calls to `next(_:)` will resume immediately.
   public func finish() {
-    let (sends, nexts) = state.withCriticalRegion { state -> (OrderedSet<Pending>, OrderedSet<Awaiting>) in
-      let result: (OrderedSet<Pending>, OrderedSet<Awaiting>)
+    state.withCriticalRegion { state in
 
+      defer { state.emission = .finished }
+      
       switch state.emission {
-      case .idle:
-        result = ([], [])
-      case .pending(let nexts):
-        result = (nexts, [])
+      case .pending(let sends):
+        for send in sends {
+          send.continuation?.resume(returning: nil)
+        }
       case .awaiting(let nexts):
-        result = ([], nexts)
-      case .finished:
-        result = ([], [])
+        for next in nexts {
+          next.continuation?.resume(returning: nil)
+        }
+      default:
+        break
       }
-
-      state.emission = .finished
-
-      return result
     }
-    for send in sends {
-      send.continuation?.resume(returning: nil)
-    }
-    for next in nexts {
-      next.continuation?.resume(returning: nil)
-    }
+    
+    
   }
   
   /// Create an `Iterator` for iteration of an `AsyncChannel`
