@@ -506,62 +506,6 @@ final class TestMerge3: XCTestCase {
     wait(for: [finished], timeout: 1.0)
   }
 
-    // MARK: - SequenceDeinitialized
-
-    func testSequenceDeinitialized_whenInitial() async throws {
-        // This tests works if nothing bad happens
-        // Dropping the sequence has no visible side effects
-        let _ = merge([1].async, [2].async)
-    }
-
-    func testSequenceDeinitialized_whenMerging() async throws {
-        var merge: _! = merge([1].async, [2].async)
-
-        var iterator = merge.makeAsyncIterator()
-
-        merge = nil
-
-        let nextValue = await iterator.next()
-        XCTAssertNotNil(nextValue)
-    }
-
-    func testSequenceDeinitialized_whenUpstreamFailure() async throws {
-        let channel1 = AsyncChannel<Int>()
-        let channel2 = AsyncThrowingChannel<Int, Error>()
-        var merge: _! = merge([1].async, channel1, channel2)
-
-        var iterator = merge.makeAsyncIterator()
-        // We need to give the task that consumes the upstreams
-        // a bit of time to spin up all child tasks
-        try await Task.sleep(nanoseconds: 1000000)
-
-        let firstValue = try await iterator.next()
-        XCTAssertEqual(firstValue, 1)
-
-        // Now we are buffering up one more value
-        // and then transition the merge sequence to upstreamFailure
-        await channel1.send(2)
-        channel2.fail(Failure())
-
-        // We need to give the task that consumes the upstream
-        // a bit of time to process the failure
-        try await Task.sleep(nanoseconds: 1000000)
-
-        merge = nil
-    }
-
-    func testSequenceDeinitialized_whenFinished() async throws {
-        var merge: _! = merge([1].async, [].async)
-
-        var iterator: _? = merge.makeAsyncIterator()
-        let firstValue = await iterator?.next()
-        XCTAssertEqual(firstValue, 1)
-
-        iterator = nil
-
-        merge = nil
-    }
-
     // MARK: - IteratorInitialized
 
     func testIteratorInitialized_whenInitial() async throws {
