@@ -68,7 +68,7 @@ public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeRe
   @usableFromInline
   let count : Int
 
-  @inlinable
+  @usableFromInline
   init(_ base: Base, count: Int) {
     precondition(count > 0)
     self.base = base

@@ -79,7 +79,7 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
   @usableFromInline
   let base: Base
   
-  @inlinable
+  @usableFromInline
   init(_ base: Base) {
     self.base = base
   }

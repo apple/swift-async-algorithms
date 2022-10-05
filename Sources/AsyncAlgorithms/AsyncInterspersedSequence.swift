@@ -33,7 +33,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
   @usableFromInline
   internal let separator: Base.Element
 
-  @inlinable
+  @usableFromInline
   internal init(_ base: Base, separator: Base.Element) {
     self.base = base
     self.separator = separator
@@ -61,7 +61,7 @@ extension AsyncInterspersedSequence: AsyncSequence {
     @usableFromInline
     internal var state = State.start
 
-    @inlinable
+    @usableFromInline
     internal init(_ iterator: Base.AsyncIterator, separator: Base.Element) {
       self.iterator = iterator
       self.separator = separator

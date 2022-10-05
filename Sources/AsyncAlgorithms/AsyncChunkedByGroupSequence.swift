@@ -103,7 +103,7 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
   @usableFromInline
   let grouping : @Sendable (Base.Element, Base.Element) -> Bool
 
-  @inlinable
+  @usableFromInline
   init(_ base: Base, grouping: @escaping @Sendable (Base.Element, Base.Element) -> Bool) {
     self.base = base
     self.grouping = grouping
