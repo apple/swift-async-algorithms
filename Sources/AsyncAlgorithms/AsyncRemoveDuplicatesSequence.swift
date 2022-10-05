@@ -46,7 +46,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
     @usableFromInline
     var last: Element?
 
-    @inlinable
+    @usableFromInline
     init(iterator: Base.AsyncIterator, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
       self.iterator = iterator
       self.predicate = predicate
@@ -105,7 +105,7 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
     @usableFromInline
     var last: Element?
 
-    @inlinable
+    @usableFromInline
     init(iterator: Base.AsyncIterator, predicate: @escaping @Sendable (Element, Element) async throws -> Bool) {
       self.iterator = iterator
       self.predicate = predicate

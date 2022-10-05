@@ -84,7 +84,7 @@ public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equ
   @usableFromInline
   let projection : @Sendable (Base.Element) -> Subject
 
-  @inlinable
+  @usableFromInline
   init(_ base: Base, projection: @escaping @Sendable (Base.Element) -> Subject) {
     self.base = base
     self.projection = projection
@@ -98,4 +98,3 @@ public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equ
 
 extension AsyncChunkedOnProjectionSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
 extension AsyncChunkedOnProjectionSequence.Iterator : Sendable where Base.AsyncIterator : Sendable, Base.Element : Sendable, Subject : Sendable { }
-
