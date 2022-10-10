@@ -40,10 +40,10 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
       let generation = channel.establish()
       let nextTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
 
-      let value = await withTaskCancellationHandler { [channel] in
-        channel.cancelNext(nextTokenStatus, generation)
-      } operation: {
+      let value = await withTaskCancellationHandler {
         await channel.next(nextTokenStatus, generation)
+      } onCancel: { [channel] in
+        channel.cancelNext(nextTokenStatus, generation)
       }
 
       if let value {
@@ -237,10 +237,10 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     let generation = establish()
     let sendTokenStatus = ManagedCriticalState<ChannelTokenStatus>(.new)
 
-    await withTaskCancellationHandler { [weak self] in
-      self?.cancelSend(sendTokenStatus, generation)
-    } operation: {
+    await withTaskCancellationHandler {
       await send(sendTokenStatus, generation, element)
+    } onCancel: { [weak self] in
+      self?.cancelSend(sendTokenStatus, generation)
     }
   }
   

@@ -245,11 +245,11 @@ public struct ManualClock: Clock {
       return state.generation
     }
     try await withTaskCancellationHandler {
-      cancel(generation)
-    } operation: {
       try await withUnsafeThrowingContinuation { continuation in
         schedule(generation, continuation: continuation, deadline: deadline)
       }
+    } onCancel: {
+      cancel(generation)
     }
   }
 }

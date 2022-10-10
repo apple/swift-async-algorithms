@@ -36,14 +36,6 @@ extension Task {
   where Tasks.Element == Task<Success, Failure> {
     let state = ManagedCriticalState(TaskSelectState<Success, Failure>())
     return await withTaskCancellationHandler {
-      let tasks = state.withCriticalRegion { state -> [Task<Success, Failure>] in
-        defer { state.tasks = nil }
-        return state.tasks ?? []
-      }
-      for task in tasks {
-        task.cancel()
-      }
-    } operation: {
       await withUnsafeContinuation { continuation in
         for task in tasks {
           Task<Void, Never> {
@@ -60,6 +52,14 @@ extension Task {
             state.add(task)
           }?.cancel()
         }
+      }
+    } onCancel: {
+      let tasks = state.withCriticalRegion { state -> [Task<Success, Failure>] in
+        defer { state.tasks = nil }
+        return state.tasks ?? []
+      }
+      for task in tasks {
+        task.cancel()
       }
     }
   }
