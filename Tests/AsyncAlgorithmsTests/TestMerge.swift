@@ -505,4 +505,44 @@ final class TestMerge3: XCTestCase {
     task.cancel()
     wait(for: [finished], timeout: 1.0)
   }
+
+    // MARK: - IteratorInitialized
+
+    func testIteratorInitialized_whenInitial() async throws {
+        let reportingSequence1 = ReportingAsyncSequence([1])
+        let reportingSequence2 = ReportingAsyncSequence([2])
+        let merge = merge(reportingSequence1, reportingSequence2)
+
+        _ = merge.makeAsyncIterator()
+
+        // We need to give the task that consumes the upstream
+        // a bit of time to make the iterators
+        try await Task.sleep(nanoseconds: 1000000)
+
+        XCTAssertEqual(reportingSequence1.events, [])
+        XCTAssertEqual(reportingSequence2.events, [])
+    }
+
+    // MARK: - IteratorDeinitialized
+
+    func testIteratorDeinitialized_whenMerging() async throws {
+        let merge = merge([1].async, [2].async)
+
+        var iterator: _! = merge.makeAsyncIterator()
+
+        let nextValue = await iterator.next()
+        XCTAssertNotNil(nextValue)
+
+        iterator = nil
+    }
+
+    func testIteratorDeinitialized_whenFinished() async throws {
+        let merge = merge(Array<Int>().async, [].async)
+
+        var iterator: _? = merge.makeAsyncIterator()
+        let firstValue = await iterator?.next()
+        XCTAssertNil(firstValue)
+
+        iterator = nil
+    }
 }
