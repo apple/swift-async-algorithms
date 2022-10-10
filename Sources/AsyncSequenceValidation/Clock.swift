@@ -114,11 +114,11 @@ extension AsyncSequenceValidationDiagram.Clock {
   ) async throws {
     let token = queue.prepare()
     try await withTaskCancellationHandler {
-      queue.cancel(token)
-    } operation: {
       try await withUnsafeThrowingContinuation { continuation in
         queue.enqueue(AsyncSequenceValidationDiagram.Context.currentJob, deadline: deadline, continuation: continuation, token: token)
       }
+    } onCancel: {
+      queue.cancel(token)
     }
   }
 }

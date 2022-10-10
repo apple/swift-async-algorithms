@@ -67,9 +67,7 @@ final class TestTaskSelect: XCTestCase {
     let secondCancelled = expectation(description: "second cancelled")
     let task = Task {
       _ = await Task.select(Task {
-        await withTaskCancellationHandler {
-          firstCancelled.fulfill()
-        } operation: { () -> Int in
+        await withTaskCancellationHandler { () -> Int in
           firstReady.fulfill()
           if #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) {
             try? await Task.sleep(until: .now + .seconds(2), clock: .continuous)
@@ -77,11 +75,11 @@ final class TestTaskSelect: XCTestCase {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
           }
           return 1
+        } onCancel: {
+          firstCancelled.fulfill()
         }
       }, Task {
-        await withTaskCancellationHandler {
-          secondCancelled.fulfill()
-        } operation: { () -> Int in
+        await withTaskCancellationHandler { () -> Int in
           secondReady.fulfill()
           if #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) {
             try? await Task.sleep(until: .now + .seconds(2), clock: .continuous)
@@ -89,6 +87,8 @@ final class TestTaskSelect: XCTestCase {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
           }
           return 1
+        } onCancel: {
+          secondCancelled.fulfill()
         }
       })
     }

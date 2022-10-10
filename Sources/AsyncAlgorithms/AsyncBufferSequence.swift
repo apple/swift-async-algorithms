@@ -265,8 +265,6 @@ extension AsyncBufferSequence: AsyncSequence {
       
       func next() async rethrows -> Element? {
         let result: Result<Element?, Error> = await withTaskCancellationHandler {
-          task?.cancel()
-        } operation: {
           do {
             let value = try await state.next(buffer: buffer)
             return .success(value)
@@ -274,6 +272,8 @@ extension AsyncBufferSequence: AsyncSequence {
             task?.cancel()
             return .failure(error)
           }
+        } onCancel: {
+          task?.cancel()
         }
         return try result._rethrowGet()
       }
