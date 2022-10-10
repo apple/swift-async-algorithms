@@ -21,7 +21,7 @@ final class TestZip2: XCTestCase {
     let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_makes_sequence_equivalent_to_synchronous_zip_when_first_is_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
@@ -30,7 +30,7 @@ final class TestZip2: XCTestCase {
     let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_makes_sequence_equivalent_to_synchronous_zip_when_second_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
@@ -39,7 +39,7 @@ final class TestZip2: XCTestCase {
     let actual = await Array(zip(a.async, b.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_all_sequences_have_same_size() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -56,7 +56,7 @@ final class TestZip2: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_first_is_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
@@ -73,7 +73,7 @@ final class TestZip2: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_second_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
@@ -90,7 +90,7 @@ final class TestZip2: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_one_element_and_throws_when_first_produces_one_element_and_throws() async throws {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -112,7 +112,7 @@ final class TestZip2: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_one_element_and_throws_when_second_produces_one_element_and_throws() async throws {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -134,7 +134,7 @@ final class TestZip2: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
@@ -170,7 +170,7 @@ final class TestZip3: XCTestCase {
     let actual = await Array(zip(a.async, b.async, c.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_makes_sequence_equivalent_to_synchronous_zip_when_first_is_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
@@ -180,7 +180,7 @@ final class TestZip3: XCTestCase {
     let actual = await Array(zip(a.async, b.async, c.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_makes_sequence_equivalent_to_synchronous_zip_when_second_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
@@ -190,7 +190,7 @@ final class TestZip3: XCTestCase {
     let actual = await Array(zip(a.async, b.async, c.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_makes_sequence_equivalent_to_synchronous_zip_when_third_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -200,7 +200,7 @@ final class TestZip3: XCTestCase {
     let actual = await Array(zip(a.async, b.async, c.async))
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_all_sequences_have_same_size() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -218,7 +218,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_first_is_longer() async {
     let a = [1, 2, 3, 4, 5]
     let b = ["a", "b", "c"]
@@ -236,7 +236,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_second_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c", "d", "e"]
@@ -254,7 +254,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_nil_next_element_when_iteration_is_finished_and_third_is_longer() async {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -272,7 +272,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_one_element_and_throws_when_first_produces_one_element_and_throws() async throws {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -295,7 +295,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_one_element_and_throws_when_second_produces_one_element_and_throws() async throws {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -318,7 +318,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_produces_one_element_and_throws_when_third_produces_one_element_and_throws() async throws {
     let a = [1, 2, 3]
     let b = ["a", "b", "c"]
@@ -341,7 +341,7 @@ final class TestZip3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_zip_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
