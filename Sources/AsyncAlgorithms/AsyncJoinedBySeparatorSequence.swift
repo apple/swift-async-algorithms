@@ -141,7 +141,7 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
 }
 
 extension AsyncJoinedBySeparatorSequence: Sendable
-where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Base.AsyncIterator: Sendable, Separator: Sendable, Separator.AsyncIterator: Sendable, Base.Element.AsyncIterator: Sendable { }
+where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable { }
 extension AsyncJoinedBySeparatorSequence.Iterator: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Base.AsyncIterator: Sendable, Separator: Sendable, Separator.AsyncIterator: Sendable, Base.Element.AsyncIterator: Sendable { }
 extension AsyncJoinedBySeparatorSequence.Iterator.State: Sendable
