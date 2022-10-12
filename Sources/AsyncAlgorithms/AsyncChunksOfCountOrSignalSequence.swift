@@ -56,35 +56,54 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks elements into collected `RangeReplaceableCollection` instances by either count or a signal from another `AsyncSequence`.
-public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Signal: AsyncSequence>: AsyncSequence, Sendable where Collected.Element == Base.Element, Base: Sendable, Signal: Sendable, Base.AsyncIterator: Sendable, Signal.AsyncIterator: Sendable, Base.Element: Sendable, Signal.Element: Sendable {
+public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Signal: AsyncSequence>: AsyncSequence, Sendable where Collected.Element == Base.Element, Base: Sendable, Signal: Sendable, Base.Element: Sendable, Signal.Element: Sendable {
 
   public typealias Element = Collected
 
+  enum Either {
+    case element(Base.Element)
+    case terminal
+    case signal
+  }
+  
   /// The iterator for a `AsyncChunksOfCountOrSignalSequence` instance.
-  public struct Iterator: AsyncIteratorProtocol, Sendable {
+  public struct Iterator: AsyncIteratorProtocol {
+    typealias EitherMappedBase = AsyncMapSequence<Base, Either>
+    typealias EitherMappedSignal = AsyncMapSequence<Signal, Either>
+    typealias ChainedBase = AsyncChain2Sequence<EitherMappedBase, AsyncLazySequence<[Either]>>
+    typealias Merged = AsyncMerge2Sequence<ChainedBase, EitherMappedSignal>
+    
     let count: Int?
-    var state: Merge2StateMachine<Base, Signal>
-    init(base: Base.AsyncIterator, count: Int?, signal: Signal.AsyncIterator) {
+    var iterator: Merged.AsyncIterator
+    var terminated = false
+    
+    init(iterator: Merged.AsyncIterator, count: Int?) {
       self.count = count
-      self.state = Merge2StateMachine(base, terminatesOnNil: true, signal)
+      self.iterator = iterator
     }
     
     public mutating func next() async rethrows -> Collected? {
-      var result : Collected?
-      while let next = try await state.next() {
+      guard !terminated else {
+        return nil
+      }
+      var result: Collected?
+      while let next = try await iterator.next() {
         switch next {
-          case .first(let element):
-            if result == nil {
-              result = Collected()
-            }
-            result!.append(element)
-            if result?.count == count {
-              return result
-            }
-          case .second(_):
-            if result != nil {
-              return result
-            }
+        case .element(let element):
+          if result == nil {
+            result = Collected()
+          }
+          result!.append(element)
+          if result?.count == count {
+            return result
+          }
+        case .terminal:
+          terminated = true
+          return result
+        case .signal:
+          if result != nil {
+            return result
+          }
         }
       }
       return result
@@ -105,6 +124,7 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
   }
 
   public func makeAsyncIterator() -> Iterator {
-    return Iterator(base: base.makeAsyncIterator(), count: count, signal: signal.makeAsyncIterator())
+    
+    return Iterator(iterator: merge(chain(base.map { Either.element($0) }, [.terminal].async), signal.map { _ in Either.signal }).makeAsyncIterator(), count: count)
   }
 }
