@@ -21,7 +21,7 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence>(
 /// An asynchronous sequence that concurrently awaits values from two `AsyncSequence` types
 /// and emits a tuple of the values.
 public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: AsyncSequence
-where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable {
+  where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable {
   public typealias Element = (Base1.Element, Base2.Element)
   public typealias AsyncIterator = Iterator
 
@@ -34,21 +34,38 @@ where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: 
   }
 
   public func makeAsyncIterator() -> AsyncIterator {
-    Iterator(
-      base1,
-      base2
-    )
+    Iterator(storage: .init(self.base1, self.base2, nil))
   }
 
   public struct Iterator: AsyncIteratorProtocol {
-    let runtime: Zip2Runtime<Base1, Base2>
+    final class InternalClass {
+      private let storage: ZipStorage<Base1, Base2, Base2>
 
-    init(_ base1: Base1, _ base2: Base2) {
-      self.runtime = Zip2Runtime(base1, base2)
+      fileprivate init(storage: ZipStorage<Base1, Base2, Base2>) {
+        self.storage = storage
+      }
+
+      deinit {
+        self.storage.iteratorDeinitialized()
+      }
+
+      func next() async rethrows -> Element? {
+        guard let element = try await self.storage.next() else {
+          return nil
+        }
+
+        return (element.0, element.1)
+      }
+    }
+
+    let internalClass: InternalClass
+
+    fileprivate init(storage: ZipStorage<Base1, Base2, Base2>) {
+      self.internalClass = InternalClass(storage: storage)
     }
 
     public mutating func next() async rethrows -> Element? {
-      try await self.runtime.next()
+      try await self.internalClass.next()
     }
   }
 }
