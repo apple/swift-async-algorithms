@@ -80,4 +80,6 @@ extension AsyncChain2Sequence: AsyncSequence {
 }
 
 extension AsyncChain2Sequence: Sendable where Base1: Sendable, Base2: Sendable { }
-extension AsyncChain2Sequence.Iterator: Sendable where Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable { }
+
+@available(*, unavailable)
+extension AsyncChain2Sequence.Iterator: Sendable { }
