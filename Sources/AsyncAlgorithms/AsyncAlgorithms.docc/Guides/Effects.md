@@ -43,6 +43,8 @@
 | `AsyncMerge3Sequence.Iterator`                      | rethrows     | Not Sendable|
 | `AsyncRemoveDuplicatesSequence`                     | rethrows     | Conditional |
 | `AsyncRemoveDuplicatesSequence.Iterator`            | rethrows     | Not Sendable|
+| `AsyncSubject`                                      | non-throwing | Sendable    |
+| `AsyncSubject.Iterator`                             | non-throwing | Sendable    |
 | `AsyncThrottleSequence`                             | rethrows     | Conditional |
 | `AsyncThrottleSequence.Iterator`                    | rethrows     | Not Sendable|
 | `AsyncThrowingChannel`                              | throws       | Sendable    |
@@ -51,6 +53,8 @@
 | `AsyncThrowingExclusiveReductionsSequence.Iterator` | throws       | Not Sendable|
 | `AsyncThrowingInclusiveReductionsSequence`          | throws       | Conditional |
 | `AsyncThrowingInclusiveReductionsSequence.Iterator` | throws       | Not Sendable|
+| `AsyncThrowingSubject`                              | throws       | Sendable    |
+| `AsyncThrowingSubject.Iterator`                     | throws       | Sendable    |
 | `AsyncTimerSequence`                                | non-throwing | Sendable    |
 | `AsyncTimerSequence.Iterator`                       | non-throwing | Not Sendable|
 | `AsyncZip2Sequence`                                 | rethrows     | Sendable    |
