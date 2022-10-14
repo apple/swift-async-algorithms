@@ -38,3 +38,23 @@ public func withDeadline<C: Clock, T: Sendable>(
     }
   }
 }
+
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+public func withTimeout<C: Clock, T: Sendable>(
+  in duration: C.Duration,
+  clock: C,
+  _ operation: @Sendable () async throws -> T
+) async throws -> T {
+  try await withDeadline(
+    clock.now.advanced(by: duration),
+    clock: clock,
+    operation)
+}
+
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+public func withTimeout<T: Sendable>(
+  in duration: Duration,
+  _ operation: @Sendable () async throws -> T
+) async throws -> T {
+  try await withTimeout(in: duration, clock: .continuous, operation)
+}
