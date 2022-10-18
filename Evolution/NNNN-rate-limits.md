@@ -95,13 +95,13 @@ The type that implements the algorithm for debounce emits the same element type 
 
 ```swift
 public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable
-  where Base.AsyncIterator: Sendable, Base.Element: Sendable, Base: Sendable {
+  where Base.Element: Sendable, Base: Sendable {
 }
 
 extension AsyncDebounceSequence: AsyncSequence {
   public typealias Element = Base.Element
   
-  public struct Iterator: AsyncIteratorProtocol, Sendable {
+  public struct Iterator: AsyncIteratorProtocol {
     public mutating func next() async rethrows -> Base.Element? 
   }
   
@@ -109,7 +109,7 @@ extension AsyncDebounceSequence: AsyncSequence {
 }
 ```
 
-Since the stored types comprising `AsyncDebounceSequence` must be `Sendable`; `AsyncDebounceSequence` is unconditionally always `Sendable`.
+Since the stored types comprising `AsyncDebounceSequence` must be `Sendable`; `AsyncDebounceSequence` is unconditionally always `Sendable`. It is worth noting that the iterators are not required to be Sendable.
 
 ### Throttle
 
@@ -131,11 +131,9 @@ extension AsyncThrottleSequence: AsyncSequence {
 
 extension AsyncThrottleSequence: Sendable 
   where Base: Sendable, Element: Sendable { }
-extension AsyncThrottleSequence.Iterator: Sendable 
-  where Base.AsyncIterator: Sendable { }
 ```
 
-The `AsyncThrottleSequence` and its `Iterator` are conditionally `Sendable` if the base types comprising it are `Sendable`.
+The `AsyncThrottleSequence` is conditionally `Sendable` if the base types comprising it are `Sendable`.
 
 The time in which events are measured are from the previous emission if present. If a duration has elapsed between the last emission and the point in time the throttle is measured then that duration is counted as elapsed. The first element is considered not throttled because no interval can be constructed from the start to the first element.
 
