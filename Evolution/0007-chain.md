@@ -1,6 +1,6 @@
 # Chain
 
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-chain.md)
+* Proposal: [SAA-0007](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0007-chain.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
 * Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncChain2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncChain3Sequence.swift) | 
