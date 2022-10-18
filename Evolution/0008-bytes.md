@@ -1,6 +1,6 @@
 # AsyncBufferedByteIterator
 
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-bytes.md)
+* Proposal: [SAA-0008](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0008-bytes.md)
 * Authors: [David Smith](https://github.com/Catfish-Man), [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
 * Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncBufferedByteIterator.swift) | 
