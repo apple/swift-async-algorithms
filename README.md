@@ -40,6 +40,7 @@ This package is the home for these APIs. Development and API design take place o
 - [`adjacentPairs()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/AdjacentPairs.md): Collects tuples of adjacent elements.
 - [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Chunked.md): Collect values into chunks.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
+- [`recursiveMap(option:_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RecursiveMap.md): Produces a sequence containing the original sequence and the recursive mapped sequence. The order of ouput elements affects by the traversal option.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
 - [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
 
