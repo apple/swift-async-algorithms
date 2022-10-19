@@ -89,4 +89,3 @@ extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
 }
 
 extension AsyncThrowingInclusiveReductionsSequence: Sendable where Base: Sendable { }
-extension AsyncThrowingInclusiveReductionsSequence.Iterator: Sendable where Base.AsyncIterator: Sendable, Base.Element: Sendable { }

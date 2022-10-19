@@ -67,4 +67,3 @@ public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
 }
 
 extension AsyncLazySequence: Sendable where Base: Sendable { }
-extension AsyncLazySequence.Iterator: Sendable where Base.Iterator: Sendable { }

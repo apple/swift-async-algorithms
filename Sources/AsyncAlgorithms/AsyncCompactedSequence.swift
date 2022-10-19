@@ -69,4 +69,3 @@ extension AsyncSequence {
 }
 
 extension AsyncCompactedSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
-extension AsyncCompactedSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }

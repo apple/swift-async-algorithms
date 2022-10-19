@@ -100,5 +100,3 @@ extension AsyncInterspersedSequence: AsyncSequence {
 }
 
 extension AsyncInterspersedSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
-extension AsyncInterspersedSequence.Iterator: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
-extension AsyncInterspersedSequence.Iterator.State: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }

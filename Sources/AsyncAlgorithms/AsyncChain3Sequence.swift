@@ -95,4 +95,3 @@ extension AsyncChain3Sequence: AsyncSequence {
 }
 
 extension AsyncChain3Sequence: Sendable where Base1: Sendable, Base2: Sendable, Base3: Sendable { }
-extension AsyncChain3Sequence.Iterator: Sendable where Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable, Base3.AsyncIterator: Sendable { }
