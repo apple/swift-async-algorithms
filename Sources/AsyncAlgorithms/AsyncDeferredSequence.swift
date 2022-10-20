@@ -10,21 +10,26 @@
 //===----------------------------------------------------------------------===//
 
 @inlinable
-public func deferred<Base: AsyncSequence>(_ createSequence: @escaping @Sendable () async -> Base) -> AsyncDeferredSequence<Base> {
+public func deferred<Base>(
+  _ createSequence: @escaping @Sendable () async -> Base
+) -> AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable {
   AsyncDeferredSequence(createSequence)
 }
 
 @inlinable
-public func deferred<Base: AsyncSequence>(_ createSequence: @autoclosure @escaping @Sendable () -> Base) -> AsyncDeferredSequence<Base> {
+public func deferred<Base: AsyncSequence & Sendable>(
+  _ createSequence: @autoclosure @escaping @Sendable () -> Base
+) -> AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable {
   AsyncDeferredSequence(createSequence)
 }
 
-public struct AsyncDeferredSequence<Base: AsyncSequence> {
+@frozen
+public struct AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable {
   
   @usableFromInline
   let createSequence: @Sendable () async -> Base
   
-  @usableFromInline
+  @inlinable
   init(_ createSequence: @escaping @Sendable () async -> Base) {
     self.createSequence = createSequence
   }
@@ -40,12 +45,13 @@ extension AsyncDeferredSequence: AsyncSequence {
     enum State {
       case pending(@Sendable () async -> Base)
       case active(Base.AsyncIterator)
+      case terminal
     }
     
     @usableFromInline
     var state: State
     
-    @usableFromInline
+    @inlinable
     init(_ createSequence: @escaping @Sendable () async -> Base) {
       self.state = .pending(createSequence)
     }
@@ -57,13 +63,22 @@ extension AsyncDeferredSequence: AsyncSequence {
         state = .active(await generator().makeAsyncIterator())
         return try await next()
       case .active(var base):
-        if let value = try await base.next() {
-          state = .active(base)
-          return value
+        do {
+          if let value = try await base.next() {
+            state = .active(base)
+            return value
+          }
+          else {
+            state = .terminal
+            return nil
+          }
         }
-        else {
-          return nil
+        catch let error {
+          state = .terminal
+          throw error
         }
+      case .terminal:
+        return nil
       }
     }
   }

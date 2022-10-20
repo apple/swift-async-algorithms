@@ -75,14 +75,19 @@ Now, potentially expensive system resources are consumed only at the point they'
 ### Functions
 
 ```swift
-public func deferred<Base: AsyncSequence>(_ createSequence: @escaping @Sendable () async -> Base) -> AsyncDeferredSequence<Base>
-public func deferred<Base: AsyncSequence>(_ createSequence: @autoclosure @escaping @Sendable () -> Base) -> AsyncDeferredSequence<Base>
+public func deferred<Base>(
+  _ createSequence: @escaping @Sendable () async -> Base
+) -> AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable
+
+public func deferred<Base: AsyncSequence & Sendable>(
+  _ createSequence: @autoclosure @escaping @Sendable () -> Base
+) -> AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable
 ```
 
 The synchronous function can be auto-escaped, simplifying the call-site. While the async variant allows a sequence to be initialized within a concurrency context other than that of the end consumer.
 
 ```swift
-public struct AsyncDeferredSequence<Base: AsyncSequence>: Sendable {
+public struct AsyncDeferredSequence<Base> where Base: AsyncSequence, Base: Sendable {
   public typealias Element = Base.Element
   public struct Iterator: AsyncIteratorProtocol {
     public mutating func next() async rethrows -> Element?

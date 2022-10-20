@@ -18,11 +18,14 @@ final class TestDeferred: XCTestCase {
     let sequence = deferred {
       return expected.async
     }
+    var iterator = sequence.makeAsyncIterator()
     var actual = [Int]()
-    for await item in sequence {
+    while let item = await iterator.next() {
       actual.append(item)
     }
     XCTAssertEqual(expected, actual)
+    let pastEnd = await iterator.next()
+    XCTAssertNil(pastEnd)
   }
   
   func test_deferred_remains_idle_pending_consumer() async {
@@ -57,26 +60,55 @@ final class TestDeferred: XCTestCase {
   func test_deferred_throws() async {
     let expectation = expectation(description: "throws")
     let sequence = deferred {
-      AsyncThrowingStream<Void, Error> { continuation in
+      AsyncThrowingStream<Int, Error> { continuation in
         continuation.finish(throwing: Failure())
       }
     }
+    var iterator = sequence.makeAsyncIterator()
     do {
-      for try await _ in sequence { }
+      while let _ =  try await iterator.next() { }
     }
     catch {
       expectation.fulfill()
     }
     wait(for: [expectation], timeout: 1.0)
+    let pastEnd = try! await iterator.next()
+    XCTAssertNil(pastEnd)
   }
   
   func test_deferred_autoclosure() async {
     let expected = [0,1,2,3,4]
     let sequence = deferred(expected.async)
+    var iterator = sequence.makeAsyncIterator()
     var actual = [Int]()
-    for await item in sequence {
+    while let item = await iterator.next() {
       actual.append(item)
     }
     XCTAssertEqual(expected, actual)
+    let pastEnd = await iterator.next()
+    XCTAssertNil(pastEnd)
+  }
+  
+  func test_deferred_cancellation() async {
+    let source = Indefinite(value: 0)
+    let sequence = deferred(source.async)
+    let finished = expectation(description: "finished")
+    let iterated = expectation(description: "iterated")
+    let task = Task {
+      var firstIteration = false
+      for await _ in sequence {
+        if !firstIteration {
+          firstIteration = true
+          iterated.fulfill()
+        }
+      }
+      finished.fulfill()
+    }
+    // ensure the other task actually starts
+    wait(for: [iterated], timeout: 1.0)
+    // cancellation should ensure the loop finishes
+    // without regards to the remaining underlying sequence
+    task.cancel()
+    wait(for: [finished], timeout: 1.0)
   }
 }
