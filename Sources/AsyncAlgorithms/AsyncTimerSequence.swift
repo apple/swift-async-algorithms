@@ -89,6 +89,3 @@ extension AsyncTimerSequence where C == SuspendingClock {
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncTimerSequence: Sendable { }
-
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-extension AsyncTimerSequence.Iterator: Sendable { }

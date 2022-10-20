@@ -52,4 +52,3 @@ extension GatedSequence: AsyncSequence {
 }
 
 extension GatedSequence: Sendable where Element: Sendable { }
-extension GatedSequence.Iterator: Sendable where Element: Sendable { }
