@@ -56,7 +56,36 @@ final class _ThroughputMetric: NSObject, XCTMetric, @unchecked Sendable {
 }
 
 extension XCTestCase {
-  public func measureSequenceThroughput<S: AsyncSequence, Output>( output: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
+  public func measureSequenceThroughputBufferedChannel<Output>(output: @escaping @autoclosure () -> Output) async {
+    let metric = _ThroughputMetric()
+    let sampleTime: Double = 0.1
+
+    measure(metrics: [metric]) {
+      let channel = AsyncBufferedChannel<Output>(bufferSize: 5)
+
+      let exp = self.expectation(description: "Finished")
+      let iterTask = Task<Int, Error> {
+        var eventCount = 0
+        for try await _ in channel {
+          eventCount += 1
+        }
+        metric.eventCount = eventCount
+        exp.fulfill()
+        return eventCount
+      }
+      let sendTask = Task<Void, Never> {
+        while !Task.isCancelled {
+          await channel.send(output())
+        }
+      }
+      usleep(UInt32(sampleTime * Double(USEC_PER_SEC)))
+      iterTask.cancel()
+      sendTask.cancel()
+      self.wait(for: [exp], timeout: sampleTime * 2)
+    }
+  }
+
+  public func measureSequenceThroughput<S: AsyncSequence, Output>(output: @autoclosure () -> Output, _ sequenceBuilder: (InfiniteAsyncSequence<Output>) -> S) async where S: Sendable {
     let metric = _ThroughputMetric()
     let sampleTime: Double = 0.1
     

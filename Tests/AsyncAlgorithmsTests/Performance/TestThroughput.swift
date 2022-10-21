@@ -14,6 +14,10 @@ import AsyncAlgorithms
 
 #if canImport(Darwin)
 final class TestThroughput: XCTestCase {
+  func test_buffered_channel() async {
+    await measureSequenceThroughputBufferedChannel(output: 1)
+  }
+
   func test_chain2() async {
     await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
       chain($0, $1)
@@ -64,7 +68,7 @@ final class TestThroughput: XCTestCase {
       zip($0, $1, $2)
     }
   }
-  @available(macOS 13.0, *)
+  @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
   func test_debounce() async {
       await measureSequenceThroughput(source: (1...).async) {
           $0.debounce(for: .zero, clock: ContinuousClock())
