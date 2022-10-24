@@ -53,7 +53,7 @@ for await quake in nonDeferredSequence {
 
 ## Proposed solution
 
-`AsyncDeferredSequence` uses a supplied closure to create a new asynchronous sequence each time it is iterated. This has the effect of postponing the initialization of an an arbitrary async sequence until the point of use:
+`AsyncDeferredSequence` uses a supplied closure to create a new asynchronous sequence. The closure is executed for each iterator on the first call to `next`. This has the effect of postponing the initialization of an arbitrary async sequence until the point of first demand:
 
 ```swift
 let deferredSequence = deferred(QuakeMonitor.quakes) // Now, initialization is postponed
