@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Creates an asynchronous sequence that uses the supplied closure to create a new asynchronous sequence each
+/// time it is iterated
 @inlinable
 public func deferred<Base>(
   _ createSequence: @escaping @Sendable () async -> Base
@@ -16,6 +18,8 @@ public func deferred<Base>(
   AsyncDeferredSequence(createSequence)
 }
 
+/// Creates an asynchronous sequence that uses the supplied closure to create a new asynchronous sequence each
+/// time it is iterated
 @inlinable
 public func deferred<Base: AsyncSequence & Sendable>(
   _ createSequence: @autoclosure @escaping @Sendable () -> Base
@@ -90,3 +94,6 @@ extension AsyncDeferredSequence: AsyncSequence {
 }
 
 extension AsyncDeferredSequence: Sendable { }
+
+@available(*, unavailable)
+extension AsyncDeferredSequence.Iterator: Sendable { }
