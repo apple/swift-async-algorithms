@@ -19,8 +19,9 @@ public func deferred<Base>(
   AsyncDeferredSequence(createSequence)
 }
 
-/// Creates an asynchronous sequence that uses the supplied closure to create a new asynchronous sequence each
-/// time it is iterated
+/// Creates a ``AsyncDeferredSequence`` that uses the supplied closure to create a new `AsyncSequence`.
+/// The closure is executed for each iterator on the first call to `next`.
+/// This has the effect of postponing the initialization of an arbitrary `AsyncSequence` until the point of first demand.
 @inlinable
 public func deferred<Base: AsyncSequence & Sendable>(
   _ createSequence: @autoclosure @escaping @Sendable () -> Base
