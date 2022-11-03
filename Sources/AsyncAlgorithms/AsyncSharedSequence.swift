@@ -129,8 +129,8 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
           guard let state else { return nil }
           let command = state.run(id)
           switch command {
-          case .fetch(var iterator):
-            let upstreamResult = await Result.async { try await iterator.next() }
+          case .fetch(let iterator):
+            let upstreamResult = await iterator.next()
             let output = state.fetch(id, resumedWithResult: upstreamResult, iterator: iterator)
             return try processOutput(output)
           case .wait:
@@ -194,9 +194,9 @@ fileprivate extension AsyncSharedSequence {
     deinit { action() }
   }
   
-  struct SharedUpstreamIterator: Sendable {
+  actor SharedUpstreamIterator {
     
-    private enum State: @unchecked Sendable {
+    private enum State {
       case pending
       case active(Base.AsyncIterator)
       case terminal
@@ -207,35 +207,36 @@ fileprivate extension AsyncSharedSequence {
       return true
     }
     
-    private let createIterator: @Sendable () -> Base.AsyncIterator
+    private let base: Base
     private var state = State.pending
     
-    init(_ createIterator: @escaping @Sendable () -> Base.AsyncIterator) {
-      self.createIterator = createIterator
+    init(_ base: Base) {
+      self.base = base
     }
     
-    mutating func next() async rethrows -> Element? {
+    func next() async -> Result<Element?, Error> {
       switch state {
       case .pending:
-        self.state = .active(createIterator())
-        return try await next()
+        self.state = .active(base.makeAsyncIterator())
+        return await next()
       case .active(var iterator):
-        let result = await Result.async { try await iterator.next() }
-        switch result {
-        case .success(_?):
-          self.state = .active(iterator)
-        default:
-          self.state = .terminal
+        do {
+          if let element = try await iterator.next() {
+            self.state = .active(iterator)
+            return .success(element)
+          }
+          else {
+            self.state = .terminal
+            return .success(nil)
+          }
         }
-        return try result._rethrowGet()
+        catch {
+          self.state = .terminal
+          return .failure(error)
+        }
       case .terminal:
-        return nil
+        return .success(nil)
       }
-    }
-    
-    mutating func reset() {
-      guard case .active(_) = state else { return }
-      self.state = .pending
     }
   }
   
@@ -294,6 +295,7 @@ fileprivate extension AsyncSharedSequence {
     
     private struct Storage: Sendable {
       
+      let base: Base
       let replayCount: Int
       let iteratorDiscardPolicy: IteratorDisposalPolicy
       var iterator: SharedUpstreamIterator?
@@ -311,9 +313,10 @@ fileprivate extension AsyncSharedSequence {
       
       init(_ base: Base, replayCount: Int, discardsIterator: IteratorDisposalPolicy) {
         precondition(replayCount >= 0, "history must be greater than or equal to zero")
+        self.base = base
         self.replayCount = replayCount
         self.iteratorDiscardPolicy = discardsIterator
-        self.iterator = .init { base.makeAsyncIterator() }
+        self.iterator = .init(base)
       }
       
       mutating func establish() -> Connection {
@@ -483,7 +486,7 @@ fileprivate extension AsyncSharedSequence {
           self.currentGroup.flip()
           self.phase = .pending
           if runners.isEmpty && iteratorDiscardPolicy == .whenTerminatedOrVacant {
-            self.iterator?.reset()
+            self.iterator = SharedUpstreamIterator(base)
             self.history.removeAll()
           }
         }
@@ -561,18 +564,6 @@ fileprivate extension AsyncSharedSequence {
           continuation.resume()
         }
       }
-    }
-  }
-}
-
-fileprivate extension Result where Failure == Error {
-  
-  static func async(_ operation: @escaping () async throws -> Success) async -> Self {
-    do {
-      return .success(try await operation())
-    }
-    catch let error {
-      return .failure(error)
     }
   }
 }
