@@ -11,7 +11,7 @@
 
 import DequeModule
 
-extension AsyncSequence {
+extension AsyncSequence where Self: Sendable, Element: Sendable {
   
   /// Creates an asynchronous sequence that can be shared by multiple consumers.
   ///
@@ -54,7 +54,7 @@ extension AsyncSequence {
 /// iterator when the connected consumer count falls to zero, its history will be discarded at the
 /// same time.
 public struct AsyncSharedSequence<Base: AsyncSequence>
-where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable {
+  where Base: Sendable, Base.Element: Sendable {
   
   /// The iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
   ///
@@ -97,7 +97,7 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
   
   public typealias Element = Base.Element
   
-  public struct Iterator: AsyncIteratorProtocol, Sendable {
+  public struct Iterator: AsyncIteratorProtocol, Sendable where Base.Element: Sendable {
     
     private let id: UInt
     private let deallocToken: DeallocToken?
@@ -194,9 +194,9 @@ fileprivate extension AsyncSharedSequence {
     deinit { action() }
   }
   
-  struct SharedUpstreamIterator {
+  struct SharedUpstreamIterator: Sendable {
     
-    private enum State {
+    private enum State: @unchecked Sendable {
       case pending
       case active(Base.AsyncIterator)
       case terminal
@@ -207,7 +207,7 @@ fileprivate extension AsyncSharedSequence {
       return true
     }
     
-    private let createIterator: () -> Base.AsyncIterator
+    private let createIterator: @Sendable () -> Base.AsyncIterator
     private var state = State.pending
     
     init(_ createIterator: @escaping @Sendable () -> Base.AsyncIterator) {
