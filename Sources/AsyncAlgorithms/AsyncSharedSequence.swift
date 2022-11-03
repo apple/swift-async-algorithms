@@ -112,9 +112,9 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
         self.deallocToken = .init { state.cancel(id) }
         self.state = state
         continuation?.resume()
-      case .terminal(let id, let prefix):
+      case .terminal(let id):
         self.id = id
-        self.prefix = prefix
+        self.prefix = .init()
         self.deallocToken = nil
         self.state = nil
       }
@@ -202,11 +202,6 @@ fileprivate extension AsyncSharedSequence {
       case terminal
     }
     
-    var isTerminal: Bool {
-      guard case .terminal = state else { return false }
-      return true
-    }
-    
     private let base: Base
     private var state = State.pending
     
@@ -249,7 +244,7 @@ fileprivate extension AsyncSharedSequence {
   
   enum Connection {
     case active(id: UInt, prefix: Deque<Element>, continuation: RunContinuation?)
-    case terminal(id: UInt, prefix: Deque<Element>)
+    case terminal(id: UInt)
   }
   
   enum Command {
@@ -322,7 +317,7 @@ fileprivate extension AsyncSharedSequence {
       mutating func establish() -> Connection {
         defer { nextRunnerID += 1}
         if terminal {
-          return .terminal(id: nextRunnerID, prefix: history)
+          return .terminal(id: nextRunnerID)
         }
         else {
           let group: RunGroup
