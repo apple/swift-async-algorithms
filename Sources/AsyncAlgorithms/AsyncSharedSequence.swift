@@ -9,6 +9,57 @@
 //
 //===----------------------------------------------------------------------===//
 
+// ALGORITHM SUMMARY:
+//
+// The basic idea behind the `AsyncSharedSequence` algorithm is as follows:
+// Every vended `AsyncSharedSequence` iterator (runner) takes part in a race
+// (run group) to grab the next element from the base iterator. The 'winner'
+// returns the element to the shared state, who then supplies the result to
+// later finishers (other iterators). Once every runner has completed the
+// current run group cycle, the next run group begins. This means that
+// iterators run in lock-step, only moving forward when the the last iterator
+// in the run group completes its current run (iteration).
+//
+// ITERATOR LIFECYCLE:
+//
+//  1. CONNECTION: On connection, each 'runner' is issued with an ID (and any
+//     prefixed values from the history buffer). From this point on, the
+//     algorithm will wait on this iterator to consume its values before moving
+//     on. This means that until `next()` is called on this iterator, all the
+//     other iterators will be held until such time that it is, or the
+//     iterator's task is cancelled.
+//
+//  2. RUN: After its prefix values have been exhausted, each time `next()` is
+//     called on the iterator, the iterator attempts to start a 'run' by
+//     calling `startRun(_:)` on the shared state. The shared state marks the
+//     iterator as 'running' and issues a role to determine the iterator's
+//     action for the current run group. The roles are as follows:
+//
+//       - FETCH: The iterator is the 'winner' of this run group. It is issued
+//         with the 'borrowed' base iterator. It calls `next()` on it and,
+//         once it resumes, returns the value and the borrowed base iterator
+//         to the shared state.
+//       – WAIT: The iterator hasn't won this group, but was fast enough that
+//         the winner has yet to resume with the element from the base
+//         iterator. Therefore, it is told to suspend (WAIT) until such time
+//         that the winner resumes.
+//       – YIELD: The iterator is late (and is holding up the other iterators).
+//         The shared state issues it with the value retrieved by the winning
+//         iterator and lets it continue immediately.
+//       – HOLD: The iterator is early for the next run group. So it is put in
+//         the holding pen until the next run group can start. This is because
+//         there are other iterators that still haven't finished their run for
+//         the current run group. Once all other iterators have completed their
+//         run, this iterator will be resumed.
+//
+//  3. COMPLETION: The iterator calls cancel on the shared state which ensures
+//     the iterator does not take part in the next run group. However, if it is
+//     currently suspended it may not resume until the current run group
+//     concludes. This is especially important if it is filling the key FETCH
+//     role for the current run group.
+
+// MARK: - Member Function
+
 import DequeModule
 
 extension AsyncSequence where Self: Sendable, Element: Sendable {
@@ -53,7 +104,7 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
 /// the most recently emitted elements. If ``AsyncSharedSequence`` is configured to drop its
 /// iterator when the connected consumer count falls to zero, its history will be discarded at the
 /// same time.
-public struct AsyncSharedSequence<Base: AsyncSequence>
+public struct AsyncSharedSequence<Base: AsyncSequence> : Sendable
   where Base: Sendable, Base.Element: Sendable {
   
   /// The iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
@@ -84,7 +135,8 @@ public struct AsyncSharedSequence<Base: AsyncSequence>
     history historyCount: Int = 0,
     disposingBaseIterator iteratorDisposalPolicy: IteratorDisposalPolicy = .whenTerminatedOrVacant
   ) {
-    let state = State(base, replayCount: historyCount, discardsIterator: iteratorDisposalPolicy)
+    let state = State(
+      base, replayCount: historyCount, iteratorDisposalPolicy: iteratorDisposalPolicy)
     self.base = base
     self.state = state
     self.deallocToken = .init { state.abort() }
@@ -93,11 +145,11 @@ public struct AsyncSharedSequence<Base: AsyncSequence>
 
 // MARK: - Iterator
 
-extension AsyncSharedSequence: AsyncSequence, Sendable {
+extension AsyncSharedSequence: AsyncSequence {
   
   public typealias Element = Base.Element
   
-  public struct Iterator: AsyncIteratorProtocol, Sendable where Base.Element: Sendable {
+  public struct Iterator: AsyncIteratorProtocol {
     
     private let id: UInt
     private let deallocToken: DeallocToken?
@@ -106,12 +158,11 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
     
     fileprivate init(_ state: State) {
       switch state.establish() {
-      case .active(let id, let prefix, let continuation):
+      case .active(let id, let prefix):
         self.id = id
         self.prefix = prefix
         self.deallocToken = .init { state.cancel(id) }
         self.state = state
-        continuation?.resume()
       case .terminal(let id):
         self.id = id
         self.prefix = .init()
@@ -127,8 +178,8 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
             return element
           }
           guard let state else { return nil }
-          let command = state.run(id)
-          switch command {
+          let role = state.startRun(id)
+          switch role {
           case .fetch(let iterator):
             let upstreamResult = await iterator.next()
             let output = state.fetch(id, resumedWithResult: upstreamResult, iterator: iterator)
@@ -159,7 +210,6 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
     }
     
     private mutating func processOutput(_ output: RunOutput) rethrows -> Element? {
-      output.continuation?.resume()
       if output.shouldCancel {
         self.state = nil
       }
@@ -186,12 +236,21 @@ extension AsyncSharedSequence: AsyncSequence, Sendable {
 
 fileprivate extension AsyncSharedSequence {
   
-  final class DeallocToken: Sendable {
-    let action: @Sendable () -> Void
-    init(_ dealloc: @escaping @Sendable () -> Void) {
-      self.action = dealloc
-    }
-    deinit { action() }
+  enum RunnerConnection {
+    case active(id: UInt, prefix: Deque<Element>)
+    case terminal(id: UInt)
+  }
+  
+  enum RunRole {
+    case fetch(SharedUpstreamIterator)
+    case wait
+    case yield(RunOutput)
+    case hold
+  }
+  
+  struct RunOutput {
+    let value: Result<Element?, Error>
+    var shouldCancel = false
   }
   
   actor SharedUpstreamIterator {
@@ -235,133 +294,100 @@ fileprivate extension AsyncSharedSequence {
     }
   }
   
-  struct Runner {
-    let id: UInt
-    var group: RunGroup
-    var isCancelled = false
-    var isRunning = false
-  }
-  
-  enum Connection {
-    case active(id: UInt, prefix: Deque<Element>, continuation: RunContinuation?)
-    case terminal(id: UInt)
-  }
-  
-  enum Command {
-    case fetch(SharedUpstreamIterator)
-    case wait
-    case yield(RunOutput)
-    case hold
-  }
-  
-  enum RunGroup {
-    case a
-    case b
-    var nextGroup: RunGroup { self == .a ? .b : .a }
-    mutating func flip() { self = nextGroup }
-  }
-  
-  struct RunOutput {
-    let value: Result<Element?, Error>
-    var shouldCancel = false
-    var continuation: RunContinuation?
-  }
-  
-  struct RunContinuation {
-    var held: [UnsafeContinuation<Void, Never>]?
-    var waiting: [(UnsafeContinuation<RunOutput, Never>, RunOutput)]?
-    func resume() {
-      if let held {
-        for continuation in held { continuation.resume() }
-      }
-      if let waiting {
-        for (continuation, output) in waiting { continuation.resume(returning: output) }
-      }
-    }
-  }
-  
-  enum Phase {
-    case pending
-    case fetching
-    case done(Result<Element?, Error>)
-  }
-  
   struct State: Sendable {
     
+    private struct RunContinuation {
+      var held: [UnsafeContinuation<Void, Never>]?
+      var waiting: [(UnsafeContinuation<RunOutput, Never>, RunOutput)]?
+      func resume() {
+        if let held {
+          for continuation in held { continuation.resume() }
+        }
+        if let waiting {
+          for (continuation, output) in waiting { continuation.resume(returning: output) }
+        }
+      }
+    }
+    
     private struct Storage: Sendable {
+      
+      enum Phase {
+        case pending
+        case fetching
+        case done(Result<Element?, Error>)
+      }
+      
+      struct Runner {
+        var group: Int
+        var active = false
+        var cancelled = false
+      }
       
       let base: Base
       let replayCount: Int
       let iteratorDiscardPolicy: IteratorDisposalPolicy
       var iterator: SharedUpstreamIterator?
       var nextRunnerID = UInt.min
-      var runners = [UInt: Runner]()
-      var phase = Phase.pending
-      var currentGroup = RunGroup.a
+      var currentGroup = 0
+      var nextGroup: Int { (currentGroup + 1) % 2 /* could be any denominator 2 or greater... */ }
       var history = Deque<Element>()
+      var runners = [UInt: Runner]()
       var heldRunnerContinuations = [UnsafeContinuation<Void, Never>]()
       var waitingRunnerContinuations = [UInt: UnsafeContinuation<RunOutput, Never>]()
+      var phase = Phase.pending
       var terminal = false
-      var hasActiveOrPendingRunnersInCurrentGroup: Bool {
-        runners.values.contains { $0.group == currentGroup }
-      }
       
-      init(_ base: Base, replayCount: Int, discardsIterator: IteratorDisposalPolicy) {
+      init(_ base: Base, replayCount: Int, iteratorDisposalPolicy: IteratorDisposalPolicy) {
         precondition(replayCount >= 0, "history must be greater than or equal to zero")
         self.base = base
         self.replayCount = replayCount
-        self.iteratorDiscardPolicy = discardsIterator
+        self.iteratorDiscardPolicy = iteratorDisposalPolicy
         self.iterator = .init(base)
       }
       
-      mutating func establish() -> Connection {
+      mutating func establish() -> (RunnerConnection, RunContinuation?) {
         defer { nextRunnerID += 1}
         if terminal {
-          return .terminal(id: nextRunnerID)
+          return (.terminal(id: nextRunnerID), nil)
         }
         else {
-          let group: RunGroup
-          if case .done(_) = phase {
-            group = currentGroup.nextGroup
-          } else {
-            group = currentGroup
-          }
-          let runner = Runner(id: nextRunnerID, group: group)
-          runners[nextRunnerID] = runner
+          let group: Int
+          if case .done(_) = phase { group = nextGroup } else { group = currentGroup }
+          runners[nextRunnerID] = .init(group: group)
+          let connection = RunnerConnection.active(id: nextRunnerID, prefix: history)
           let continuation = RunContinuation(held: finalizeRunGroupIfNeeded())
-          return .active(id: nextRunnerID, prefix: history, continuation: continuation)
+          return (connection, continuation)
         }
       }
       
-      mutating func run(_ runnerID: UInt) -> Command {
-        guard terminal == false, var runner = runners[runnerID] else {
+      mutating func run(_ runnerID: UInt) -> (RunRole, RunContinuation?) {
+        guard terminal == false, let runner = runners[runnerID], runner.cancelled == false else {
           if case .done(let result) = phase {
-            return .yield(RunOutput(value: result, shouldCancel: true))
+            return (.yield(RunOutput(value: result, shouldCancel: true)), nil)
           }
-          return .yield(RunOutput(value: .success(nil), shouldCancel: true))
+          return (.yield(RunOutput(value: .success(nil), shouldCancel: true)), nil)
         }
-        runner.isRunning = true
-        runners.updateValue(runner, forKey: runnerID)
-        guard runner.group == currentGroup else { return .hold }
-        switch phase {
-        case .pending:
-          phase = .fetching
-          guard let iterator = iterator else {
-            preconditionFailure("iterator must not be over-borrowed")
+        if runner.group == currentGroup {
+          runners.updateValue(
+            .init(group: runner.group, active: true, cancelled: runner.cancelled), forKey: runnerID)
+          switch phase {
+          case .pending:
+            guard let iterator = iterator else {
+              preconditionFailure("iterator must not be over-borrowed")
+            }
+            self.iterator = nil
+            phase = .fetching
+            return (.fetch(iterator), nil)
+          case .fetching:
+            return (.wait, nil)
+          case .done(let result):
+            finish(runnerID)
+            let command = RunRole.yield(RunOutput(value: result, shouldCancel: runner.cancelled))
+            return (command, .init(held: finalizeRunGroupIfNeeded()))
           }
-          self.iterator = nil
-          return .fetch(iterator)
-        case .fetching:
-          return .wait
-        case .done(let result):
-          finish(runnerID)
-          return .yield(
-            RunOutput(
-              value: result,
-              shouldCancel: runner.isCancelled,
-              continuation: .init(held: finalizeRunGroupIfNeeded())
-            )
-          )
+        }
+        else {
+          return (.hold, nil)
         }
       }
       
@@ -369,124 +395,111 @@ fileprivate extension AsyncSharedSequence {
         _ runnerID: UInt,
         resumedWithResult result: Result<Element?, Error>,
         iterator: SharedUpstreamIterator
-      ) -> RunOutput {
+      ) -> (RunOutput, RunContinuation) {
+        precondition(self.iterator == nil, "iterator is already in place")
         guard let runner = runners[runnerID] else {
           preconditionFailure("fetching runner resumed out of band")
         }
-        guard case .fetching = phase, case currentGroup = runner.group else {
-          preconditionFailure("fetching runner resumed out of band")
-        }
-        guard self.iterator == nil else {
-          preconditionFailure("iterator is already in place")
-        }
         self.iterator = iterator
-        phase = .done(result)
-        terminal = (try? result.get()) == nil
+        self.terminal = self.terminal || ((try? result.get()) == nil)
+        self.phase = .done(result)
         finish(runnerID)
         updateHistory(withResult: result)
-        let continuationPairs = waitingRunnerContinuations.map { waitingRunnerID, continuation in
-          guard let waitingRunner = runners[waitingRunnerID] else {
-            preconditionFailure("fetching runner resumed out of band")
-          }
-          finish(waitingRunnerID)
-          return (continuation, RunOutput(value: result, shouldCancel: waitingRunner.isCancelled))
-        }
-        waitingRunnerContinuations.removeAll()
-        return RunOutput(
-          value: result,
-          shouldCancel: runner.isCancelled,
-          continuation: .init(held: finalizeRunGroupIfNeeded(), waiting: continuationPairs)
-        )
+        var continuation = gatherWaitingRunnerContinuationsForResumption(withResult: result)
+        continuation.held = finalizeRunGroupIfNeeded()
+        return (RunOutput(value: result, shouldCancel: runner.cancelled), continuation)
       }
       
       mutating func wait(
         _ runnerID: UInt,
         suspendedWithContinuation continuation: UnsafeContinuation<RunOutput, Never>
-      ) -> RunOutput? {
-        guard let runner = runners[runnerID] else {
-          preconditionFailure("waiting runner resumed out of band")
-        }
+      ) -> (RunOutput, RunContinuation)? {
         switch phase {
         case .fetching:
           waitingRunnerContinuations[runnerID] = continuation
           return nil
         case .done(let result):
+          guard let runner = runners[runnerID] else {
+            preconditionFailure("waiting runner resumed out of band")
+          }
           finish(runnerID)
-          return RunOutput(
-            value: result,
-            shouldCancel: runner.isCancelled,
-            continuation: .init(held: finalizeRunGroupIfNeeded())
-          )
+          let output = RunOutput(value: result, shouldCancel: runner.cancelled)
+          let continuation = RunContinuation(held: finalizeRunGroupIfNeeded())
+          return (output, continuation)
         default:
-          preconditionFailure("waiting runner resumed out of band")
+          preconditionFailure("waiting runner suspended out of band")
         }
+      }
+      
+      private mutating func gatherWaitingRunnerContinuationsForResumption(
+        withResult result: Result<Element?, Error>
+      ) -> RunContinuation {
+        let continuationPairs = waitingRunnerContinuations.map { waitingRunnerID, continuation in
+          guard let waitingRunner = runners[waitingRunnerID] else {
+            preconditionFailure("waiting runner resumed out of band")
+          }
+          finish(waitingRunnerID)
+          return (continuation, RunOutput(value: result, shouldCancel: waitingRunner.cancelled))
+        }
+        waitingRunnerContinuations.removeAll()
+        return .init(waiting: continuationPairs)
       }
       
       mutating func hold(
         _ runnerID: UInt,
         suspendedWithContinuation continuation: UnsafeContinuation<Void, Never>
       ) -> Bool {
-        guard let runner = runners[runnerID] else {
-          preconditionFailure("held runner resumed out of band")
-        }
-        if currentGroup == runner.group {
+        guard let runner = runners[runnerID], runner.group == nextGroup else {
           return true
         }
-        else {
-          heldRunnerContinuations.append(continuation)
-          return false
-        }
+        heldRunnerContinuations.append(continuation)
+        return false
       }
       
       private mutating func finish(_ runnerID: UInt) {
-        guard var runner = runners[runnerID] else { return }
-        if runner.isCancelled {
-          runners.removeValue(forKey: runnerID)
+        guard var runner = runners.removeValue(forKey: runnerID) else {
+          preconditionFailure("run finished out of band")
         }
-        else {
-          runner.isRunning = false
-          runner.group.flip()
+        if runner.cancelled == false {
+          runner.active = false
+          runner.group = nextGroup
           runners[runnerID] = runner
         }
       }
       
-      mutating func cancel(_ runnerID: UInt) -> [UnsafeContinuation<Void, Never>]? {
-        if var runner = runners[runnerID] {
-          if runner.isRunning {
-            runner.isCancelled = true
-            runners[runnerID] = runner
-          }
-          else {
-            runners.removeValue(forKey: runnerID)
-            return finalizeRunGroupIfNeeded()
-          }
+      mutating func cancel(_ runnerID: UInt) -> RunContinuation? {
+        if let runner = runners.removeValue(forKey: runnerID), runner.active {
+          runners[runnerID] = .init(group: runner.group, active: true, cancelled: true)
+          return nil
         }
-        return nil
+        else {
+          return .init(held: finalizeRunGroupIfNeeded())
+        }
       }
       
-      mutating func abort() -> [UnsafeContinuation<Void, Never>]? {
+      mutating func abort() -> RunContinuation {
         terminal = true
-        runners = runners.compactMapValues { $0.isRunning ? $0 : nil }
-        return finalizeRunGroupIfNeeded()
+        runners = runners.filter { _, runner in runner.active }
+        return .init(held: finalizeRunGroupIfNeeded())
       }
       
       private mutating func finalizeRunGroupIfNeeded() -> [UnsafeContinuation<Void, Never>]? {
-        if hasActiveOrPendingRunnersInCurrentGroup { return nil }
+        if (runners.values.contains { $0.group == currentGroup }) { return nil }
         if terminal {
-          self.iterator = nil
           self.phase = .done(.success(nil))
+          self.iterator = nil
           self.history.removeAll()
         }
         else {
-          self.currentGroup.flip()
+          self.currentGroup = nextGroup
           self.phase = .pending
           if runners.isEmpty && iteratorDiscardPolicy == .whenTerminatedOrVacant {
             self.iterator = SharedUpstreamIterator(base)
             self.history.removeAll()
           }
         }
-        let continuations = self.heldRunnerContinuations
-        self.heldRunnerContinuations.removeAll()
+        let continuations = heldRunnerContinuations
+        heldRunnerContinuations.removeAll()
         return continuations
       }
       
@@ -501,18 +514,22 @@ fileprivate extension AsyncSharedSequence {
     
     private let storage: ManagedCriticalState<Storage>
     
-    init(_ base: Base, replayCount: Int, discardsIterator: IteratorDisposalPolicy) {
+    init(_ base: Base, replayCount: Int, iteratorDisposalPolicy: IteratorDisposalPolicy) {
       self.storage = .init(
-        Storage(base, replayCount: replayCount, discardsIterator: discardsIterator)
+        Storage(base, replayCount: replayCount, iteratorDisposalPolicy: iteratorDisposalPolicy)
       )
     }
     
-    func establish() -> Connection {
-      storage.withCriticalRegion { $0.establish() }
+    func establish() -> RunnerConnection {
+      let (connection, continuation) = storage.withCriticalRegion { state in state.establish() }
+      continuation?.resume()
+      return connection
     }
     
-    func run(_ runnerID: UInt) -> Command {
-      storage.withCriticalRegion { $0.run(runnerID) }
+    func startRun(_ runnerID: UInt) -> RunRole {
+      let (command, continuation) = storage.withCriticalRegion { state in state.run(runnerID) }
+      continuation?.resume()
+      return command
     }
     
     func fetch(
@@ -520,18 +537,22 @@ fileprivate extension AsyncSharedSequence {
       resumedWithResult result: Result<Element?, Error>,
       iterator: SharedUpstreamIterator
     ) -> RunOutput {
-      storage.withCriticalRegion { state in
+      let (output, continuation) = storage.withCriticalRegion { state in
         state.fetch(runnerID, resumedWithResult: result, iterator: iterator)
       }
+      continuation.resume()
+      return output
     }
     
     func wait(
       _ runnerID: UInt,
       suspendedWithContinuation continuation: UnsafeContinuation<RunOutput, Never>
     ) -> RunOutput? {
-      storage.withCriticalRegion { state in
+      guard let (output, continuation) = storage.withCriticalRegion({ state in
         state.wait(runnerID, suspendedWithContinuation: continuation)
-      }
+      }) else { return nil }
+      continuation.resume()
+      return output
     }
     
     func hold(
@@ -544,21 +565,27 @@ fileprivate extension AsyncSharedSequence {
     }
     
     func cancel(_ runnerID: UInt) {
-      let continuations = storage.withCriticalRegion { $0.cancel(runnerID) }
-      if let continuations {
-        for continuation in continuations {
-          continuation.resume()
-        }
-      }
+      let continuation = storage.withCriticalRegion { $0.cancel(runnerID) }
+      continuation?.resume()
     }
     
     func abort() {
-      let continuations = storage.withCriticalRegion { state in state.abort() }
-      if let continuations {
-        for continuation in continuations {
-          continuation.resume()
-        }
-      }
+      let continuation = storage.withCriticalRegion { state in state.abort() }
+      continuation.resume()
     }
   }
+}
+
+// MARK: - Sendable
+
+extension AsyncSharedSequence.Iterator: Sendable where Base.Element: Sendable { }
+
+// MARK: - Utilities
+
+fileprivate final class DeallocToken: Sendable {
+  let action: @Sendable () -> Void
+  init(_ dealloc: @escaping @Sendable () -> Void) {
+    self.action = dealloc
+  }
+  deinit { action() }
 }
