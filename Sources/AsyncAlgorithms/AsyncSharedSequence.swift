@@ -382,16 +382,13 @@ fileprivate extension AsyncSharedSequence {
       }
       
       mutating func run(_ runnerID: UInt) -> (RunRole, RunContinuation?) {
-        guard terminal == false, let runner = runners[runnerID], runner.cancelled == false else {
-          if case .done(let result) = phase {
-            return (.yield(RunOutput(value: result, shouldCancel: true)), nil)
-          }
-          return (.yield(RunOutput(value: .success(nil), shouldCancel: true)), nil)
+        guard var runner = runners[runnerID], runner.cancelled == false else {
+          let output = RunOutput(value: .success(nil), shouldCancel: true)
+          return (.yield(output), nil)
         }
         if runner.group == currentGroup {
-          let updatedRunner = Runner(
-            group: runner.group, active: true, cancelled: runner.cancelled)
-          runners.updateValue(updatedRunner, forKey: runnerID)
+          runner.active = true
+          runners[runnerID] = runner
           switch phase {
           case .pending:
             guard let iterator = iterator else {
@@ -403,8 +400,9 @@ fileprivate extension AsyncSharedSequence {
             return (.wait, nil)
           case .done(let result):
             finish(runnerID)
+            let shouldCancel = terminal || runner.cancelled
             let role = RunRole.yield(
-              RunOutput(value: result, shouldCancel: runner.cancelled)
+              RunOutput(value: result, shouldCancel: shouldCancel)
             )
             return (role, .init(held: finalizeRunGroupIfNeeded()))
           }
@@ -444,7 +442,8 @@ fileprivate extension AsyncSharedSequence {
             preconditionFailure("waiting runner resumed out of band")
           }
           finish(runnerID)
-          let output = RunOutput(value: result, shouldCancel: runner.cancelled)
+          let shouldCancel = terminal || runner.cancelled
+          let output = RunOutput(value: result, shouldCancel: shouldCancel)
           let continuation = RunContinuation(held: finalizeRunGroupIfNeeded())
           return (output, continuation)
         default:
@@ -461,8 +460,8 @@ fileprivate extension AsyncSharedSequence {
               preconditionFailure("waiting runner resumed out of band")
             }
             finish(waitingRunnerID)
-            let output = RunOutput(
-              value: result, shouldCancel: waitingRunner.cancelled)
+            let shouldCancel = terminal || waitingRunner.cancelled
+            let output = RunOutput(value: result, shouldCancel: shouldCancel)
             return (continuation, output)
           }
         waitingRunnerContinuations.removeAll()
