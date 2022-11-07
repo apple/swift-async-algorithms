@@ -190,8 +190,7 @@ extension AsyncSharedSequence: AsyncSequence {
           switch role {
           case .fetch(let iterator):
             let upstreamResult = await iterator.next()
-            let output = state.fetch(
-              id, resumedWithResult: upstreamResult, iterator: iterator)
+            let output = state.fetch(id, resumedWithResult: upstreamResult)
             return try processOutput(output)
           case .wait:
             let output = await withUnsafeContinuation { continuation in
@@ -396,9 +395,8 @@ fileprivate extension AsyncSharedSequence {
           switch phase {
           case .pending:
             guard let iterator = iterator else {
-              preconditionFailure("iterator must not be over-borrowed")
+              preconditionFailure("fetching runner started out of band")
             }
-            self.iterator = nil
             phase = .fetching
             return (.fetch(iterator), nil)
           case .fetching:
@@ -417,15 +415,11 @@ fileprivate extension AsyncSharedSequence {
       }
       
       mutating func fetch(
-        _ runnerID: UInt,
-        resumedWithResult result: Result<Element?, Error>,
-        iterator: SharedUpstreamIterator
+        _ runnerID: UInt, resumedWithResult result: Result<Element?, Error>
       ) -> (RunOutput, RunContinuation) {
-        precondition(self.iterator == nil, "iterator is already in place")
         guard let runner = runners[runnerID] else {
           preconditionFailure("fetching runner resumed out of band")
         }
-        self.iterator = iterator
         self.terminal = self.terminal || ((try? result.get()) == nil)
         self.phase = .done(result)
         finish(runnerID)
@@ -581,12 +575,10 @@ fileprivate extension AsyncSharedSequence {
     }
     
     func fetch(
-      _ runnerID: UInt,
-      resumedWithResult result: Result<Element?, Error>,
-      iterator: SharedUpstreamIterator
+      _ runnerID: UInt, resumedWithResult result: Result<Element?, Error>
     ) -> RunOutput {
       let (output, continuation) = storage.withCriticalRegion { storage in
-        storage.fetch(runnerID, resumedWithResult: result, iterator: iterator)
+        storage.fetch(runnerID, resumedWithResult: result)
       }
       continuation.resume()
       return output
