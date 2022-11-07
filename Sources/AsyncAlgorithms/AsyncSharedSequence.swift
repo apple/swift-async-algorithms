@@ -576,10 +576,6 @@ fileprivate extension AsyncSharedSequence {
   }
 }
 
-// MARK: - Sendable
-
-extension AsyncSharedSequence.Iterator: Sendable where Base.Element: Sendable { }
-
 // MARK: - Utilities
 
 fileprivate final class DeallocToken: Sendable {
