@@ -66,10 +66,10 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
   
   /// Creates an asynchronous sequence that can be shared by multiple consumers.
   ///
-  /// - parameter history: the number of previously emitted elements to prefix to the iterator of a new
-  ///   consumer
-  /// - parameter iteratorDisposalPolicy:the iterator disposal policy applied by a shared
-  ///   asynchronous sequence to its upstream iterator
+  /// - parameter history: the number of previously emitted elements to prefix
+  ///   to the iterator of a new consumer
+  /// - parameter iteratorDisposalPolicy:the iterator disposal policy applied by
+  ///   a shared asynchronous sequence to its upstream iterator
   public func share(
     history historyCount: Int = 0,
     disposingBaseIterator iteratorDisposalPolicy: AsyncSharedSequence<Self>.IteratorDisposalPolicy = .whenTerminatedOrVacant
@@ -81,41 +81,49 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
 
 // MARK: - Sequence
 
-/// An asynchronous sequence that can be iterated by multiple concurrent consumers.
+/// An asynchronous sequence that can be iterated by multiple concurrent
+/// consumers.
 ///
-/// Use a shared asynchronous sequence when you have multiple downstream asynchronous sequences
-/// with which you wish to share the output of a single asynchronous sequence. This can be useful if
-/// you have expensive upstream operations, or if your asynchronous sequence represents the output
-/// of a physical device.
+/// Use a shared asynchronous sequence when you have multiple downstream
+/// asynchronous sequences with which you wish to share the output of a single
+/// asynchronous sequence. This can be useful if you have expensive upstream
+/// operations, or if your asynchronous sequence represents the output of a
+/// physical device.
 ///
-/// Elements are emitted from a shared asynchronous sequence at a rate that does not exceed the
-/// consumption of its slowest consumer. If this kind of back-pressure isn't desirable for your
-/// use-case, ``AsyncSharedSequence`` can be composed with buffers – either upstream, downstream,
-/// or both – to acheive the desired behavior.
+/// Elements are emitted from a shared asynchronous sequence at a rate that does
+/// not exceed the consumption of its slowest consumer. If this kind of
+/// back-pressure isn't desirable for your use-case, ``AsyncSharedSequence`` can
+/// be composed with buffers – either upstream, downstream, or both – to acheive
+/// the desired behavior.
 ///
-/// If you have an asynchronous sequence that consumes expensive system resources, it is possible to
-/// configure ``AsyncSharedSequence`` to discard its upstream iterator when the connected
-/// downstream consumer count falls to zero. This allows any cancellation tasks configured on the
-/// upstream asynchronous sequence to be initiated and for expensive resources to be terminated.
-/// ``AsyncSharedSequence`` will re-create a fresh iterator if there is further demand.
+/// If you have an asynchronous sequence that consumes expensive system
+/// resources, it is possible to configure ``AsyncSharedSequence`` to discard
+/// its upstream iterator when the connected downstream consumer count falls to
+/// zero. This allows any cancellation tasks configured on the upstream
+/// asynchronous sequence to be initiated and for expensive resources to be
+/// terminated. ``AsyncSharedSequence`` will re-create a fresh iterator if there
+/// is further demand.
 ///
-/// For use-cases where it is important for consumers to have a record of elements emitted prior to
-/// their connection, a ``AsyncSharedSequence`` can also be configured to prefix its output with
-/// the most recently emitted elements. If ``AsyncSharedSequence`` is configured to drop its
-/// iterator when the connected consumer count falls to zero, its history will be discarded at the
-/// same time.
+/// For use-cases where it is important for consumers to have a record of
+/// elements emitted prior to their connection, a ``AsyncSharedSequence`` can
+/// also be configured to prefix its output with the most recently emitted
+/// elements. If ``AsyncSharedSequence`` is configured to drop its iterator when
+/// the connected consumer count falls to zero, its history will be discarded at
+/// the same time.
 public struct AsyncSharedSequence<Base: AsyncSequence> : Sendable
   where Base: Sendable, Base.Element: Sendable {
   
-  /// The iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
+  /// The iterator disposal policy applied by a shared asynchronous sequence to
+  /// its upstream iterator
   ///
-  /// - note: the iterator is always disposed when the base asynchronous sequence terminates
+  /// - note: the iterator is always disposed when the base asynchronous
+  ///   sequence terminates
   public enum IteratorDisposalPolicy: Sendable {
-    /// retains the upstream iterator for use by future consumers until the base asynchronous
-    /// sequence is terminated
-    case whenTerminated
-    /// discards the upstream iterator when the number of consumers falls to zero or the base
+    /// retains the upstream iterator for use by future consumers until the base
     /// asynchronous sequence is terminated
+    case whenTerminated
+    /// discards the upstream iterator when the number of consumers falls to
+    /// zero or the base asynchronous sequence is terminated
     case whenTerminatedOrVacant
   }
   
@@ -126,10 +134,10 @@ public struct AsyncSharedSequence<Base: AsyncSequence> : Sendable
   /// Contructs a shared asynchronous sequence
   ///
   /// - parameter base: the asynchronous sequence to be shared
-  /// - parameter history: the number of previously emitted elements to prefix to the iterator of a
-  ///   new consumer
-  /// - parameter iteratorDisposalPolicy: the iterator disposal policy applied to the upstream
-  ///   iterator
+  /// - parameter history: the number of previously emitted elements to prefix
+  ///   to the iterator of a new consumer
+  /// - parameter iteratorDisposalPolicy: the iterator disposal policy applied
+  ///   to the upstream iterator
   public init(
     _ base: Base,
     history historyCount: Int = 0,
@@ -182,19 +190,24 @@ extension AsyncSharedSequence: AsyncSequence {
           switch role {
           case .fetch(let iterator):
             let upstreamResult = await iterator.next()
-            let output = state.fetch(id, resumedWithResult: upstreamResult, iterator: iterator)
+            let output = state.fetch(
+              id, resumedWithResult: upstreamResult, iterator: iterator)
             return try processOutput(output)
           case .wait:
             let output = await withUnsafeContinuation { continuation in
-              let immediateOutput = state.wait(id, suspendedWithContinuation: continuation)
-              if let immediateOutput { continuation.resume(returning: immediateOutput) }
+              let immediateOutput = state.wait(
+                id, suspendedWithContinuation: continuation)
+              if let immediateOutput {
+                continuation.resume(returning: immediateOutput)
+              }
             }
             return try processOutput(output)
           case .yield(let output):
             return try processOutput(output)
           case .hold:
             await withUnsafeContinuation { continuation in
-              let shouldImmediatelyResume = state.hold(id, suspendedWithContinuation: continuation)
+              let shouldImmediatelyResume = state.hold(
+                id, suspendedWithContinuation: continuation)
               if shouldImmediatelyResume { continuation.resume() }
             }
             return try await next()
@@ -209,7 +222,9 @@ extension AsyncSharedSequence: AsyncSequence {
       }
     }
     
-    private mutating func processOutput(_ output: RunOutput) rethrows -> Element? {
+    private mutating func processOutput(
+      _ output: RunOutput
+    ) rethrows -> Element? {
       if output.shouldCancel {
         self.state = nil
       }
@@ -304,7 +319,9 @@ fileprivate extension AsyncSharedSequence {
           for continuation in held { continuation.resume() }
         }
         if let waiting {
-          for (continuation, output) in waiting { continuation.resume(returning: output) }
+          for (continuation, output) in waiting {
+            continuation.resume(returning: output)
+          }
         }
       }
     }
@@ -329,7 +346,7 @@ fileprivate extension AsyncSharedSequence {
       var iterator: SharedUpstreamIterator?
       var nextRunnerID = UInt.min
       var currentGroup = 0
-      var nextGroup: Int { (currentGroup + 1) % 2 /* could be any denominator 2 or greater... */ }
+      var nextGroup: Int { (currentGroup + 1) % 2 }
       var history = Deque<Element>()
       var runners = [UInt: Runner]()
       var heldRunnerContinuations = [UnsafeContinuation<Void, Never>]()
@@ -337,7 +354,11 @@ fileprivate extension AsyncSharedSequence {
       var phase = Phase.pending
       var terminal = false
       
-      init(_ base: Base, replayCount: Int, iteratorDisposalPolicy: IteratorDisposalPolicy) {
+      init(
+        _ base: Base,
+        replayCount: Int,
+        iteratorDisposalPolicy: IteratorDisposalPolicy
+      ) {
         precondition(replayCount >= 0, "history must be greater than or equal to zero")
         self.base = base
         self.replayCount = replayCount
@@ -354,7 +375,8 @@ fileprivate extension AsyncSharedSequence {
           let group: Int
           if case .done(_) = phase { group = nextGroup } else { group = currentGroup }
           runners[nextRunnerID] = .init(group: group)
-          let connection = RunnerConnection.active(id: nextRunnerID, prefix: history)
+          let connection = RunnerConnection.active(
+            id: nextRunnerID, prefix: history)
           let continuation = RunContinuation(held: finalizeRunGroupIfNeeded())
           return (connection, continuation)
         }
@@ -368,8 +390,9 @@ fileprivate extension AsyncSharedSequence {
           return (.yield(RunOutput(value: .success(nil), shouldCancel: true)), nil)
         }
         if runner.group == currentGroup {
-          runners.updateValue(
-            .init(group: runner.group, active: true, cancelled: runner.cancelled), forKey: runnerID)
+          let updatedRunner = Runner(
+            group: runner.group, active: true, cancelled: runner.cancelled)
+          runners.updateValue(updatedRunner, forKey: runnerID)
           switch phase {
           case .pending:
             guard let iterator = iterator else {
@@ -382,8 +405,10 @@ fileprivate extension AsyncSharedSequence {
             return (.wait, nil)
           case .done(let result):
             finish(runnerID)
-            let command = RunRole.yield(RunOutput(value: result, shouldCancel: runner.cancelled))
-            return (command, .init(held: finalizeRunGroupIfNeeded()))
+            let role = RunRole.yield(
+              RunOutput(value: result, shouldCancel: runner.cancelled)
+            )
+            return (role, .init(held: finalizeRunGroupIfNeeded()))
           }
         }
         else {
@@ -405,9 +430,11 @@ fileprivate extension AsyncSharedSequence {
         self.phase = .done(result)
         finish(runnerID)
         updateHistory(withResult: result)
-        var continuation = gatherWaitingRunnerContinuationsForResumption(withResult: result)
+        var continuation = gatherWaitingRunnerContinuationsForResumption(
+          withResult: result)
         continuation.held = finalizeRunGroupIfNeeded()
-        return (RunOutput(value: result, shouldCancel: runner.cancelled), continuation)
+        let ouput = RunOutput(value: result, shouldCancel: runner.cancelled)
+        return (ouput, continuation)
       }
       
       mutating func wait(
@@ -434,13 +461,16 @@ fileprivate extension AsyncSharedSequence {
       private mutating func gatherWaitingRunnerContinuationsForResumption(
         withResult result: Result<Element?, Error>
       ) -> RunContinuation {
-        let continuationPairs = waitingRunnerContinuations.map { waitingRunnerID, continuation in
-          guard let waitingRunner = runners[waitingRunnerID] else {
-            preconditionFailure("waiting runner resumed out of band")
+        let continuationPairs = waitingRunnerContinuations
+          .map { waitingRunnerID, continuation in
+            guard let waitingRunner = runners[waitingRunnerID] else {
+              preconditionFailure("waiting runner resumed out of band")
+            }
+            finish(waitingRunnerID)
+            let output = RunOutput(
+              value: result, shouldCancel: waitingRunner.cancelled)
+            return (continuation, output)
           }
-          finish(waitingRunnerID)
-          return (continuation, RunOutput(value: result, shouldCancel: waitingRunner.cancelled))
-        }
         waitingRunnerContinuations.removeAll()
         return .init(waiting: continuationPairs)
       }
@@ -469,7 +499,8 @@ fileprivate extension AsyncSharedSequence {
       
       mutating func cancel(_ runnerID: UInt) -> RunContinuation? {
         if let runner = runners.removeValue(forKey: runnerID), runner.active {
-          runners[runnerID] = .init(group: runner.group, active: true, cancelled: true)
+          runners[runnerID] = .init(
+            group: runner.group, active: true, cancelled: true)
           return nil
         }
         else {
@@ -483,7 +514,8 @@ fileprivate extension AsyncSharedSequence {
         return .init(held: finalizeRunGroupIfNeeded())
       }
       
-      private mutating func finalizeRunGroupIfNeeded() -> [UnsafeContinuation<Void, Never>]? {
+      private mutating func finalizeRunGroupIfNeeded(
+      ) -> [UnsafeContinuation<Void, Never>]? {
         if (runners.values.contains { $0.group == currentGroup }) { return nil }
         if terminal {
           self.phase = .done(.success(nil))
@@ -503,8 +535,12 @@ fileprivate extension AsyncSharedSequence {
         return continuations
       }
       
-      private mutating func updateHistory(withResult result: Result<Element?, Error>) {
-        guard replayCount > 0, case .success(let element?) = result else { return }
+      private mutating func updateHistory(
+        withResult result: Result<Element?, Error>
+      ) {
+        guard replayCount > 0, case .success(let element?) = result else {
+          return
+        }
         if history.count >= replayCount {
           history.removeFirst()
         }
@@ -514,22 +550,34 @@ fileprivate extension AsyncSharedSequence {
     
     private let storage: ManagedCriticalState<Storage>
     
-    init(_ base: Base, replayCount: Int, iteratorDisposalPolicy: IteratorDisposalPolicy) {
+    init(
+      _ base: Base,
+      replayCount: Int,
+      iteratorDisposalPolicy: IteratorDisposalPolicy
+    ) {
       self.storage = .init(
-        Storage(base, replayCount: replayCount, iteratorDisposalPolicy: iteratorDisposalPolicy)
+        Storage(
+          base,
+          replayCount: replayCount,
+          iteratorDisposalPolicy: iteratorDisposalPolicy
+        )
       )
     }
     
     func establish() -> RunnerConnection {
-      let (connection, continuation) = storage.withCriticalRegion { state in state.establish() }
+      let (connection, continuation) = storage.withCriticalRegion {
+        storage in storage.establish()
+      }
       continuation?.resume()
       return connection
     }
     
     func startRun(_ runnerID: UInt) -> RunRole {
-      let (command, continuation) = storage.withCriticalRegion { state in state.run(runnerID) }
+      let (role, continuation) = storage.withCriticalRegion {
+        storage in storage.run(runnerID)
+      }
       continuation?.resume()
-      return command
+      return role
     }
     
     func fetch(
@@ -537,8 +585,8 @@ fileprivate extension AsyncSharedSequence {
       resumedWithResult result: Result<Element?, Error>,
       iterator: SharedUpstreamIterator
     ) -> RunOutput {
-      let (output, continuation) = storage.withCriticalRegion { state in
-        state.fetch(runnerID, resumedWithResult: result, iterator: iterator)
+      let (output, continuation) = storage.withCriticalRegion { storage in
+        storage.fetch(runnerID, resumedWithResult: result, iterator: iterator)
       }
       continuation.resume()
       return output
@@ -548,8 +596,8 @@ fileprivate extension AsyncSharedSequence {
       _ runnerID: UInt,
       suspendedWithContinuation continuation: UnsafeContinuation<RunOutput, Never>
     ) -> RunOutput? {
-      guard let (output, continuation) = storage.withCriticalRegion({ state in
-        state.wait(runnerID, suspendedWithContinuation: continuation)
+      guard let (output, continuation) = storage.withCriticalRegion({ storage in
+        storage.wait(runnerID, suspendedWithContinuation: continuation)
       }) else { return nil }
       continuation.resume()
       return output
@@ -559,18 +607,22 @@ fileprivate extension AsyncSharedSequence {
       _ runnerID: UInt,
       suspendedWithContinuation continuation: UnsafeContinuation<Void, Never>
     ) -> Bool {
-      storage.withCriticalRegion { state in
-        state.hold(runnerID, suspendedWithContinuation: continuation)
+      storage.withCriticalRegion { storage in
+        storage.hold(runnerID, suspendedWithContinuation: continuation)
       }
     }
     
     func cancel(_ runnerID: UInt) {
-      let continuation = storage.withCriticalRegion { $0.cancel(runnerID) }
+      let continuation = storage.withCriticalRegion { storage in
+        storage.cancel(runnerID)
+      }
       continuation?.resume()
     }
     
     func abort() {
-      let continuation = storage.withCriticalRegion { state in state.abort() }
+      let continuation = storage.withCriticalRegion {
+        storage in storage.abort()
+      }
       continuation.resume()
     }
   }
