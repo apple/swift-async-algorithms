@@ -32,7 +32,7 @@ It also provides two conveniences to adapt the sequence for the most common mult
 #### Declaration
 
 ```swift
-public struct AsyncSharedSequence<Base: AsyncSequence> where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable
+public struct AsyncSharedSequence<Base: AsyncSequence> where Base: Sendable, Base.Element: Sendable
 ```
 
 #### Overview
