@@ -127,7 +127,6 @@ public struct AsyncSharedSequence<Base: AsyncSequence> : Sendable
     case whenTerminatedOrVacant
   }
   
-  private let base: Base
   private let context: Context
   private let deallocToken: DeallocToken
   
@@ -145,7 +144,6 @@ public struct AsyncSharedSequence<Base: AsyncSequence> : Sendable
   ) {
     let context = Context(
       base, replayCount: historyCount, iteratorDisposalPolicy: iteratorDisposalPolicy)
-    self.base = base
     self.context = context
     self.deallocToken = .init { context.abort() }
   }
@@ -193,16 +191,12 @@ extension AsyncSharedSequence: AsyncSequence {
             let output = context.fetch(id, resumedWithResult: upstreamResult)
             return try processOutput(output)
           case .wait:
-            let output = await withUnsafeContinuation { continuation in
-              context.wait(id, suspendedWithContinuation: continuation)
-            }
+            let output = await context.wait(id)
             return try processOutput(output)
           case .yield(let output):
             return try processOutput(output)
           case .hold:
-            await withUnsafeContinuation { continuation in
-              context.hold(id, suspendedWithContinuation: continuation)
-            }
+            await context.hold(id)
             return try await next()
           }
         } onCancel: { [context, id] in
@@ -249,49 +243,8 @@ private extension AsyncSharedSequence {
     typealias WaitContinuation = UnsafeContinuation<RunOutput, Never>
     typealias HoldContinuation = UnsafeContinuation<Void, Never>
     
-    actor SharedUpstreamIterator {
-      
-      private enum State {
-        case pending
-        case active(Base.AsyncIterator)
-        case terminal
-      }
-      
-      private let base: Base
-      private var state = State.pending
-      
-      init(_ base: Base) {
-        self.base = base
-      }
-      
-      func next() async -> Result<Element?, Error> {
-        switch state {
-        case .pending:
-          self.state = .active(base.makeAsyncIterator())
-          return await next()
-        case .active(var iterator):
-          do {
-            if let element = try await iterator.next() {
-              self.state = .active(iterator)
-              return .success(element)
-            }
-            else {
-              self.state = .terminal
-              return .success(nil)
-            }
-          }
-          catch {
-            self.state = .terminal
-            return .failure(error)
-          }
-        case .terminal:
-          return .success(nil)
-        }
-      }
-    }
-    
     enum RunRole {
-      case fetch(SharedUpstreamIterator)
+      case fetch(SharedIterator)
       case wait
       case yield(RunOutput)
       case hold
@@ -336,12 +289,50 @@ private extension AsyncSharedSequence {
       }
     }
     
+    struct SharedIterator: Sendable {
+      
+      private let task: Task<Void, Never>
+      private let relay: AsyncRelay<Result<Element?, Error>>
+      
+      init(_ base: Base) {
+        let relay =  AsyncRelay<Result<Element?, Error>>()
+        let operation = { @Sendable /* @MainActor */ in
+          await withTaskCancellationHandler {
+            var iterator = base.makeAsyncIterator()
+            while let send = await relay.sendHandler() {
+              let result: Result<Element?, Error>
+              do {
+                result = .success(try await iterator.next())
+              }
+              catch {
+                result = .failure(error)
+              }
+              send(result)
+              if (try? result.get()) == nil { break }
+            }
+          } onCancel: {
+            relay.cancel()
+          }
+        }
+        self.relay = relay
+        self.task = Task(operation: operation)
+      }
+      
+      func next() async -> Result<Element?, Error> {
+        await relay.next() ?? .success(nil)
+      }
+      
+      func cancel() {
+        relay.cancel()
+      }
+    }
+    
     private struct State: Sendable {
       
       let base: Base
       let replayCount: Int
       let iteratorDisposalPolicy: IteratorDisposalPolicy
-      var baseIterator: SharedUpstreamIterator?
+      var baseIterator: SharedIterator?
       var nextRunnerID = (UInt.min + 1)
       var currentIterationIndex = 0
       var nextIterationIndex: Int { (currentIterationIndex + 1) % 2 }
@@ -359,9 +350,9 @@ private extension AsyncSharedSequence {
       ) {
         precondition(replayCount >= 0, "history must be greater than or equal to zero")
         self.base = base
+        self.baseIterator = SharedIterator(base)
         self.replayCount = replayCount
         self.iteratorDisposalPolicy = iteratorDisposalPolicy
-        self.baseIterator = .init(base)
       }
       
       mutating func establish() -> (Connection, RunContinuation?) {
@@ -391,9 +382,7 @@ private extension AsyncSharedSequence {
           runners[runnerID] = runner
           switch phase {
           case .pending:
-            guard let baseIterator = baseIterator else {
-              preconditionFailure("fetching runner started out of band")
-            }
+            guard let baseIterator else { preconditionFailure("run started out of band") }
             phase = .fetching
             return (.fetch(baseIterator), nil)
           case .fetching:
@@ -483,7 +472,7 @@ private extension AsyncSharedSequence {
         guard var runner = runners.removeValue(forKey: runnerID) else {
           preconditionFailure("run finished out of band")
         }
-        if runner.cancelled == false {
+        if terminal == false, runner.cancelled == false {
           runner.active = false
           runner.iterationIndex = nextIterationIndex
           runners[runnerID] = runner
@@ -514,6 +503,7 @@ private extension AsyncSharedSequence {
         if isCurrentIterationActive { return nil }
         if terminal {
           self.phase = .done(.success(nil))
+          self.baseIterator?.cancel()
           self.baseIterator = nil
           self.history.removeAll()
         }
@@ -521,7 +511,8 @@ private extension AsyncSharedSequence {
           self.currentIterationIndex = nextIterationIndex
           self.phase = .pending
           if runners.isEmpty && iteratorDisposalPolicy == .whenTerminatedOrVacant {
-            self.baseIterator = SharedUpstreamIterator(base)
+            self.baseIterator?.cancel()
+            self.baseIterator = SharedIterator(base)
             self.history.removeAll()
           }
         }
@@ -545,11 +536,7 @@ private extension AsyncSharedSequence {
     
     init(_ base: Base, replayCount: Int, iteratorDisposalPolicy: IteratorDisposalPolicy) {
       self.state = .init(
-        State(
-          base,
-          replayCount: replayCount,
-          iteratorDisposalPolicy: iteratorDisposalPolicy
-        )
+        State(base, replayCount: replayCount, iteratorDisposalPolicy: iteratorDisposalPolicy)
       )
     }
     
@@ -577,18 +564,22 @@ private extension AsyncSharedSequence {
       return output
     }
     
-    func wait(_ runnerID: UInt, suspendedWithContinuation continuation: WaitContinuation) {
-      let continuation = state.withCriticalRegion { state in
-        state.wait(runnerID, suspendedWithContinuation: continuation)
+    func wait(_ runnerID: UInt) async -> RunOutput {
+      await withUnsafeContinuation { continuation in
+        let continuation = state.withCriticalRegion { state in
+          state.wait(runnerID, suspendedWithContinuation: continuation)
+        }
+        continuation?.resume()
       }
-      continuation?.resume()
     }
     
-    func hold(_ runnerID: UInt, suspendedWithContinuation continuation: HoldContinuation) {
-      let continuation = state.withCriticalRegion { state in
-        state.hold(runnerID, suspendedWithContinuation: continuation)
+    func hold(_ runnerID: UInt) async {
+      await withUnsafeContinuation { continuation in
+        let continuation = state.withCriticalRegion { state in
+          state.hold(runnerID, suspendedWithContinuation: continuation)
+        }
+        continuation?.resume()
       }
-      continuation?.resume()
     }
     
     func cancel(_ runnerID: UInt) {
@@ -609,10 +600,107 @@ private extension AsyncSharedSequence {
 
 // MARK: - Utilities
 
+/// A utility to perform deallocation tasks on value types
 fileprivate final class DeallocToken: Sendable {
   let action: @Sendable () -> Void
   init(_ dealloc: @escaping @Sendable () -> Void) {
     self.action = dealloc
   }
   deinit { action() }
+}
+
+/// An asynchronous primitive that synchronizes sending elements between Tasks
+fileprivate struct AsyncRelay<Element: Sendable>: Sendable {
+  
+  private enum State {
+    
+    case idle
+    case pendingRequest(UnsafeContinuation<(@Sendable (Element) -> Void)?, Never>)
+    case pendingResponse(UnsafeContinuation<Element?, Never>)
+    case terminal
+    
+    mutating func sendHandler(
+      continuation: UnsafeContinuation<(@Sendable (Element) -> Void)?, Never>
+    ) -> (() -> Void)? {
+      switch self {
+      case .idle:
+        self = .pendingRequest(continuation)
+      case .pendingResponse(let receiveContinuation):
+        self = .idle
+        return {
+          continuation.resume { element in
+            receiveContinuation.resume(returning: element)
+          }
+        }
+      case .pendingRequest(_):
+        fatalError("attempt to await requestHandler() on more than one task")
+      case .terminal:
+        return { continuation.resume(returning: nil) }
+      }
+      return nil
+    }
+    
+    mutating func next(continuation: UnsafeContinuation<Element?, Never>) -> (() -> Void)? {
+      switch self {
+      case .idle:
+        self = .pendingResponse(continuation)
+      case .pendingResponse(_):
+        fatalError("attempt to await next(_:) on more than one task")
+      case .pendingRequest(let sendContinuation):
+        self = .idle
+        return {
+          sendContinuation.resume { element in
+            continuation.resume(returning: element)
+          }
+        }
+      case .terminal:
+        return { continuation.resume(returning: nil) }
+      }
+      return nil
+    }
+    
+    mutating func cancel() -> (() -> Void)? {
+      switch self {
+      case .idle:
+        self = .terminal
+      case .pendingResponse(let receiveContinuation):
+        self = .terminal
+        return { receiveContinuation.resume(returning: nil) }
+      case .pendingRequest(let sendContinuation):
+        self = .terminal
+        return { sendContinuation.resume(returning: nil) }
+      case .terminal: break
+      }
+      return nil
+    }
+  }
+  
+  private let state = ManagedCriticalState(State.idle)
+  
+  init() {}
+  
+  func sendHandler() async -> (@Sendable (Element) -> Void)? {
+    await withUnsafeContinuation { continuation in
+      let resume = state.withCriticalRegion { state in
+        state.sendHandler(continuation: continuation)
+      }
+      resume?()
+    }
+  }
+  
+  func next() async -> Element? {
+    await withUnsafeContinuation { continuation in
+      let resume = state.withCriticalRegion { state in
+        state.next(continuation: continuation)
+      }
+      resume?()
+    }
+  }
+  
+  func cancel() {
+    let resume = state.withCriticalRegion { state in
+      state.cancel()
+    }
+    resume?()
+  }
 }
