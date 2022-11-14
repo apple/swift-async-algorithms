@@ -296,7 +296,8 @@ private extension AsyncSharedSequence {
       
       init(_ base: Base) {
         let relay =  AsyncRelay<Result<Element?, Error>>()
-        let operation = { @Sendable /* @MainActor */ in
+        self.relay = relay
+        self.task = Task { @Sendable /* @MainActor */ in
           await withTaskCancellationHandler {
             var iterator = base.makeAsyncIterator()
             while let send = await relay.sendHandler() {
@@ -314,8 +315,6 @@ private extension AsyncSharedSequence {
             relay.cancel()
           }
         }
-        self.relay = relay
-        self.task = Task(operation: operation)
       }
       
       func next() async -> Result<Element?, Error> {
@@ -382,9 +381,8 @@ private extension AsyncSharedSequence {
           runners[runnerID] = runner
           switch phase {
           case .pending:
-            guard let baseIterator else { preconditionFailure("run started out of band") }
             phase = .fetching
-            return (.fetch(baseIterator), nil)
+            return (.fetch(sharedIterator()), nil)
           case .fetching:
             return (.wait, nil)
           case .done(let result):
@@ -512,7 +510,7 @@ private extension AsyncSharedSequence {
           self.phase = .pending
           if runners.isEmpty && iteratorDisposalPolicy == .whenTerminatedOrVacant {
             self.baseIterator?.cancel()
-            self.baseIterator = SharedIterator(base)
+            self.baseIterator = nil
             self.history.removeAll()
           }
         }
@@ -529,6 +527,15 @@ private extension AsyncSharedSequence {
           history.removeFirst()
         }
         history.append(element)
+      }
+      
+      private mutating func sharedIterator() -> SharedIterator {
+        guard let baseIterator else {
+          let iterator = SharedIterator(base)
+          self.baseIterator = iterator
+          return iterator
+        }
+        return baseIterator
       }
     }
     
