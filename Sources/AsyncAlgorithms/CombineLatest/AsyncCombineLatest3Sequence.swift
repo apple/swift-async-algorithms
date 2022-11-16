@@ -39,7 +39,7 @@ public struct AsyncCombineLatest3Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
   Base3: AsyncSequence
->: AsyncSequence where
+>: AsyncSequence, Sendable where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,

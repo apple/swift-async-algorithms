@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import OrderedCollections
+@preconcurrency import OrderedCollections
 
 /// A channel for sending elements from one task to another with back pressure.
 ///
@@ -58,7 +58,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   typealias Pending = ChannelToken<UnsafeContinuation<UnsafeContinuation<Element?, Never>?, Never>>
   typealias Awaiting = ChannelToken<UnsafeContinuation<Element?, Never>>
 
-  struct ChannelToken<Continuation>: Hashable {
+  struct ChannelToken<Continuation: Sendable>: Hashable, Sendable {
     var generation: Int
     var continuation: Continuation?
 
@@ -86,14 +86,14 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     case cancelled
   }
   
-  enum Emission {
+  enum Emission : Sendable {
     case idle
     case pending(OrderedSet<Pending>)
     case awaiting(OrderedSet<Awaiting>)
     case finished
   }
   
-  struct State {
+  struct State : Sendable {
     var emission: Emission = .idle
     var generation = 0
   }

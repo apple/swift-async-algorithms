@@ -91,4 +91,4 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
 }
 
 extension AsyncJoinedSequence: Sendable
-where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Base.AsyncIterator: Sendable, Base.Element.AsyncIterator: Sendable { }
+where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable { }

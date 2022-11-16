@@ -43,7 +43,7 @@ final class ReportingSequence<Element>: Sequence, IteratorProtocol {
   }
 }
 
-final class ReportingAsyncSequence<Element>: AsyncSequence, AsyncIteratorProtocol {
+final class ReportingAsyncSequence<Element: Sendable>: AsyncSequence, AsyncIteratorProtocol, @unchecked Sendable {
   enum Event: Equatable, CustomStringConvertible {
     case next
     case makeAsyncIterator

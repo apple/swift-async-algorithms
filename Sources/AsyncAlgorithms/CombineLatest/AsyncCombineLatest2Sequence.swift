@@ -35,7 +35,7 @@ public func combineLatest<
 public struct AsyncCombineLatest2Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence
->: AsyncSequence where
+>: AsyncSequence, Sendable where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,
