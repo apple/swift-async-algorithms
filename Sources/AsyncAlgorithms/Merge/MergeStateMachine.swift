@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import DequeModule
+@_implementationOnly import DequeModule
 
 /// The state machine for any of the `merge` operator.
 ///
