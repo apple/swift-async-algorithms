@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import DequeModule
+@_implementationOnly import DequeModule
 
 /// State machine for combine latest
 struct CombineLatestStateMachine<

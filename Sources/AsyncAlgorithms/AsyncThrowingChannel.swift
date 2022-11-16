@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@preconcurrency import OrderedCollections
+@preconcurrency @_implementationOnly import OrderedCollections
 
 /// An error-throwing channel for sending elements from on task to another with back pressure.
 ///
