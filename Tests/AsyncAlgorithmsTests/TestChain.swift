@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@preconcurrency import XCTest
+import XCTest
 import AsyncAlgorithms
 
 final class TestChain2: XCTestCase {

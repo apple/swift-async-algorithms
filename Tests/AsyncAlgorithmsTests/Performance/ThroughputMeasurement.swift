@@ -11,7 +11,7 @@
 
 import AsyncAlgorithms
 import Foundation
-@preconcurrency import XCTest
+import XCTest
 
 #if canImport(Darwin)
 public struct InfiniteAsyncSequence<Value: Sendable>: AsyncSequence, Sendable {

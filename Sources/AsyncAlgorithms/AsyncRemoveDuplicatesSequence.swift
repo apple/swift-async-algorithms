@@ -85,9 +85,6 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
   }
 }
 
-extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
-
-
 /// An asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
@@ -143,4 +140,6 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
   }
 }
 
-extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable, Base.AsyncIterator: Sendable { }
+
+extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
+extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }

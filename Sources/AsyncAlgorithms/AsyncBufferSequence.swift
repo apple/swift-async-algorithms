@@ -198,7 +198,7 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   }
 }
 
-extension AsyncSequence where Element: Sendable {
+extension AsyncSequence where Element: Sendable, Self: Sendable {
   /// Creates an asynchronous sequence that buffers elements using a buffer created from a supplied closure.
   ///
   /// Use the `buffer(_:)` method to account for `AsyncSequence` types that may produce elements faster
@@ -224,7 +224,7 @@ extension AsyncSequence where Element: Sendable {
 }
 
 /// An `AsyncSequence` that buffers elements utilizing an `AsyncBuffer`.
-public struct AsyncBufferSequence<Base: AsyncSequence, Buffer: AsyncBuffer> where Base.Element == Buffer.Input, Base.AsyncIterator: Sendable {
+public struct AsyncBufferSequence<Base: AsyncSequence & Sendable, Buffer: AsyncBuffer> where Base.Element == Buffer.Input {
   let base: Base
   let createBuffer: @Sendable () -> Buffer
   
@@ -246,11 +246,11 @@ extension AsyncBufferSequence: AsyncSequence {
       let buffer: Buffer
       let state: AsyncBufferState<Buffer.Input, Buffer.Output>
       
-      init(_ iterator: Base.AsyncIterator, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
+      init(_ base: Base, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
         self.buffer = buffer
         self.state = state
         task = Task {
-          var iter = iterator
+          var iter = base.makeAsyncIterator()
           do {
             while let item = try await iter.next() {
               await state.enqueue(item, buffer: buffer)
@@ -279,21 +279,21 @@ extension AsyncBufferSequence: AsyncSequence {
     }
     
     enum State {
-      case idle(Base.AsyncIterator, @Sendable () -> Buffer)
+      case idle(Base, @Sendable () -> Buffer)
       case active(Active)
     }
     
     var state: State
     
-    init(_ iterator: Base.AsyncIterator, createBuffer: @Sendable @escaping () -> Buffer) {
-      state = .idle(iterator, createBuffer)
+    init(_ base: Base, createBuffer: @Sendable @escaping () -> Buffer) {
+      state = .idle(base, createBuffer)
     }
     
     public mutating func next() async rethrows -> Element? {
       switch state {
-      case .idle(let iterator, let createBuffer):
+      case .idle(let base, let createBuffer):
         let bufferState = AsyncBufferState<Base.Element, Buffer.Output>()
-        let buffer = Active(iterator, buffer: createBuffer(), state: bufferState)
+        let buffer = Active(base, buffer: createBuffer(), state: bufferState)
         state = .active(buffer)
         return try await buffer.next()
       case .active(let buffer):
@@ -303,6 +303,6 @@ extension AsyncBufferSequence: AsyncSequence {
   }
   
   public func makeAsyncIterator() -> Iterator {
-    Iterator(base.makeAsyncIterator(), createBuffer: createBuffer)
+    Iterator(base, createBuffer: createBuffer)
   }
 }
