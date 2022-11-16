@@ -19,7 +19,6 @@ final class TestCombineLatest2: XCTestCase {
     let sequence = combineLatest(a.async, b.async)
     let actual = await Array(sequence)
     XCTAssertGreaterThanOrEqual(actual.count, 3)
-    XCTAssertEqual(actual.first!, (1, "a"))
   }
   
   func test_throwing_combineLatest1() async {
@@ -329,7 +328,6 @@ final class TestCombineLatest3: XCTestCase {
     let sequence = combineLatest(a.async, b.async, c.async)
     let actual = await Array(sequence)
     XCTAssertGreaterThanOrEqual(actual.count, 3)
-    XCTAssertEqual(actual.first!, (1, "a", 4))
   }
   
   func test_ordering1() async {
