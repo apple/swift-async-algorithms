@@ -1,17 +1,17 @@
-# Share
+# Broadcast
 
-* Proposal: [NNNN](NNNN-deferred.md)
+* Proposal: [NNNN](NNNN-broadcast.md)
 * Authors: [Tristan Celder](https://github.com/tcldr)
 * Review Manager: TBD
 * Status: **Awaiting implementation**
 
 
- * Implementation: [[Source](https://github.com/tcldr/swift-async-algorithms/blob/pr/share/Sources/AsyncAlgorithms/AsyncSharedSequence.swift) |
- [Tests](https://github.com/tcldr/swift-async-algorithms/blob/pr/share/Tests/AsyncAlgorithmsTests/TestShare.swift)]
+ * Implementation: [[Source](https://github.com/tcldr/swift-async-algorithms/blob/pr/share/Sources/AsyncAlgorithms/AsyncBroadcastSequence.swift) |
+ [Tests](https://github.com/tcldr/swift-async-algorithms/blob/pr/share/Tests/AsyncAlgorithmsTests/TestBroadcast.swift)]
 
 ## Introduction
 
-`AsyncSharedSequence` unlocks additional use cases for structured concurrency and asynchronous sequences by allowing almost any asynchronous sequence to be adapted for consumption by multiple concurrent consumers.
+`AsyncBroadcastSequence` unlocks additional use cases for structured concurrency and asynchronous sequences by allowing almost any asynchronous sequence to be adapted for consumption by multiple concurrent consumers.
 
 ## Motivation
 
@@ -93,7 +93,7 @@ extension OrientationMonitor {
 }
 ```
 
-This comes with another issue though: if two consumers materialise, the output of the stream becomes split between them:
+This comes with another issue though: when two consumers materialise, the output of the stream becomes split between them:
 
 ```swift
 let consumer1 = Task {
@@ -117,12 +117,12 @@ Rather than consumers receiving all values emitted by the `AsyncStream`, they re
 
 ## Proposed solution
 
-`AsyncSharedSequence` provides a way to multicast a single upstream asynchronous sequence to any number of consumers.
+`AsyncBroadcastSequence` provides a way to multicast a single upstream asynchronous sequence to any number of consumers.
 
 ```
 extension OrientationMonitor {
   
-  static let orientation: AsyncSharedSequence<AsyncStream<Accelerometer.Event>> = {
+  static let orientation: AsyncBroadcastSequence<AsyncStream<Accelerometer.Event>> = {
     let stream = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
       Accelerometer.shared.updateHandler = { event in
         continuation.yield(event)
@@ -164,7 +164,7 @@ This does leave our accelerometer running even when the last consumer has cancel
 ```swift
 extension OrientationMonitor {
   
-  static let orientation: AsyncSharedSequence<AsyncDeferredSequence<AsyncStream<Accelerometer.Event>>> = {
+  static let orientation: AsyncBroadcastSequence<AsyncDeferredSequence<AsyncStream<Accelerometer.Event>>> = {
     let stream = deferred {
       AsyncStream { continuation in
         Accelerometer.shared.updateHandler = { event in
@@ -185,20 +185,20 @@ extension OrientationMonitor {
 
 With `.whenTerminatedOrVacant` set as the iterator disposal policy (the default), when the last downstream consumer cancels the upstream iterator is dropped. This triggers `AsyncStream`'s `onTermination` handler, shutting off the Accelerometer.
 
-Now, with `AsyncStream` composed with `AsyncDeferredSequence`, any new demand triggers the re-execution of `AsyncDeferredSequence`'s' closure, the restart of the Accelerometer, and a new sequence for `AsyncSharedSequence` to share.
+Now, with `AsyncStream` composed with `AsyncDeferredSequence`, any new demand triggers the re-execution of `AsyncDeferredSequence`'s' closure, the restart of the Accelerometer, and a new sequence for `AsyncBroadcastSequence` to share.
 
 ### Configuration Options
 
-`AsyncSharedSequence` provides two conveniences to adapt the sequence for the most common multicast use-cases:
+`AsyncBroadcastSequence` provides two conveniences to adapt the sequence for the most common multicast use-cases:
   1. As described above, a configurable iterator disposal policy that determines whether the shared upstream iterator is disposed of when the consumer count count falls to zero.
   2. A history feature that allows late-coming consumers to receive the most recently emitted elements prior to their arrival. One use-case could be a UI that is updated by an infrequently emitting sequence. Rather than wait for the sequence to emit a new element to populate an interface, the last emitted value can be used until such time that fresh data is emitted.
 
 ## Detailed design
 
 ### Algorithm Summary:
-The idea behind the `AsyncSharedSequence` algorithm is as follows: Vended iterators of `AsyncSharedSequence` are known as 'runners'. Runners compete in a race to grab the next element from a base iterator for each of its iteration cycles. The 'winner' of an iteration cycle returns the element to the shared context which then supplies the result to later finishers. Once every runner has finished, the current cycle completes and the next iteration can start. This means that runners move forward in lock-step, only proceeding when the the last runner in the current iteration has received a value or has cancelled.
+The idea behind the `AsyncBroadcastSequence` algorithm is as follows: Vended iterators of `AsyncBroadcastSequence` are known as 'runners'. Runners compete in a race to grab the next element from a base iterator for each of its iteration cycles. The 'winner' of an iteration cycle returns the element to the shared context which then supplies the result to later finishers. Once every runner has finished, the current cycle completes and the next iteration can start. This means that runners move forward in lock-step, only proceeding when the the last runner in the current iteration has received a value or has cancelled.
 
-#### `AsyncSharedSequence` Iterator Lifecycle:
+#### `AsyncBroadcastSequence` Iterator Lifecycle:
 
   1. **Connection**: On connection, each 'runner' is issued with an ID (and any prefixed values from the history buffer) by the shared context. From this point on, the algorithm will wait on this iterator to consume its values before moving on. This means that until `next()` is called on this iterator, all the other iterators will be held until such time that it is, or the iterator's task is cancelled.
   2. **Run**: After its prefix values have been exhausted, each time `next()` is called on the iterator, the iterator attempts to start a 'run' by calling `startRun(_:)` on the shared context. The shared context marks the iterator as 'running' and issues a role to determine the iterator's action for the current iteration cycle. The roles are as follows:
@@ -209,25 +209,25 @@ The idea behind the `AsyncSharedSequence` algorithm is as follows: Vended iterat
     
   3. **Completion**: The iterator calls cancel on the shared context which ensures the iterator does not take part in the next iteration cycle. However, if it is currently suspended it may not resume until the current iteration cycle concludes. This is especially important if it is filling the key FETCH role for the current iteration cycle.
 
-### AsyncSharedSequence
+### AsyncBroadcastSequence
 
 #### Declaration
 
 ```swift
-public struct AsyncSharedSequence<Base: AsyncSequence> where Base: Sendable, Base.Element: Sendable
+public struct AsyncBroadcastSequence<Base: AsyncSequence> where Base: Sendable, Base.Element: Sendable
 ```
 
 #### Overview
 
 An asynchronous sequence that can be iterated by multiple concurrent consumers.
 
-Use a shared asynchronous sequence when you have multiple downstream asynchronous sequences with which you wish to share the output of a single asynchronous sequence. This can be useful if you have expensive upstream operations, or if your asynchronous sequence represents the output of a physical device.
+Use an asynchronous broadcast sequence when you have multiple downstream asynchronous sequences with which you wish to share the output of a single asynchronous sequence. This can be useful if you have expensive upstream operations, or if your asynchronous sequence represents the output of a physical device.
 
-Elements are emitted from a multicast asynchronous sequence at a rate that does not exceed the consumption of its slowest consumer. If this kind of back-pressure isn't desirable for your use-case, `AsyncSharedSequence` can be composed with buffers – either upstream, downstream, or both – to acheive the desired behavior.
+Elements are emitted from an asynchronous broadcast sequence at a rate that does not exceed the consumption of its slowest consumer. If this kind of back-pressure isn't desirable for your use-case, `AsyncBroadcastSequence` can be composed with buffers – either upstream, downstream, or both – to acheive the desired behavior.
 
-If you have an asynchronous sequence that consumes expensive system resources, it is possible to configure `AsyncSharedSequence` to discard its upstream iterator when the connected downstream consumer count falls to zero. This allows any cancellation tasks configured on the upstream asynchronous sequence to be initiated and for expensive resources to be terminated. `AsyncSharedSequence` will re-create a fresh iterator if there is further demand.
+If you have an asynchronous sequence that consumes expensive system resources, it is possible to configure `AsyncBroadcastSequence` to discard its upstream iterator when the connected downstream consumer count falls to zero. This allows any cancellation tasks configured on the upstream asynchronous sequence to be initiated and for expensive resources to be terminated. `AsyncBroadcastSequence` will re-create a fresh iterator if there is further demand.
 
-For use-cases where it is important for consumers to have a record of elements emitted prior to their connection, a `AsyncSharedSequence` can also be configured to prefix its output with the most recently emitted elements. If `AsyncSharedSequence` is configured to drop its iterator when the connected consumer count falls to zero, its history will be discarded at the same time.
+For use-cases where it is important for consumers to have a record of elements emitted prior to their connection, a `AsyncBroadcastSequence` can also be configured to prefix its output with the most recently emitted elements. If `AsyncBroadcastSequence` is configured to drop its iterator when the connected consumer count falls to zero, its history will be discarded at the same time.
 
 #### Creating a sequence
 
@@ -244,7 +244,7 @@ Contructs a shared asynchronous sequence.
   - `history`: the number of elements previously emitted by the sequence to prefix to the iterator of a new consumer
   - `iteratorDisposalPolicy`: the iterator disposal policy applied to the upstream iterator
 
-### AsyncSharedSequence.IteratorDisposalPolicy
+### AsyncBroadcastSequence.IteratorDisposalPolicy
 
 #### Declaration
 
@@ -261,17 +261,17 @@ The iterator disposal policy applied by a shared asynchronous sequence to its up
   - `whenTerminated`: retains the upstream iterator for use by future consumers until the base asynchronous sequence is terminated
   - `whenTerminatedOrVacant`: discards the upstream iterator when the number of consumers falls to zero or the base asynchronous sequence is terminated
 
-### share(history:disposingBaseIterator)
+### broadcast(history:disposingBaseIterator)
 
 #### Declaration
 
 ```swift
 extension AsyncSequence {
 
-  public func share(
+  public func broadcast(
     history historyCount: Int = 0,
-    disposingBaseIterator iteratorDisposalPolicy: AsyncSharedSequence<Self>.IteratorDisposalPolicy = .whenTerminatedOrVacant
-  ) -> AsyncSharedSequence<Self>
+    disposingBaseIterator iteratorDisposalPolicy: AsyncBroadcastSequence<Self>.IteratorDisposalPolicy = .whenTerminatedOrVacant
+  ) -> AsyncBroadcastSequence<Self>
 }
 ```
 
@@ -282,19 +282,15 @@ Creates an asynchronous sequence that can be shared by multiple consumers.
   - `history`: the number of elements previously emitted by the sequence to prefix to the iterator of a new consumer
   - `iteratorDisposalPolicy`: the iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
 
-## Naming
-
- The `share(history:disposingBaseIterator)` function takes its inspiration from the [`share()`](https://developer.apple.com/documentation/combine/fail/share()) Combine publisher, and the RxSwift [`share(replay:)`](https://github.com/ReactiveX/RxSwift/blob/3d3ed05bed71f19999db2207c714dab0028d37be/Documentation/GettingStarted.md#sharing-subscription-and-share-operator) operator, both of which fall under the multicasting family of operators in their respective libraries.
-
  ## Comparison with other libraries
 
    - **ReactiveX** ReactiveX has the [Publish](https://reactivex.io/documentation/operators/publish.html) observable which when can be composed with the [Connect](https://reactivex.io/documentation/operators/connect.html), [RefCount](https://reactivex.io/documentation/operators/refcount.html) and [Replay](https://reactivex.io/documentation/operators/replay.html) operators to support various multi-casting use-cases. The `discardsBaseIterator` behavior is applied via `RefCount` (or the .`share().refCount()` chain of operators in RxSwift), while the history behavior is achieved through `Replay` (or the .`share(replay:)` convenience in RxSwift)
 
    - **Combine** Combine has the [ multicast(_:)](https://developer.apple.com/documentation/combine/publishers/multicast) operator, which along with the functionality of [ConnectablePublisher](https://developer.apple.com/documentation/combine/connectablepublisher) and associated conveniences supports many of the same use cases as the ReactiveX equivalent, but in some instances requires third-party ooperators to achieve the same level of functionality.
  
-Due to the way a Swift `AsyncSequence`, and therefore `AsyncSharedSequence`, naturally applies back-pressure, the characteristics of an `AsyncSharedSequence` are different enough that a one-to-one API mapping of other reactive programmming libraries isn't applicable.
+Due to the way a Swift `AsyncSequence`, and therefore `AsyncBroadcastSequence`, naturally applies back-pressure, the characteristics of an `AsyncBroadcastSequence` are different enough that a one-to-one API mapping of other reactive programmming libraries isn't applicable.
 
-However, with the available configuration options – and through composition with other asynchronous sequences – `AsyncSharedSequence` can trivially be adapted to support many of the same use-cases, including that of [Connect](https://reactivex.io/documentation/operators/connect.html), [RefCount](https://reactivex.io/documentation/operators/refcount.html), and [Replay](https://reactivex.io/documentation/operators/replay.html).
+However, with the available configuration options – and through composition with other asynchronous sequences – `AsyncBroadcastSequence` can trivially be adapted to support many of the same use-cases, including that of [Connect](https://reactivex.io/documentation/operators/connect.html), [RefCount](https://reactivex.io/documentation/operators/refcount.html), and [Replay](https://reactivex.io/documentation/operators/replay.html).
 
  ## Effect on API resilience
 

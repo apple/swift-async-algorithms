@@ -12,12 +12,12 @@
 @preconcurrency import XCTest
 import AsyncAlgorithms
 
-final class TestShare: XCTestCase {
+final class TestBroadcast: XCTestCase {
   
-  func test_share_basic() async {
+  func test_broadcast_basic() async {
     let expected = [1, 2, 3, 4]
-    let base = expected.async.delayed(2)
-    let sequence = base.share()
+    let base = GatedStartSequence(expected, count: 2)
+    let sequence = base.broadcast()
     let results = await withTaskGroup(of: [Int].self) { group in
       group.addTask {
         var iterator = sequence.makeAsyncIterator()
@@ -35,9 +35,9 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected, results[1])
   }
   
-  func test_share_iterator_iterates_past_end() async {
-    let base = [1, 2, 3, 4].async.delayed(2)
-    let sequence = base.share()
+  func test_broadcast_iterator_iterates_past_end() async {
+    let base = GatedStartSequence([1, 2, 3, 4], count: 2)
+    let sequence = base.broadcast()
     let results = await withTaskGroup(of: Int?.self) { group in
       group.addTask {
         var iterator = sequence.makeAsyncIterator()
@@ -57,10 +57,10 @@ final class TestShare: XCTestCase {
     XCTAssertNil(results[1])
   }
   
-  func test_share_throws() async {
-    let base = [1, 2, 3, 4].async.map { try throwOn(3, $0) }.delayed(2)
+  func test_broadcast_throws() async {
+    let base = GatedStartSequence([1, 2, 3, 4], count: 2)
     let expected = [1, 2]
-    let sequence = base.share()
+    let sequence = base.map { try throwOn(3, $0) }.broadcast()
     let results = await withTaskGroup(of: (elements: [Int], error: Error?).self) { group in
       group.addTask {
         var iterator = sequence.makeAsyncIterator()
@@ -80,44 +80,12 @@ final class TestShare: XCTestCase {
     XCTAssertNotNil(results[1].error as? Failure)
   }
   
-  func test_share_from_channel() async {
-    let expected = [0,1,2,3,4,5,6,7,8,9]
-    let base = AsyncChannel<Int>()
-    let delayedSequence = base.delayed(2)
-    let sequence = delayedSequence.share()
-    let results = await withTaskGroup(of: [Int].self) { group in
-      group.addTask {
-        var sent = [Int]()
-        for i in expected {
-          sent.append(i)
-          await base.send(i)
-        }
-        base.finish()
-        return sent
-      }
-      group.addTask {
-        var iterator = sequence.makeAsyncIterator()
-        delayedSequence.enter()
-        return await iterator.collect()
-      }
-      group.addTask {
-        var iterator = sequence.makeAsyncIterator()
-        delayedSequence.enter()
-        return await iterator.collect()
-      }
-      return await Array(group)
-    }
-    XCTAssertEqual(expected, results[0])
-    XCTAssertEqual(expected, results[1])
-    XCTAssertEqual(expected, results[2])
-  }
-  
-  func test_share_concurrent_consumer_wide() async throws {
+  func test_broadcast_concurrent_consumer_wide() async throws {
     let noOfConsumers = 100
     let noOfEmissions = 100
     let expected = (0..<noOfEmissions).map { $0 }
-    let base = expected.async.delayed(noOfConsumers)
-    let sequence = base.share()
+    let base = GatedStartSequence(expected, count: noOfConsumers)
+    let sequence = base.broadcast()
     let results = await withTaskGroup(of: [Int].self) { group in
       for _ in 0..<noOfConsumers {
         group.addTask {
@@ -136,72 +104,54 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expectedSumOfElements, sumOfElements)
   }
   
-  func test_share_concurrent_consumer_wide_same_actor() async {
-    let noOfConsumers = 100
-    let noOfEmissions = 100
-    let expected = (0..<noOfEmissions).map { $0 }
-    let base = expected.async.delayed(noOfConsumers)
-    let sequence = base.share()
-    let results = await withTaskGroup(of: [Int].self) { group in
-      for _ in 0..<noOfConsumers {
-        group.addTask { @MainActor in
-          var iterator = sequence.makeAsyncIterator()
-          base.enter()
-          return await iterator.collect()
+  func test_broadcast_single_consumer_cancellation() async {
+    let base = Indefinite(value: 1).async
+    let sequence = base.broadcast()
+    let iterated = expectation(description: "iterated")
+    iterated.assertForOverFulfill = false
+    let task = Task {
+      var elements = [Int]()
+      for await element in sequence {
+        elements.append(element)
+        iterated.fulfill()
+      }
+      return elements
+    }
+    wait(for: [iterated], timeout: 1.0)
+    task.cancel()
+    let result = await task.value
+    XCTAssert(result.count > 0)
+  }
+  
+  func test_broadcast_multiple_consumer_cancellation() async {
+    let source = Indefinite(value: 1)
+    let sequence = source.async.broadcast()
+    var tasks = [Task<Void, Never>]()
+    var iterated = [XCTestExpectation]()
+    var finished = [XCTestExpectation]()
+    for _ in 0..<16 {
+      let iterate = expectation(description: "task iterated")
+      iterate.assertForOverFulfill = false
+      let finish = expectation(description: "task finished")
+      iterated.append(iterate)
+      finished.append(finish)
+      let task = Task {
+        var iterator = sequence.makeAsyncIterator()
+        while let _ = await iterator.next() {
+          iterate.fulfill()
         }
+        finish.fulfill()
       }
-      return await Array(group)
+      tasks.append(task)
     }
-    let expectedElementCount = noOfConsumers * expected.count
-    let expectedSumOfElements = noOfConsumers * expected.reduce(0, +)
-    let elementCount = results.flatMap { $0 }.count
-    let sumOfElements = results.flatMap { $0 }.reduce(0, +)
-    XCTAssertEqual(expectedElementCount, elementCount)
-    XCTAssertEqual(expectedSumOfElements, sumOfElements)
+    wait(for: iterated, timeout: 1.0)
+    for task in tasks { task.cancel() }
+    wait(for: finished, timeout: 1.0)
   }
   
-  func test_share_single_consumer_cancellation() async {
-    let base = Indefinite(value: 1).async
-    let sequence = base.share()
-    let gate = Gate()
-    let task = Task {
-      var elements = [Int]()
-      for await element in sequence {
-        elements.append(element)
-        gate.open()
-      }
-      return elements
-    }
-    await gate.enter()
-    task.cancel()
-    let result = await task.value
-    XCTAssert(result.count > 0)
-  }
-  
-  func test_share_multiple_consumer_cancellation() async {
-    let base = Indefinite(value: 1).async
-    let sequence = base.share()
-    let gate = Gate()
-    let task = Task {
-      var elements = [Int]()
-      for await element in sequence {
-        elements.append(element)
-        gate.open()
-      }
-      return elements
-    }
-    Task { for await _ in sequence { } }
-    Task { for await _ in sequence { } }
-    Task { for await _ in sequence { } }
-    await gate.enter()
-    task.cancel()
-    let result = await task.value
-    XCTAssert(result.count > 0)
-  }
-  
-  func test_share_iterator_retained_when_vacant_if_policy() async {
+  func test_broadcast_iterator_retained_when_vacant_if_policy() async {
     let base = [0,1,2,3].async
-    let sequence = base.share(disposingBaseIterator: .whenTerminated)
+    let sequence = base.broadcast(disposingBaseIterator: .whenTerminated)
     let expected0 = [0]
     let expected1 = [1]
     let expected2 = [2]
@@ -213,9 +163,9 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected2, result2)
   }
   
-  func test_share_iterator_discarded_when_vacant_if_policy() async {
+  func test_broadcast_iterator_discarded_when_vacant_if_policy() async {
     let base = [0,1,2,3].async
-    let sequence = base.share(disposingBaseIterator: .whenTerminatedOrVacant)
+    let sequence = base.broadcast(disposingBaseIterator: .whenTerminatedOrVacant)
     let expected0 = [0]
     let expected1 = [0]
     let expected2 = [0]
@@ -227,10 +177,9 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected2, result2)
   }
   
-  func test_share_iterator_discarded_when_terminal_regardless_of_policy() async {
-    typealias Event = ReportingAsyncSequence<Int>.Event
+  func test_broadcast_iterator_discarded_when_terminal_regardless_of_policy() async {
     let base = [0,1,2,3].async
-    let sequence = base.share(disposingBaseIterator: .whenTerminated)
+    let sequence = base.broadcast(disposingBaseIterator: .whenTerminated)
     let expected0 = [0,1,2,3]
     let expected1 = [Int]()
     let expected2 = [Int]()
@@ -242,9 +191,9 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected2, result2)
   }
   
-  func test_share_iterator_discarded_when_throws_regardless_of_policy() async {
+  func test_broadcast_iterator_discarded_when_throws_regardless_of_policy() async {
     let base = [0,1,2,3].async.map { try throwOn(1, $0) }
-    let sequence = base.share(disposingBaseIterator: .whenTerminatedOrVacant)
+    let sequence = base.broadcast(disposingBaseIterator: .whenTerminatedOrVacant)
     let expected0 = [0]
     let expected1 = [Int]()
     let expected2 = [Int]()
@@ -262,15 +211,16 @@ final class TestShare: XCTestCase {
     XCTAssertNil(result2.error)
   }
   
-  func test_share_history_count_0() async throws {
-    let a0 = Array(["a","b","c","d"]).async
-    let a1 = Array(["e","f","g","h"]).async.delayed(1)
-    let a2 = Array(["i","j","k","l"]).async.delayed(1)
-    let a3 = Array(["m","n","o","p"]).async.delayed(1)
-    let base = merge(a0, a1, merge(a2, a3))
-    let sequence = base.share(history: 0)
+  func test_broadcast_history_count_0() async throws {
+    let p0 = ["a","b","c","d"]
+    let p1 = ["e","f","g","h"]
+    let p2 = ["i","j","k","l"]
+    let p3 = ["m","n","o","p"]
+    let base = GatedSequence(p0 + p1 + p2 + p3)
+    let sequence = base.broadcast(history: 0)
     let expected = [["e", "f"], ["i", "j"], ["m", "n"]]
     let gate = Gate()
+    for _ in 0..<p0.count { base.advance() }
     Task {
       for await el in sequence {
         switch el {
@@ -281,26 +231,25 @@ final class TestShare: XCTestCase {
         default: break
         }
       }
-      return []
     }
     await gate.enter()
     let results0 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a1.enter()
+      for _ in 0..<p1.count { base.advance() }
       let results = await iterator.collect(count: 2) // e, f
       return results
     }.value
     await gate.enter()
     let results1 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a2.enter()
+      for _ in 0..<p2.count { base.advance() }
       let results = await iterator.collect(count: 2) // i, j
       return results
     }.value
     await gate.enter()
     let results2 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a3.enter()
+      for _ in 0..<p3.count { base.advance() }
       let results = await iterator.collect(count: 2) // m, n
       return results
     }.value
@@ -309,15 +258,16 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected[2], results2)
   }
   
-  func test_share_history_count_1() async throws {
-    let a0 = Array(["a","b","c","d"]).async
-    let a1 = Array(["e","f","g","h"]).async.delayed(1)
-    let a2 = Array(["i","j","k","l"]).async.delayed(1)
-    let a3 = Array(["m","n","o","p"]).async.delayed(1)
-    let base = merge(a0, a1, merge(a2, a3))
-    let sequence = base.share(history: 1)
+  func test_broadcast_history_count_1() async throws {
+    let p0 = ["a","b","c","d"]
+    let p1 = ["e","f","g","h"]
+    let p2 = ["i","j","k","l"]
+    let p3 = ["m","n","o","p"]
+    let base = GatedSequence(p0 + p1 + p2 + p3)
+    let sequence = base.broadcast(history: 1)
     let expected = [["d", "e"], ["h", "i"], ["l", "m"]]
     let gate = Gate()
+    for _ in 0..<p0.count { base.advance() }
     Task {
       for await el in sequence {
         switch el {
@@ -328,26 +278,25 @@ final class TestShare: XCTestCase {
         default: break
         }
       }
-      return []
     }
     await gate.enter()
     let results0 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a1.enter()
+      for _ in 0..<p1.count { base.advance() }
       let results = await iterator.collect(count: 2) // e, f
       return results
     }.value
     await gate.enter()
     let results1 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a2.enter()
+      for _ in 0..<p2.count { base.advance() }
       let results = await iterator.collect(count: 2) // i, j
       return results
     }.value
     await gate.enter()
     let results2 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a3.enter()
+      for _ in 0..<p3.count { base.advance() }
       let results = await iterator.collect(count: 2) // m, n
       return results
     }.value
@@ -356,15 +305,16 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected[2], results2)
   }
   
-  func test_share_history_count_2() async throws {
-    let a0 = Array(["a","b","c","d"]).async
-    let a1 = Array(["e","f","g","h"]).async.delayed(1)
-    let a2 = Array(["i","j","k","l"]).async.delayed(1)
-    let a3 = Array(["m","n","o","p"]).async.delayed(1)
-    let base = merge(a0, a1, merge(a2, a3))
-    let sequence = base.share(history: 2)
+  func test_broadcast_history_count_2() async throws {
+    let p0 = ["a","b","c","d"]
+    let p1 = ["e","f","g","h"]
+    let p2 = ["i","j","k","l"]
+    let p3 = ["m","n","o","p"]
+    let base = GatedSequence(p0 + p1 + p2 + p3)
+    let sequence = base.broadcast(history: 2)
     let expected = [["c", "d"], ["g", "h"], ["k", "l"]]
     let gate = Gate()
+    for _ in 0..<p0.count { base.advance() }
     Task {
       for await el in sequence {
         switch el {
@@ -375,26 +325,25 @@ final class TestShare: XCTestCase {
         default: break
         }
       }
-      return []
     }
     await gate.enter()
     let results0 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a1.enter()
+      for _ in 0..<p1.count { base.advance() }
       let results = await iterator.collect(count: 2) // e, f
       return results
     }.value
     await gate.enter()
     let results1 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a2.enter()
+      for _ in 0..<p2.count { base.advance() }
       let results = await iterator.collect(count: 2) // i, j
       return results
     }.value
     await gate.enter()
     let results2 = await Task {
       var iterator = sequence.makeAsyncIterator()
-      a3.enter()
+      for _ in 0..<p3.count { base.advance() }
       let results = await iterator.collect(count: 2) // m, n
       return results
     }.value
@@ -403,10 +352,10 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected[2], results2)
   }
   
-  func test_share_iterator_disposal_policy_when_terminated_or_vacant_discards_history_on_vacant() async {
+  func test_broadcast_iterator_disposal_policy_when_terminated_or_vacant_discards_history_on_vacant() async {
     let expected = ["a","b","c","d"]
     let base = Array(["a","b","c","d"]).async
-    let sequence = base.share(history: 2, disposingBaseIterator: .whenTerminatedOrVacant)
+    let sequence = base.broadcast(history: 2, disposingBaseIterator: .whenTerminatedOrVacant)
     var result0 = [String]()
     var result1 = [String]()
     var result2 = [String]()
@@ -418,12 +367,12 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected, result2)
   }
   
-  func test_share_iterator_disposal_policy_when_terminated_persists_history_on_vacant() async {
+  func test_broadcast_iterator_disposal_policy_when_terminated_persists_history_on_vacant() async {
     let expected0 = ["a","b","c","d"]
     let expected1 = ["c","d"]
     let expected2 = ["c","d"]
     let base = Array(["a","b","c","d"]).async
-    let sequence = base.share(history: 2, disposingBaseIterator: .whenTerminated)
+    let sequence = base.broadcast(history: 2, disposingBaseIterator: .whenTerminated)
     var result0 = [String]()
     var result1 = [String]()
     var result2 = [String]()
@@ -435,19 +384,18 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(expected2, result2)
   }
   
-  func test_share_shutdown_on_dealloc() async {
-    typealias Sequence = AsyncSharedSequence<AsyncLazySequence<Indefinite<Int>>>
-    let completion = expectation(description: "iteration completes")
+  func test_broadcast_shutdown_on_dealloc() async {
+    typealias Sequence = AsyncBroadcastSequence<AsyncLazySequence<Indefinite<Int>>>
+    let expected0: [Int] = [1]
+    let expected1: [Int] = []
     let base = Indefinite(value: 1).async
-    var sequence: Sequence! = base.share()
-    let iterator = sequence.makeAsyncIterator()
-    Task {
-      var i = iterator
-      let _ = await i.collect()
-      completion.fulfill()
-    }
+    var sequence: Sequence! = base.broadcast()
+    var iterator = sequence.makeAsyncIterator()
+    let result0 = await iterator.collect(count: 1)
     sequence = nil
-    wait(for: [completion], timeout: 1.0)
+    let result1 = await iterator.collect()
+    XCTAssertEqual(expected0, result0)
+    XCTAssertEqual(expected1, result1)
   }
 }
 

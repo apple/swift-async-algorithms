@@ -9,13 +9,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct GatedSequence<Element> {
+public struct GatedSequence<Element: Sendable>: Sendable {
+  
   let elements: [Element]
   let gates: [Gate]
-  var index = 0
   
-  public mutating func advance() {
-    defer { index += 1 }
+  let index = ManagedCriticalState(0)
+  
+  public func advance() {
+    let index = self.index.withCriticalRegion { index in
+      defer { index += 1 }
+      return index
+    }
     guard index < gates.count else {
       return
     }
@@ -51,5 +56,4 @@ extension GatedSequence: AsyncSequence {
   }
 }
 
-extension GatedSequence: Sendable where Element: Sendable { }
 extension GatedSequence.Iterator: Sendable where Element: Sendable { }
