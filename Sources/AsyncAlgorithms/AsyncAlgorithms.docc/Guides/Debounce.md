@@ -3,7 +3,7 @@
 * Author(s): [Philippe Hausler](https://github.com/phausler)
 
 [
-[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncDebounceSequence.swift) |
+[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Debounce/AsyncDebounceSequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestDebounce.swift)
 ]
 

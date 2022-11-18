@@ -1,6 +1,6 @@
 # Combine Latest
 
-[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncCombineLatest2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncCombineLatest3Sequence.swift) | 
+[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/CombineLatest/AsyncCombineLatest2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/CombineLatest/AsyncCombineLatest3Sequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestCombineLatest.swift)]
 
 Combines the latest values produced from two or more asynchronous sequences into an asynchronous sequence of tuples.
