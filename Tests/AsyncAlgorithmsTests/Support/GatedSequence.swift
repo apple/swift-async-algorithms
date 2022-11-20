@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct GatedSequence<Element: Sendable>: Sendable {
+public struct GatedSequence<Element: Sendable> {
   
   let elements: [Element]
   let gates: [Gate]
@@ -56,4 +56,4 @@ extension GatedSequence: AsyncSequence {
   }
 }
 
-extension GatedSequence.Iterator: Sendable where Element: Sendable { }
+extension GatedSequence: Sendable where Element: Sendable { }
