@@ -13,265 +13,164 @@ import XCTest
 import AsyncAlgorithms
 
 final class TestChannel: XCTestCase {
-  func test_asyncChannel_delivers_values_when_two_producers_and_two_consumers() async {
-    let (sentFromProducer1, sentFromProducer2) = ("test1", "test2")
-    let expected = Set([sentFromProducer1, sentFromProducer2])
+  func test_asyncChannel_delivers_elements_when_several_producers_and_several_consumers() async {
+    let sents = (1...10)
+    let expected = Set(sents)
 
-    let channel = AsyncChannel<String>()
+    // Given: an AsyncChannel
+    let sut = AsyncChannel<Int>()
+
+    // When: sending elements from tasks in a group
     Task {
-      await channel.send(sentFromProducer1)
+      await withTaskGroup(of: Void.self) { group in
+        for sent in sents {
+          group.addTask {
+            await sut.send(sent)
+          }
+        }
+      }
     }
-    Task {
-      await channel.send(sentFromProducer2)
-    }
-    
-    let t: Task<String?, Never> = Task {
-      var iterator = channel.makeAsyncIterator()
-      let value = await iterator.next()
-      return value
-    }
-    var iterator = channel.makeAsyncIterator()
 
-    let (collectedFromConsumer1, collectedFromConsumer2) = (await t.value, await iterator.next())
-    let collected = Set([collectedFromConsumer1, collectedFromConsumer2])
+    // When: receiving those elements from tasks in a group
+    let collected = await withTaskGroup(of: Int.self, returning: Set<Int>.self) { group in
+      for _ in sents {
+        group.addTask {
+          var iterator = sut.makeAsyncIterator()
+          let received = await iterator.next()
+          return received!
+        }
+      }
 
+      var collected = Set<Int>()
+      for await element in group {
+        collected.update(with: element)
+      }
+      return collected
+    }
+
+    // Then: all elements are sent and received
     XCTAssertEqual(collected, expected)
   }
-  
-  func test_asyncThrowingChannel_delivers_values_when_two_producers_and_two_consumers() async throws {
-    let (sentFromProducer1, sentFromProducer2) = ("test1", "test2")
-    let expected = Set([sentFromProducer1, sentFromProducer2])
 
-    let channel = AsyncThrowingChannel<String, Error>()
-    Task {
-      await channel.send("test1")
-    }
-    Task {
-      await channel.send("test2")
-    }
-    
-    let t: Task<String?, Error> = Task {
-      var iterator = channel.makeAsyncIterator()
-      let value = try await iterator.next()
-      return value
-    }
-    var iterator = channel.makeAsyncIterator()
+  func test_asyncChannel_resumes_producers_and_discards_additional_elements_when_finish_is_called() async {
+    // Given: an AsyncChannel
+    let sut = AsyncChannel<Int>()
 
-    let (collectedFromConsumer1, collectedFromConsumer2) = (try await t.value, try await iterator.next())
-    let collected = Set([collectedFromConsumer1, collectedFromConsumer2])
-    
-    XCTAssertEqual(collected, expected)
-  }
-  
-  func test_asyncThrowingChannel_throws_and_discards_additional_sent_values_when_fail_is_called() async {
-    let sendImmediatelyResumes = expectation(description: "Send immediately resumes after fail")
-
-    let channel = AsyncThrowingChannel<String, Error>()
-    channel.fail(Failure())
-
-    var iterator = channel.makeAsyncIterator()
-    do {
-      let _ = try await iterator.next()
-      XCTFail("The AsyncThrowingChannel should have thrown")
-    } catch {
-      XCTAssertEqual(error as? Failure, Failure())
+    // Given: 2 suspended send operations
+    let task1 = Task {
+      await sut.send(1)
     }
 
-    do {
-      let pastFailure = try await iterator.next()
-      XCTAssertNil(pastFailure)
-    } catch {
-      XCTFail("The AsyncThrowingChannel should not fail when failure has already been fired")
+    let task2 = Task {
+      await sut.send(2)
     }
 
-    await channel.send("send")
-    sendImmediatelyResumes.fulfill()
-    wait(for: [sendImmediatelyResumes], timeout: 1.0)
+    // When: finishing the channel
+    sut.finish()
+
+    // Then: the send operations are resumed
+    _ = await (task1.value, task2.value)
+
+    // When: sending an extra value
+    await sut.send(3)
+
+    // Then: the operation and the iteration are immediately resumed
+    var collected = [Int]()
+    for await element in sut {
+      collected.append(element)
+    }
+    XCTAssertTrue(collected.isEmpty)
   }
 
-  func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
-    let channel = AsyncChannel<String>()
-    let complete = ManagedCriticalState(false)
-    let finished = expectation(description: "finished")
+  func test_asyncChannel_resumes_consumers_when_finish_is_called() async {
+    // Given: an AsyncChannel
+    let sut = AsyncChannel<Int>()
 
-    Task {
-      channel.finish()
-      complete.withCriticalRegion { $0 = true }
-      finished.fulfill()
-    }
-
-    let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
-    let valueFromConsumer2 = ManagedCriticalState<String?>(nil)
-
-    let received = expectation(description: "received")
-    received.expectedFulfillmentCount = 2
-
-    let pastEnd = expectation(description: "pastEnd")
-    pastEnd.expectedFulfillmentCount = 2
-
-    Task {
-      var iterator = channel.makeAsyncIterator()
-      let ending = await iterator.next()
-      valueFromConsumer1.withCriticalRegion { $0 = ending }
-      received.fulfill()
-      let item = await iterator.next()
-      XCTAssertNil(item)
-      pastEnd.fulfill()
-    }
-
-    Task {
-      var iterator = channel.makeAsyncIterator()
-      let ending = await iterator.next()
-      valueFromConsumer2.withCriticalRegion { $0 = ending }
-      received.fulfill()
-      let item = await iterator.next()
-      XCTAssertNil(item)
-      pastEnd.fulfill()
-    }
-    
-    wait(for: [finished, received], timeout: 1.0)
-
-    XCTAssertTrue(complete.withCriticalRegion { $0 })
-    XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)
-    XCTAssertEqual(valueFromConsumer2.withCriticalRegion { $0 }, nil)
-
-    wait(for: [pastEnd], timeout: 1.0)
-    let additionalSend = expectation(description: "additional send")
-    Task {
-      await channel.send("test")
-      additionalSend.fulfill()
-    }
-    wait(for: [additionalSend], timeout: 1.0)
-  }
-
-  func test_asyncThrowingChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
-    let channel = AsyncThrowingChannel<String, Error>()
-    let complete = ManagedCriticalState(false)
-    let finished = expectation(description: "finished")
-    
-    Task {
-      channel.finish()
-      complete.withCriticalRegion { $0 = true }
-      finished.fulfill()
-    }
-
-    let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
-    let valueFromConsumer2 = ManagedCriticalState<String?>(nil)
-
-    let received = expectation(description: "received")
-    received.expectedFulfillmentCount = 2
-
-    let pastEnd = expectation(description: "pastEnd")
-    pastEnd.expectedFulfillmentCount = 2
-
-    Task {
-      var iterator = channel.makeAsyncIterator()
-      let ending = try await iterator.next()
-      valueFromConsumer1.withCriticalRegion { $0 = ending }
-      received.fulfill()
-      let item = try await iterator.next()
-      XCTAssertNil(item)
-      pastEnd.fulfill()
-    }
-
-    Task {
-      var iterator = channel.makeAsyncIterator()
-      let ending = try await iterator.next()
-      valueFromConsumer2.withCriticalRegion { $0 = ending }
-      received.fulfill()
-      let item = try await iterator.next()
-      XCTAssertNil(item)
-      pastEnd.fulfill()
-    }
-
-    wait(for: [finished, received], timeout: 1.0)
-
-    XCTAssertTrue(complete.withCriticalRegion { $0 })
-    XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)
-    XCTAssertEqual(valueFromConsumer2.withCriticalRegion { $0 }, nil)
-
-    wait(for: [pastEnd], timeout: 1.0)
-    let additionalSend = expectation(description: "additional send")
-    Task {
-      await channel.send("test")
-      additionalSend.fulfill()
-    }
-    wait(for: [additionalSend], timeout: 1.0)
-  }
-  
-  func test_asyncChannel_ends_iterator_when_task_is_cancelled() async {
-    let channel = AsyncChannel<String>()
-    let ready = expectation(description: "ready")
-    let task: Task<String?, Never> = Task {
-      var iterator = channel.makeAsyncIterator()
-      ready.fulfill()
+    // Given: 2 suspended iterations
+    let task1 = Task<Int?, Never> {
+      var iterator = sut.makeAsyncIterator()
       return await iterator.next()
     }
-    wait(for: [ready], timeout: 1.0)
-    task.cancel()
-    let value = await task.value
-    XCTAssertNil(value)
+
+    let task2 = Task<Int?, Never> {
+      var iterator = sut.makeAsyncIterator()
+      return await iterator.next()
+    }
+
+    // When: finishing the channel
+    sut.finish()
+
+    // Then: the iterations are resumed with nil values
+    let (collected1, collected2) = await (task1.value, task2.value)
+    XCTAssertNil(collected1)
+    XCTAssertNil(collected2)
+
+    // When: requesting a next value
+    var iterator = sut.makeAsyncIterator()
+    let pastEnd = await iterator.next()
+
+    // Then: the past end is nil
+    XCTAssertNil(pastEnd)
   }
 
-  func test_asyncThrowingChannel_ends_iterator_when_task_is_cancelled() async throws {
-    let channel = AsyncThrowingChannel<String, Error>()
-    let ready = expectation(description: "ready")
-    let task: Task<String?, Error> = Task {
-      var iterator = channel.makeAsyncIterator()
-      ready.fulfill()
-      return try await iterator.next()
+  func test_asyncChannel_resumes_producer_when_task_is_cancelled() async {
+    let send1IsResumed = expectation(description: "The first send operation is resumed")
+
+    // Given: an AsyncChannel
+    let sut = AsyncChannel<Int>()
+
+    // Given: 2 suspended send operations
+    let task1 = Task {
+      await sut.send(1)
+      send1IsResumed.fulfill()
     }
-    wait(for: [ready], timeout: 1.0)
-    task.cancel()
-    let value = try await task.value
-    XCTAssertNil(value)
+
+    let task2 = Task {
+      await sut.send(2)
+    }
+
+    // When: cancelling the first task
+    task1.cancel()
+
+    // Then: the first sending operation is resumed
+    wait(for: [send1IsResumed], timeout: 1.0)
+
+    // When: collecting elements
+    var iterator = sut.makeAsyncIterator()
+    let collected = await iterator.next()
+
+    // Then: the second operation resumes and the iteration receives the element
+    _ = await task2.value
+    XCTAssertEqual(collected, 2)
   }
-  
-  func test_asyncChannel_resumes_send_when_task_is_cancelled_and_continue_remaining_send_tasks() async {
-    let channel = AsyncChannel<Int>()
-    let notYetDone = expectation(description: "not yet done")
-    notYetDone.isInverted = true
-    let done = expectation(description: "done")
-    let task = Task {
-      await channel.send(1)
-      notYetDone.fulfill()
-      done.fulfill()
+
+  func test_asyncChannel_resumes_consumer_when_task_is_cancelled() async {
+    // Given: an AsyncChannel
+    let sut = AsyncChannel<Int>()
+
+    // Given: 2 suspended iterations
+    let task1 = Task<Int?, Never> {
+      var iterator = sut.makeAsyncIterator()
+      return await iterator.next()
     }
 
-    Task {
-      await channel.send(2)
+    let task2 = Task<Int?, Never> {
+      var iterator = sut.makeAsyncIterator()
+      return await iterator.next()
     }
 
-    wait(for: [notYetDone], timeout: 0.1)
-    task.cancel()
-    wait(for: [done], timeout: 1.0)
+    // When: cancelling the first task
+    task1.cancel()
 
-    var iterator = channel.makeAsyncIterator()
-    let received = await iterator.next()
-    XCTAssertEqual(received, 2)
-  }
-  
-  func test_asyncThrowingChannel_resumes_send_when_task_is_cancelled_and_continue_remaining_send_tasks() async throws {
-    let channel = AsyncThrowingChannel<Int, Error>()
-    let notYetDone = expectation(description: "not yet done")
-    notYetDone.isInverted = true
-    let done = expectation(description: "done")
-    let task = Task {
-      await channel.send(1)
-      notYetDone.fulfill()
-      done.fulfill()
-    }
+    // Then: the iteration is resumed with a nil element
+    let collected1 = await task1.value
+    XCTAssertNil(collected1)
 
-    Task {
-      await channel.send(2)
-    }
+    // When: sending an element
+    await sut.send(1)
 
-    wait(for: [notYetDone], timeout: 0.1)
-    task.cancel()
-    wait(for: [done], timeout: 1.0)
-
-    var iterator = channel.makeAsyncIterator()
-    let received = try await iterator.next()
-    XCTAssertEqual(received, 2)
+    // Then: the second iteration is resumed with the element
+    let collected2 = await task2.value
+    XCTAssertEqual(collected2, 1)
   }
 }
