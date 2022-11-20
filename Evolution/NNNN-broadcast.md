@@ -129,7 +129,7 @@ extension OrientationMonitor {
       }
       Accelerometer.shared.startAccelerometer()
     }
-    return stream.share(disposingBaseIterator: .whenTerminated)
+    return stream.broadcast(disposingBaseIterator: .whenTerminated)
   }()
 }
 ```
@@ -176,9 +176,9 @@ extension OrientationMonitor {
         Accelerometer.shared.startAccelerometer()
       }
     }
-    // `.whenTerminatedOrVacant` is the default, so we could equally write `.share()`
+    // `.whenTerminatedOrVacant` is the default, so we could equally write `.broadcast()`
     // but it's included here for clarity.
-    return stream.share(disposingBaseIterator: .whenTerminatedOrVacant)
+    return stream.broadcast(disposingBaseIterator: .whenTerminatedOrVacant)
   }()
 }
 ```
@@ -239,7 +239,7 @@ init(
 )
 ```
 
-Contructs a shared asynchronous sequence.
+Contructs an asynchronous broadcast sequence.
 
   - `history`: the number of elements previously emitted by the sequence to prefix to the iterator of a new consumer
   - `iteratorDisposalPolicy`: the iterator disposal policy applied to the upstream iterator
@@ -256,7 +256,7 @@ public enum IteratorDisposalPolicy: Sendable {
 ```
 
 #### Overview
-The iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
+The iterator disposal policy applied by an asynchronous broadcast sequence to its upstream iterator
 
   - `whenTerminated`: retains the upstream iterator for use by future consumers until the base asynchronous sequence is terminated
   - `whenTerminatedOrVacant`: discards the upstream iterator when the number of consumers falls to zero or the base asynchronous sequence is terminated
@@ -280,7 +280,7 @@ extension AsyncSequence {
 Creates an asynchronous sequence that can be shared by multiple consumers.
 
   - `history`: the number of elements previously emitted by the sequence to prefix to the iterator of a new consumer
-  - `iteratorDisposalPolicy`: the iterator disposal policy applied by a shared asynchronous sequence to its upstream iterator
+  - `iteratorDisposalPolicy`: the iterator disposal policy applied by an asynchronous broadcast sequence to its upstream iterator
 
  ## Comparison with other libraries
 
