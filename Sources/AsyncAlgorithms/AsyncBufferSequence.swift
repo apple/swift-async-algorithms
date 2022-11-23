@@ -9,7 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-actor AsyncBufferState<Input: Sendable, Output: Sendable> {
+actor AsyncBufferState<Buffer: AsyncBuffer> {
+  typealias Output = Buffer.Output
+  typealias Input = Buffer.Input
+  
   enum TerminationState: Sendable, CustomStringConvertible {
     case running
     case baseFailure(Error) // An error from the base sequence has occurred. We need to process any buffered items before throwing the error. We can rely on it not emitting any more items.
@@ -28,16 +31,19 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
   
   var pending = [UnsafeContinuation<Result<Output?, Error>, Never>]()
   var terminationState = TerminationState.running
+  var buffer: Buffer
 
-  init() { }
+  init(_ buffer: Buffer) {
+    self.buffer = buffer
+  }
   
-  func drain<Buffer: AsyncBuffer>(buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
+  func drain() async {
     guard pending.count > 0 else {
       return
     }
 
     do {
-      if let value = try await buffer.pop() {
+      if let value = try await pop() {
         pending.removeFirst().resume(returning: .success(value))
       } else {
         switch terminationState {
@@ -58,22 +64,34 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
       self.terminate()
     }
   }
-
-  func enqueue<Buffer: AsyncBuffer>(_ item: Input, buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
+  
+  func push(_ item: Input) async {
+    var buffer = self.buffer
+    defer { self.buffer = buffer }
     await buffer.push(item)
-    await drain(buffer: buffer)
   }
   
-  func fail<Buffer: AsyncBuffer>(_ error: Error, buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
+  func pop() async rethrows -> Output? {
+    var buffer = self.buffer
+    defer { self.buffer = buffer }
+    return try await buffer.pop()
+  }
+
+  func enqueue(_ item: Input) async {
+    await push(item)
+    await drain()
+  }
+  
+  func fail(_ error: Error) async {
     terminationState = .baseFailure(error)
-    await drain(buffer: buffer)
+    await drain()
   }
   
-  func finish<Buffer: AsyncBuffer>(buffer: Buffer) async where Buffer.Input == Input, Buffer.Output == Output {
+  func finish() async {
     if case .running = terminationState {
       terminationState = .baseTermination
     }
-    await drain(buffer: buffer)
+    await drain()
   }
 
   func terminate() {
@@ -85,13 +103,13 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
     }
   }
 
-  func next<Buffer: AsyncBuffer>(buffer: Buffer) async throws -> Buffer.Output? where Buffer.Input == Input, Buffer.Output == Output {
+  func next() async throws -> Output? {
     if case .terminal = terminationState {
       return nil
     }
 
     do {
-      while let value = try await buffer.pop() {
+      while let value = try await pop() {
         if let continuation = pending.first {
           pending.removeFirst()
           continuation.resume(returning: .success(value))
@@ -126,23 +144,23 @@ actor AsyncBufferState<Input: Sendable, Output: Sendable> {
 /// An asynchronous buffer storage actor protocol used for buffering
 /// elements to an `AsyncBufferSequence`.
 @rethrows
-public protocol AsyncBuffer: Actor {
+public protocol AsyncBuffer: Sendable {
   associatedtype Input: Sendable
   associatedtype Output: Sendable
 
   /// Push an element to enqueue to the buffer
-  func push(_ element: Input) async
+  mutating func push(_ element: Input) async
   
   /// Pop an element from the buffer.
   ///
   /// Implementors of `pop()` may throw. In cases where types
   /// throw from this function, that throwing behavior contributes to
   /// the rethrowing characteristics of `AsyncBufferSequence`.
-  func pop() async throws -> Output?
+  mutating func pop() async throws -> Output?
 }
 
 /// A buffer that limits pushed items by a certain count.
-public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
+public struct AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   /// A policy for buffering elements to an `AsyncLimitBuffer`
   public enum Policy: Sendable {
     /// A policy for no bounding limit of pushed elements.
@@ -169,7 +187,7 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   }
   
   /// Push an element to enqueue to the buffer.
-  public func push(_ element: Element) async {
+  public mutating func push(_ element: Element) {
     switch policy {
     case .unbounded:
       buffer.append(element)
@@ -190,7 +208,7 @@ public actor AsyncLimitBuffer<Element: Sendable>: AsyncBuffer {
   }
   
   /// Pop an element from the buffer.
-  public func pop() async -> Element? {
+  public mutating func pop() -> Element? {
     guard buffer.count > 0 else {
       return nil
     }
@@ -243,21 +261,19 @@ extension AsyncBufferSequence: AsyncSequence {
   public struct Iterator: AsyncIteratorProtocol {
     struct Active {
       var task: Task<Void, Never>?
-      let buffer: Buffer
-      let state: AsyncBufferState<Buffer.Input, Buffer.Output>
+      let state: AsyncBufferState<Buffer>
       
-      init(_ base: Base, buffer: Buffer, state: AsyncBufferState<Buffer.Input, Buffer.Output>) {
-        self.buffer = buffer
+      init(_ base: Base, state: AsyncBufferState<Buffer>) {
         self.state = state
         task = Task {
           var iter = base.makeAsyncIterator()
           do {
             while let item = try await iter.next() {
-              await state.enqueue(item, buffer: buffer)
+              await state.enqueue(item)
             }
-            await state.finish(buffer: buffer)
+            await state.finish()
           } catch {
-            await state.fail(error, buffer: buffer)
+            await state.fail(error)
           }
         }
       }
@@ -265,7 +281,7 @@ extension AsyncBufferSequence: AsyncSequence {
       func next() async rethrows -> Element? {
         let result: Result<Element?, Error> = await withTaskCancellationHandler {
           do {
-            let value = try await state.next(buffer: buffer)
+            let value = try await state.next()
             return .success(value)
           } catch {
             task?.cancel()
@@ -292,8 +308,8 @@ extension AsyncBufferSequence: AsyncSequence {
     public mutating func next() async rethrows -> Element? {
       switch state {
       case .idle(let base, let createBuffer):
-        let bufferState = AsyncBufferState<Base.Element, Buffer.Output>()
-        let buffer = Active(base, buffer: createBuffer(), state: bufferState)
+        let bufferState = AsyncBufferState(createBuffer())
+        let buffer = Active(base, state: bufferState)
         state = .active(buffer)
         return try await buffer.next()
       case .active(let buffer):
