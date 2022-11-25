@@ -20,6 +20,26 @@ final class TestThroughput: XCTestCase {
   func test_throwingChannel() async {
     await measureThrowingChannelThroughput(output: 1)
   }
+  func test_buffer_bounded() async {
+    await measureSequenceThroughput(output: 1) {
+      $0.buffer(policy: .bounded(5))
+    }
+  }
+  func test_buffer_unbounded() async {
+    await measureSequenceThroughput(output: 1) {
+      $0.buffer(policy: .unbounded)
+    }
+  }
+  func test_buffer_bufferingNewest() async {
+    await measureSequenceThroughput(output: 1) {
+      $0.buffer(policy: .bufferingLatest(5))
+    }
+  }
+  func test_buffer_bufferingOldest() async {
+    await measureSequenceThroughput(output: 1) {
+      $0.buffer(policy: .bufferingOldest(5))
+    }
+  }
   func test_chain2() async {
     await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
       chain($0, $1)
