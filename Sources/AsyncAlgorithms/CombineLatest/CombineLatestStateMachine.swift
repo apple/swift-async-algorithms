@@ -243,7 +243,6 @@ struct CombineLatestStateMachine<
   }
 
   mutating func elementProduced(_ result: (Base1.Element?, Base2.Element?, Base3.Element?)) -> ElementProducedAction? {
-    print("upstream produced: \(result)")
     switch self.state {
     case .initial:
       // Child tasks that are producing elements are only created after we transitioned to `zipping`
@@ -375,7 +374,6 @@ struct CombineLatestStateMachine<
   }
 
   mutating func upstreamFinished(baseIndex: Int) -> UpstreamFinishedAction? {
-    print("upstream finished: \(baseIndex)")
     switch self.state {
     case .initial:
       preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamFinished()")
