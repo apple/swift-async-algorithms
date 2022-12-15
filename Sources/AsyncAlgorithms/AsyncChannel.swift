@@ -18,8 +18,8 @@
 /// pressure applied by `send(_:)` via the suspension/resume ensures that
 /// the production of values does not exceed the consumption of values from iteration. This method
 /// suspends after enqueuing the event and is resumed when the next call to `next()`
-/// on the `Iterator` is made, or when `finish()` is called from another Task.
-/// As `finish()` induces a terminal state, there is no need for a back pressure management.
+/// on the `Iterator` is made, or when `close()` is called from another Task.
+/// As `close()` induces a terminal state, there is no need for a back pressure management.
 /// This function does not suspend and will finish all the pending iterations.
 public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// The iterator for a `AsyncChannel` instance.
@@ -90,7 +90,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     case idle
     case pending(OrderedSet<Pending>)
     case awaiting(OrderedSet<Awaiting>)
-    case finished
+    case closed
   }
   
   struct State : Sendable {
@@ -160,7 +160,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
         case .awaiting(var nexts):
           nexts.updateOrAppend(Awaiting(generation: generation, continuation: continuation))
           state.emission = .awaiting(nexts)
-        case .finished:
+        case .closed:
           terminal = true
         }
       }
@@ -221,7 +221,7 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
             state.emission = .awaiting(nexts)
           }
           continuation.resume(returning: next)
-        case .finished:
+        case .closed:
           continuation.resume(returning: nil)
         }
       }
@@ -229,9 +229,11 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     continuation?.resume(returning: element)
   }
 
-  /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
-  /// or when a call to `finish()` is made from another Task.
-  /// If the channel is already finished then this returns immediately
+  /// Send a single element.
+  ///
+  /// This function will resume when the next call to `next()` is made
+  /// or when a call to `close()` is made from another Task.
+  /// If the channel is already closed then this returns immediately.
   /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
     let generation = establish()
@@ -243,13 +245,19 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
       self?.cancelSend(sendTokenStatus, generation)
     }
   }
-  
-  /// Send a finish to all awaiting iterations.
-  /// All subsequent calls to `next(_:)` will resume immediately.
+
+  @available(*, deprecated, renamed: "close")
   public func finish() {
+    close()
+  }
+  
+  /// Close the channel.
+  ///
+  /// All subsequent calls to `next(_:)` will resume immediately.
+  public func close() {
     state.withCriticalRegion { state in
 
-      defer { state.emission = .finished }
+      defer { state.emission = .closed }
       
       switch state.emission {
       case .pending(let sends):

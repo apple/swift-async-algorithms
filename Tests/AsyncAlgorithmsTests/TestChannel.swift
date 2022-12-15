@@ -89,15 +89,15 @@ final class TestChannel: XCTestCase {
     wait(for: [sendImmediatelyResumes], timeout: 1.0)
   }
 
-  func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
+  func test_asyncChannel_ends_alls_iterators_and_discards_additional_sent_values_when_close_is_called() async {
     let channel = AsyncChannel<String>()
     let complete = ManagedCriticalState(false)
-    let finished = expectation(description: "finished")
+    let closed = expectation(description: "closed")
 
     Task {
-      channel.finish()
+      channel.close()
       complete.withCriticalRegion { $0 = true }
-      finished.fulfill()
+      closed.fulfill()
     }
 
     let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
@@ -129,7 +129,7 @@ final class TestChannel: XCTestCase {
       pastEnd.fulfill()
     }
     
-    wait(for: [finished, received], timeout: 1.0)
+    wait(for: [closed, received], timeout: 1.0)
 
     XCTAssertTrue(complete.withCriticalRegion { $0 })
     XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)
@@ -144,15 +144,15 @@ final class TestChannel: XCTestCase {
     wait(for: [additionalSend], timeout: 1.0)
   }
 
-  func test_asyncThrowingChannel_ends_alls_iterators_and_discards_additional_sent_values_when_finish_is_called() async {
+  func test_asyncThrowingChannel_ends_alls_iterators_and_discards_additional_sent_values_when_close_is_called() async {
     let channel = AsyncThrowingChannel<String, Error>()
     let complete = ManagedCriticalState(false)
-    let finished = expectation(description: "finished")
+    let closed = expectation(description: "closed")
     
     Task {
-      channel.finish()
+      channel.close()
       complete.withCriticalRegion { $0 = true }
-      finished.fulfill()
+      closed.fulfill()
     }
 
     let valueFromConsumer1 = ManagedCriticalState<String?>(nil)
@@ -184,7 +184,7 @@ final class TestChannel: XCTestCase {
       pastEnd.fulfill()
     }
 
-    wait(for: [finished, received], timeout: 1.0)
+    wait(for: [closed, received], timeout: 1.0)
 
     XCTAssertTrue(complete.withCriticalRegion { $0 })
     XCTAssertEqual(valueFromConsumer1.withCriticalRegion { $0 }, nil)

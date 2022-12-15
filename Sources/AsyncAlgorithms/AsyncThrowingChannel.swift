@@ -17,8 +17,8 @@
 /// particularly when one task produces values and another task consumes those values. The back
 /// pressure applied by `send(_:)` via suspension/resume ensures that the production of values does
 /// not exceed the consumption of values from iteration. This method suspends after enqueuing the event
-/// and is resumed when the next call to `next()` on the `Iterator` is made, or when `finish()`/`fail(_:)` is called
-/// from another Task. As `finish()` and `fail(_:)` induce a terminal state, there is no need for a back pressure management.
+/// and is resumed when the next call to `next()` on the `Iterator` is made, or when `close()`/`fail(_:)` is called
+/// from another Task. As `close()` and `fail(_:)` induce a terminal state, there is no need for a back pressure management.
 /// Those functions do not suspend and will finish all the pending iterations.
 public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
   /// The iterator for an `AsyncThrowingChannel` instance.
@@ -91,7 +91,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   }
 
   enum Termination {
-    case finished
+    case closed
     case failed(Error)
   }
   
@@ -172,7 +172,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
           state.emission = .awaiting(nexts)
         case .terminated(let termination):
           potentialTermination = termination
-          state.emission = .terminated(.finished)
+          state.emission = .terminated(.closed)
         }
       }
 
@@ -187,7 +187,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       case .failed(let error):
         continuation.resume(throwing: error)
         return
-      case .finished:
+      case .closed:
         continuation.resume(returning: nil)
         return
       }
@@ -259,7 +259,7 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
       if let error = error {
         nextState = .terminated(.failed(error))
       } else {
-        nextState = .terminated(.finished)
+        nextState = .terminated(.closed)
       }
 
       switch state.emission {
@@ -288,8 +288,8 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   }
   
   /// Send an element to an awaiting iteration. This function will resume when the next call to `next()` is made
-  /// or when a call to `finish()`/`fail(_:)` is made from another Task.
-  /// If the channel is already finished then this returns immediately
+  /// or when a call to `close()`/`fail(_:)` is made from another Task.
+  /// If the channel is already closed then this returns immediately.
   /// If the task is cancelled, this function will resume. Other sending operations from other tasks will remain active.
   public func send(_ element: Element) async {
     let generation = establish()
@@ -307,10 +307,16 @@ public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: Asyn
   public func fail(_ error: Error) where Failure == Error {
     terminateAll(error: error)
   }
-  
-  /// Send a finish to all awaiting iterations.
-  /// All subsequent calls to `next(_:)` will resume immediately.
+
+  @available(*, deprecated, renamed: "close")
   public func finish() {
+    close()
+  }
+  
+  /// Closes the channel.
+  ///
+  /// All subsequent calls to `next(_:)` will resume immediately.
+  public func close() {
     terminateAll()
   }
   
