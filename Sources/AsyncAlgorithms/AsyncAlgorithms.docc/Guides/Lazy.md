@@ -1,6 +1,6 @@
-# AsyncLazySequence
+# AsyncSyncSequence
 
-[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncLazySequence.swift) | 
+[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncSyncSequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestLazy.swift)]
 
 Converts a non-asynchronous sequence into an asynchronous one. 
@@ -17,19 +17,19 @@ to combine with other `AsyncSequence` types to provide well known sources of dat
 
 ## Detailed Design
 
-The `.async` property returns an `AsyncLazySequence` that is generic upon the base `Sequence` it was constructed from.
+The `.async` property returns an `AsyncSyncSequence` that is generic upon the base `Sequence` it was constructed from.
 
 ```swift
 extension Sequence {
-  public var async: AsyncLazySequence<Self> { get }
+  public var async: AsyncSyncSequence<Self> { get }
 }
 
-public struct AsyncLazySequence<Base: Sequence>: AsyncSequence {
+public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   ...
 }
 
-extension AsyncLazySequence: Sendable where Base: Sendable { }
-extension AsyncLazySequence.Iterator: Sendable where Base.Iterator: Sendable { }
+extension AsyncSyncSequence: Sendable where Base: Sendable { }
+extension AsyncSyncSequence.Iterator: Sendable where Base.Iterator: Sendable { }
 ```
 
 ### Naming

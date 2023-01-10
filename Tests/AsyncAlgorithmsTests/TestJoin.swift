@@ -13,8 +13,8 @@ import XCTest
 import AsyncAlgorithms
 
 extension Sequence where Element: Sequence, Element.Element: Equatable & Sendable {
-  func nestedAsync(throwsOn bad: Element.Element) -> AsyncLazySequence<[AsyncThrowingMapSequence<AsyncLazySequence<Element>,Element.Element>]> {
-    let array: [AsyncThrowingMapSequence<AsyncLazySequence<Element>,Element.Element>] = self.map { $0.async }.map {
+  func nestedAsync(throwsOn bad: Element.Element) -> AsyncSyncSequence<[AsyncThrowingMapSequence<AsyncSyncSequence<Element>,Element.Element>]> {
+    let array: [AsyncThrowingMapSequence<AsyncSyncSequence<Element>,Element.Element>] = self.map { $0.async }.map {
       $0.map { try throwOn(bad, $0) }
     }
     return array.async
@@ -22,7 +22,7 @@ extension Sequence where Element: Sequence, Element.Element: Equatable & Sendabl
 }
 
 extension Sequence where Element: Sequence, Element.Element: Sendable {
-  var nestedAsync : AsyncLazySequence<[AsyncLazySequence<Element>]> {
+  var nestedAsync : AsyncSyncSequence<[AsyncSyncSequence<Element>]> {
     return self.map { $0.async }.async
   }
 }
@@ -55,7 +55,7 @@ final class TestJoinedBySeparator: XCTestCase {
   }
 
   func test_join_empty() async {
-    let sequences = [AsyncLazySequence<[Int]>]().async
+    let sequences = [AsyncSyncSequence<[Int]>]().async
     var iterator = sequences.joined(separator: [-1, -2, -3].async).makeAsyncIterator()
     let expected = [Int]()
     var actual = [Int]()
@@ -105,7 +105,7 @@ final class TestJoinedBySeparator: XCTestCase {
   }
 
   func test_cancellation() async {
-    let source : AsyncLazySequence<[AsyncLazySequence<Indefinite<String>>]> = [Indefinite(value: "test").async].async
+    let source : AsyncSyncSequence<[AsyncSyncSequence<Indefinite<String>>]> = [Indefinite(value: "test").async].async
     let sequence = source.joined(separator: ["past indefinite"].async)
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")
@@ -158,7 +158,7 @@ final class TestJoined: XCTestCase {
   }
 
   func test_join_empty() async {
-    let sequences = [AsyncLazySequence<[Int]>]().async
+    let sequences = [AsyncSyncSequence<[Int]>]().async
     var iterator = sequences.joined().makeAsyncIterator()
     let expected = [Int]()
     var actual = [Int]()
@@ -189,7 +189,7 @@ final class TestJoined: XCTestCase {
   }
 
   func test_cancellation() async {
-    let source : AsyncLazySequence<[AsyncLazySequence<Indefinite<String>>]> = [Indefinite(value: "test").async].async
+    let source : AsyncSyncSequence<[AsyncSyncSequence<Indefinite<String>>]> = [Indefinite(value: "test").async].async
     let sequence = source.joined()
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")

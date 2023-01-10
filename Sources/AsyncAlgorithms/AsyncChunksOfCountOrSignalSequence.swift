@@ -70,7 +70,7 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
   public struct Iterator: AsyncIteratorProtocol {
     typealias EitherMappedBase = AsyncMapSequence<Base, Either>
     typealias EitherMappedSignal = AsyncMapSequence<Signal, Either>
-    typealias ChainedBase = AsyncChain2Sequence<EitherMappedBase, AsyncLazySequence<[Either]>>
+    typealias ChainedBase = AsyncChain2Sequence<EitherMappedBase, AsyncSyncSequence<[Either]>>
     typealias Merged = AsyncMerge2Sequence<ChainedBase, EitherMappedSignal>
     
     let count: Int?
