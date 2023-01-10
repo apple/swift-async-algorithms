@@ -34,8 +34,8 @@
 | `AsyncInterspersedSequence.Iterator`                | rethrows     | Not Sendable|
 | `AsyncJoinedSequence`                               | rethrows     | Conditional |
 | `AsyncJoinedSequence.Iterator`                      | rethrows     | Not Sendable|
-| `AsyncLazySequence`                                 | non-throwing | Conditional |
-| `AsyncLazySequence.Iterator`                        | non-throwing | Not Sendable|
+| `AsyncSyncSequence`                                 | non-throwing | Conditional |
+| `AsyncSyncSequence.Iterator`                        | non-throwing | Not Sendable|
 | `AsyncLimitBuffer`                                  | non-throwing | Sendable    |
 | `AsyncMerge2Sequence`                               | rethrows     | Sendable    |
 | `AsyncMerge2Sequence.Iterator`                      | rethrows     | Not Sendable|
