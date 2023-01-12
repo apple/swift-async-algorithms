@@ -14,6 +14,12 @@ import AsyncAlgorithms
 
 #if canImport(Darwin)
 final class TestThroughput: XCTestCase {
+  func test_channel() async {
+    await measureChannelThroughput(output: 1)
+  }
+  func test_throwingChannel() async {
+    await measureThrowingChannelThroughput(output: 1)
+  }
   func test_chain2() async {
     await measureSequenceThroughput(firstOutput: 1, secondOutput: 2) {
       chain($0, $1)
