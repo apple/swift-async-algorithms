@@ -165,7 +165,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
         }
 
         group.addTask {
-          var base1Iterator = base2.makeAsyncIterator()
+          var base2Iterator = base2.makeAsyncIterator()
 
           while true {
             // We are creating a continuation before requesting the next
@@ -188,7 +188,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
               }
             }
 
-            if let element2 = try await base1Iterator.next() {
+            if let element2 = try await base2Iterator.next() {
               self.stateMachine.withCriticalRegion { stateMachine in
                 let action = stateMachine.elementProduced((nil, element2, nil))
 
@@ -226,7 +226,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
 
         if let base3 = base3 {
           group.addTask {
-            var base1Iterator = base3.makeAsyncIterator()
+            var base3Iterator = base3.makeAsyncIterator()
 
             while true {
               // We are creating a continuation before requesting the next
@@ -249,7 +249,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
                 }
               }
 
-              if let element3 = try await base1Iterator.next() {
+              if let element3 = try await base3Iterator.next() {
                 self.stateMachine.withCriticalRegion { stateMachine in
                   let action = stateMachine.elementProduced((nil, nil, element3))
 
