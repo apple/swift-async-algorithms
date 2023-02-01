@@ -465,9 +465,11 @@ struct MergeStateMachine<
     mutating func cancelled() -> CancelledAction {
         switch state {
         case .initial:
-            // Since we are transitioning to `merging` before we return from `makeAsyncIterator`
-            // this can never happen
-            preconditionFailure("Internal inconsistency current state \(self.state) and received cancelled()")
+            // Since we are only transitioning to merging when the task is started we
+            // can be cancelled already.
+            state = .finished
+
+            return .none
 
         case let .merging(task, _, upstreamContinuations, _, .some(downstreamContinuation)):
             // The downstream Task got cancelled so we need to cancel our upstream Task

@@ -583,9 +583,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
     mutating func cancelled() -> CancelledAction? {
         switch self.state {
         case .initial:
-            // Since we are transitioning to `merging` before we return from `makeAsyncIterator`
-            // this can never happen
-            preconditionFailure("Internal inconsistency current state \(self.state) and received cancelled()")
+            state = .finished
+            return .none
 
         case .waitingForDemand:
             // We got cancelled before we event got any demand. This can happen if a cancelled task

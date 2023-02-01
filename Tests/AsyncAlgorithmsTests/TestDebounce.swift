@@ -68,4 +68,15 @@ final class TestDebounce: XCTestCase {
         let throwingDebounce = [1].async.map { try throwOn(2, $0) }.debounce(for: .zero, clock: ContinuousClock())
         for try await _ in throwingDebounce {}
     }
+
+  func test_debounce_when_cancelled() async throws {
+      guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
+
+      let t = Task {
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+          let c1 = Indefinite(value: "test1").async
+          for await _ in c1.debounce(for: .seconds(1), clock: .continuous) {}
+      }
+      t.cancel()
+  }
 }
