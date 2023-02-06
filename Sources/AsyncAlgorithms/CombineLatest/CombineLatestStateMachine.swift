@@ -585,7 +585,9 @@ struct CombineLatestStateMachine<
   mutating func cancelled() -> CancelledAction? {
     switch self.state {
     case .initial:
-      preconditionFailure("Internal inconsistency current state \(self.state) and received cancelled()")
+      state = .finished
+
+      return .none
 
     case .waitingForDemand(let task, let upstreams, _):
       // The downstream task got cancelled so we need to cancel our upstream Task

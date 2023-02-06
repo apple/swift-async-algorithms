@@ -158,6 +158,16 @@ final class TestZip2: XCTestCase {
     task.cancel()
     wait(for: [finished], timeout: 1.0)
   }
+
+  func test_zip_when_cancelled() async {
+      let t = Task {
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+          let c1 = Indefinite(value: "test1").async
+          let c2 = Indefinite(value: "test1").async
+        for await _ in zip(c1, c2) {}
+      }
+      t.cancel()
+  }
 }
 
 final class TestZip3: XCTestCase {
