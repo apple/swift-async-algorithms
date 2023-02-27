@@ -390,8 +390,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
             preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamFinished()")
 
         case .upstreamFailure:
-            // The upstream already failed so it should never have throw again.
-            preconditionFailure("Internal inconsistency current state \(self.state) and received childTaskSuspended()")
+            // We need to tolerate multiple upstreams failing
+            return .none
 
         case .waitingForDemand(let task, .none, let clockContinuation, .none):
             // We don't have any buffered element so we can just go ahead

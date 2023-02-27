@@ -404,40 +404,39 @@ final class MergeStorage<
                         }
                     }
                 }
-
-                do {
-                    try await group.waitForAll()
-                } catch {
+                
+                while !group.isEmpty {
+                    do {
+                        try await group.next()
+                    } catch {
                     // One of the upstream sequences threw an error
-                    let action = self.lock.withLock {
-                        self.stateMachine.upstreamThrew(error)
+                        let action = self.lock.withLock {
+                            self.stateMachine.upstreamThrew(error)
+                        }
+                        switch action {
+                        case let .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+                            downstreamContinuation,
+                            error,
+                            task,
+                            upstreamContinuations
+                        ):
+                            upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+
+                            task.cancel()
+
+                            downstreamContinuation.resume(throwing: error)
+                        case let .cancelTaskAndUpstreamContinuations(
+                            task,
+                            upstreamContinuations
+                        ):
+                            upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+
+                            task.cancel()
+                        case .none:
+                            break
+                        }
+                        group.cancelAll()
                     }
-
-                    switch action {
-                    case let .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
-                        downstreamContinuation,
-                        error,
-                        task,
-                        upstreamContinuations
-                    ):
-                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-
-                        task.cancel()
-
-                        downstreamContinuation.resume(throwing: error)
-                    case let .cancelTaskAndUpstreamContinuations(
-                        task,
-                        upstreamContinuations
-                    ):
-                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-
-                        task.cancel()
-
-                    case .none:
-                        break
-                    }
-
-                    group.cancelAll()
                 }
             }
         }

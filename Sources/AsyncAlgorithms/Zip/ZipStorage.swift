@@ -286,31 +286,31 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
           }
         }
 
-        do {
-          try await group.waitForAll()
-        } catch {
-          // One of the upstream sequences threw an error
-          self.stateMachine.withCriticalRegion { stateMachine in
-            let action = stateMachine.upstreamThrew(error)
+        while !group.isEmpty {
+            do {
+                try await group.next()
+            } catch {
+            // One of the upstream sequences threw an error
+                self.stateMachine.withCriticalRegion { stateMachine in
+                    let action = stateMachine.upstreamThrew(error)
+                    switch action {
+                    case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+                      let downstreamContinuation,
+                      let error,
+                      let task,
+                      let upstreamContinuations
+                    ):
+                      upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                      task.cancel()
 
-            switch action {
-            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
-              let downstreamContinuation,
-              let error,
-              let task,
-              let upstreamContinuations
-            ):
-              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-              task.cancel()
+                      downstreamContinuation.resume(returning: .failure(error))
+                    case .none:
+                        break
+                    }
+                }
 
-              downstreamContinuation.resume(returning: .failure(error))
-
-            case .none:
-              break
+                group.cancelAll()
             }
-          }
-
-          group.cancelAll()
         }
       }
     }

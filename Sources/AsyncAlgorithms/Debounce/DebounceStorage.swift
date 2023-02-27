@@ -254,39 +254,41 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                     }
                 }
 
-                do {
-                    try await group.waitForAll()
-                } catch {
-                    // The upstream sequence threw an error
-                    let action = self.stateMachine.withCriticalRegion { $0.upstreamThrew(error) }
+                while !group.isEmpty {
+                    do {
+                        try await group.next()
+                    } catch {
+                    // One of the upstream sequences threw an error
+                        self.stateMachine.withCriticalRegion { stateMachine in
+                            let action = stateMachine.upstreamThrew(error)
+                            switch action {
+                            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
+                                let downstreamContinuation,
+                                let error,
+                                let task,
+                                let upstreamContinuation,
+                                let clockContinuation
+                            ):
+                                upstreamContinuation?.resume(throwing: CancellationError())
+                                clockContinuation?.resume(throwing: CancellationError())
 
-                    switch action {
-                    case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuation(
-                        let downstreamContinuation,
-                        let error,
-                        let task,
-                        let upstreamContinuation,
-                        let clockContinuation
-                    ):
-                        upstreamContinuation?.resume(throwing: CancellationError())
-                        clockContinuation?.resume(throwing: CancellationError())
+                                task.cancel()
 
-                        task.cancel()
+                                downstreamContinuation.resume(returning: .failure(error))
 
-                        downstreamContinuation.resume(returning: .failure(error))
+                            case .cancelTaskAndClockContinuation(
+                                let task,
+                                let clockContinuation
+                            ):
+                                clockContinuation?.resume(throwing: CancellationError())
+                                task.cancel()
+                            case .none:
+                                break
+                            }
+                        }
 
-                    case .cancelTaskAndClockContinuation(
-                        let task,
-                        let clockContinuation
-                    ):
-                        clockContinuation?.resume(throwing: CancellationError())
-                        task.cancel()
-
-                    case .none:
-                        break
+                        group.cancelAll()
                     }
-
-                    group.cancelAll()
                 }
             }
         }
