@@ -530,7 +530,8 @@ struct CombineLatestStateMachine<
       preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamThrew()")
 
     case .upstreamsFinished:
-      preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamThrew()")
+      // We need to tolerate multiple upstreams failing
+      return .none
 
     case .waitingForDemand(let task, let upstreams, _):
       // An upstream threw. We can cancel everything now and transition to finished.

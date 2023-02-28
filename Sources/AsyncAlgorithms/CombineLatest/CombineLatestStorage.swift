@@ -319,35 +319,33 @@ final class CombineLatestStorage<
           }
         }
 
-        do {
-          try await group.waitForAll()
-        } catch {
-          // One of the upstream sequences threw an error
-          self.stateMachine.withCriticalRegion { stateMachine in
-            let action = stateMachine.upstreamThrew(error)
+        while !group.isEmpty {
+            do {
+                try await group.next()
+            } catch {
+            // One of the upstream sequences threw an error
+                self.stateMachine.withCriticalRegion { stateMachine in
+                    let action = stateMachine.upstreamThrew(error)
+                    switch action {
+                    case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
+                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                        task.cancel()
+                    case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+                        let downstreamContinuation,
+                        let error,
+                        let task,
+                        let upstreamContinuations
+                    ):
+                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                        task.cancel()
+                        downstreamContinuation.resume(returning: .failure(error))
+                    case .none:
+                        break
+                    }
+                }
 
-            switch action {
-            case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-              task.cancel()
-
-            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
-              let downstreamContinuation,
-              let error,
-              let task,
-              let upstreamContinuations
-            ):
-              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-              task.cancel()
-
-              downstreamContinuation.resume(returning: .failure(error))
-
-            case .none:
-              break
+                group.cancelAll()
             }
-          }
-
-          group.cancelAll()
         }
       }
     }
