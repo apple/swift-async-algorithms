@@ -2,10 +2,10 @@
 
 * Proposal: [SAA-0006](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0006-combineLatest.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 
 
-* Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncCombineLatest2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncCombineLatest3Sequence.swift) | 
+* Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/CombineLatest/AsyncCombineLatest2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/CombineLatest/AsyncCombineLatest3Sequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestCombineLatest.swift)]
 
 * Decision Notes: 
@@ -47,8 +47,7 @@ public func combineLatest<Base1: AsyncSequence, Base2: AsyncSequence, Base3: Asy
 public struct AsyncCombineLatest2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Sendable
   where
     Base1: Sendable, Base2: Sendable,
-    Base1.Element: Sendable, Base2.Element: Sendable,
-    Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable {
+    Base1.Element: Sendable, Base2.Element: Sendable {
   public typealias Element = (Base1.Element, Base2.Element)
 
   public struct Iterator: AsyncIteratorProtocol {
@@ -61,8 +60,7 @@ public struct AsyncCombineLatest2Sequence<Base1: AsyncSequence, Base2: AsyncSequ
 public struct AsyncCombineLatest3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
   where
     Base1: Sendable, Base2: Sendable, Base3: Sendable
-    Base1.Element: Sendable, Base2.Element: Sendable, Base3.Element: Sendable
-    Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable, Base3.AsyncIterator: Sendable {
+    Base1.Element: Sendable, Base2.Element: Sendable, Base3.Element: Sendable {
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)
 
   public struct Iterator: AsyncIteratorProtocol {

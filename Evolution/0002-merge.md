@@ -2,9 +2,9 @@
 
 * Proposal: [SAA-0002](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0002-merge.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 
-* Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Asyncmerge2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncMerge3Sequence.swift) | 
+* Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Merge/AsyncMerge2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Merge/AsyncMerge3Sequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestMerge.swift)]
 * Decision Notes: 
 * Bugs: 
@@ -46,8 +46,7 @@ public struct AsyncMerge2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: S
   where
     Base1.Element == Base2.Element,
     Base1: Sendable, Base2: Sendable,
-    Base1.Element: Sendable, Base2.Element: Sendable,
-    Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable {
+    Base1.Element: Sendable, Base2.Element: Sendable {
   public typealias Element = Base1.Element
 
   public struct Iterator: AsyncIteratorProtocol {
@@ -61,8 +60,7 @@ public struct AsyncMerge3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Ba
   where
     Base1.Element == Base2.Element, Base1.Element == Base3.Element,
     Base1: Sendable, Base2: Sendable, Base3: Sendable
-    Base1.Element: Sendable, Base2.Element: Sendable, Base3.Element: Sendable
-    Base1.AsyncIterator: Sendable, Base2.AsyncIterator: Sendable, Base3.AsyncIterator: Sendable {
+    Base1.Element: Sendable, Base2.Element: Sendable, Base3.Element: Sendable {
   public typealias Element = Base1.Element
 
   public struct Iterator: AsyncIteratorProtocol {

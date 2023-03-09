@@ -3,7 +3,7 @@
 * Proposal: [SAA-0004](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0004-joined.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Review Manager: [Franz Busch](https://github.com/FranzBusch)
-* Status: **Implemented**
+* Status: **Accepted**
 
 * Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncJoinedSequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestJoin.swift)]

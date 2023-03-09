@@ -3,7 +3,7 @@
 * Proposal: [SAA-0005](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0005-adjacent-pairs.md)
 * Author(s): [László Teveli](https://github.com/tevelee)
 * Review Manager: [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAdjacentPairsSequence.swift) | 
  [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestAdjacentPairs.swift)]
 * Decision Notes: 
