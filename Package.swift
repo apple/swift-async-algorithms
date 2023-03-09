@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "AsyncAlgorithms",
+  name: "swift-async-algorithms",
   platforms: [
     .macOS("10.15"),
     .iOS("13.0"),
