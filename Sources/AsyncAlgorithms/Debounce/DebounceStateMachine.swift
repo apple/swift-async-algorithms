@@ -517,8 +517,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
     /// Actions returned by `clockSleepFinished()`.
     enum ClockSleepFinishedAction {
         /// Indicates that the downstream continuation should be resumed with the given element.
-        case resumeDownStreamContinuation(
-            downStreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
+        case resumeDownstreamContinuation(
+            downstreamContinuation: UnsafeContinuation<Result<Element?, Error>, Never>,
             element: Element
         )
     }
@@ -547,8 +547,8 @@ struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
                     bufferedElement: nil
                 )
 
-                return .resumeDownStreamContinuation(
-                    downStreamContinuation: downstreamContinuation,
+                return .resumeDownstreamContinuation(
+                    downstreamContinuation: downstreamContinuation,
                     element: currentElement.element
                 )
             } else {

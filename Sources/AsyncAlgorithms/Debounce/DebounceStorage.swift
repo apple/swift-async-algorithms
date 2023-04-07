@@ -238,8 +238,8 @@ final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable 
                             let action = self.stateMachine.withCriticalRegion { $0.clockSleepFinished() }
 
                             switch action {
-                            case .resumeDownStreamContinuation(let downStreamContinuation, let element):
-                                downStreamContinuation.resume(returning: .success(element))
+                            case .resumeDownstreamContinuation(let downstreamContinuation, let element):
+                                downstreamContinuation.resume(returning: .success(element))
 
                             case .none:
                                 break
