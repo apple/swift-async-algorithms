@@ -1,6 +1,6 @@
 # AsyncSyncSequence
 
-* Proposal: [NNNN](NNNN-lazy.md)
+* Proposal: [SAA-0009](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0009-async.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
 * Status: **Implemented**
 

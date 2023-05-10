@@ -1,8 +1,8 @@
 # Compacted
 
-* Proposal: [0003](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0003-compacted.md)
+* Proposal: [SAA-0003](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0003-compacted.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 
 * Implementation: [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncCompactedSequence.swift)
     [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestCompacted.swift)

@@ -1,8 +1,8 @@
 # Buffer
 
-* Proposal: [SAA-0009](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0009-buffer.md)
+* Proposal: [SAA-0010](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0010-buffer.md)
 * Author(s): [Thibault Wittemberg](https://github.com/twittemb)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: [
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Buffer/AsyncBufferSequence.swift) |
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestBuffer.swift)

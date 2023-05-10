@@ -2,7 +2,7 @@
 
 * Proposal: [SAA-0008](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0008-bytes.md)
 * Authors: [David Smith](https://github.com/Catfish-Man), [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncBufferedByteIterator.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestBufferedByteIterator.swift)]
 
@@ -33,7 +33,7 @@ struct AsyncBytes: AsyncSequence {
 ## Detailed Design
 
 ```swift
-public struct AsyncBufferedByteIterator: AsyncIteratorProtocol, Sendable {
+public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
   public typealias Element = UInt8
 
   public init(
