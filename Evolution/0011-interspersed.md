@@ -1,19 +1,41 @@
-//===----------------------------------------------------------------------===//
-//
-// This source file is part of the Swift Async Algorithms open source project
-//
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
-// Licensed under Apache License v2.0 with Runtime Library Exception
-//
-// See https://swift.org/LICENSE.txt for license information
-//
-//===----------------------------------------------------------------------===//
+# Feature name
 
+* Proposal: [SAA-0011](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0011-interspersed.md)
+* Authors: [Philippe Hausler](https://github.com/phausler)
+* Review Manager: [Franz Busch](https://github.com/FranzBusch)
+* Status: **Implemented**
+
+* Implementation: 
+  [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Interspersed/AsyncInterspersedSequence.swift) | 
+  [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestLazy.swift)
+
+## Motivation
+
+A common transformation that is applied to async sequences is to intersperse the elements with
+a separator element.
+
+## Proposed solution
+
+We propose to add a new method on `AsyncSequence` that allows to intersperse
+a separator between each emitted element. This proposed API looks like this
+
+```swift
 extension AsyncSequence {
-  /// Returns an asynchronous sequence containing elements of this asynchronous sequence with
-  /// the given separator inserted in between each element.
+  /// Returns a new asynchronous sequence containing the elements of this asynchronous sequence, inserting
+  /// the given separator between each element.
   ///
-  /// Any value of the asynchronous sequence's element type can be used as the separator.
+  /// Any value of this asynchronous sequence's element type can be used as the separator.
+  ///
+  /// The following example shows how an async sequences of `String`s can be interspersed using `-` as the separator:
+  ///
+  /// ```
+  /// let input = ["A", "B", "C"].async
+  /// let interspersed = input.interspersed(with: "-")
+  /// for await element in interspersed {
+  ///   print(element)
+  /// }
+  /// // Prints "A" "-" "B" "-" "C"
+  /// ```
   ///
   /// - Parameter separator: The value to insert in between each of this async
   ///   sequence’s elements.
@@ -23,7 +45,19 @@ extension AsyncSequence {
     AsyncInterspersedSequence(self, separator: separator)
   }
 }
+```
 
+## Detailed design
+
+The bulk of the implementation of the new `interspersed` method is inside the new 
+`AsyncInterspersedSequence` struct. It constructs an iterator to the base async sequence
+inside its own iterator. The `AsyncInterspersedSequence.Iterator.next()` is forwarding the demand
+to the base iterator.
+There is one special case that we have to call out. When the base async sequence throws
+then `AsyncInterspersedSequence.Iterator.next()` will return the separator first and then rethrow the error.
+
+Below is the implementation of the `AsyncInterspersedSequence`.
+```swift
 /// An asynchronous sequence that presents the elements of a base asynchronous sequence of
 /// elements with a separator between each of those elements.
 public struct AsyncInterspersedSequence<Base: AsyncSequence> {
@@ -44,7 +78,7 @@ extension AsyncInterspersedSequence: AsyncSequence {
   public typealias Element = Base.Element
 
   /// The iterator for an `AsyncInterspersedSequence` asynchronous sequence.
-  public struct Iterator: AsyncIteratorProtocol {
+  public struct AsyncIterator: AsyncIteratorProtocol {
     @usableFromInline
     internal enum State {
       case start
@@ -94,9 +128,8 @@ extension AsyncInterspersedSequence: AsyncSequence {
   }
 
   @inlinable
-  public func makeAsyncIterator() -> AsyncInterspersedSequence<Base>.Iterator {
-    Iterator(base.makeAsyncIterator(), separator: separator)
+  public func makeAsyncIterator() -> AsyncInterspersedSequence<Base>.AsyncIterator {
+        AsyncIterator(base.makeAsyncIterator(), separator: separator)
   }
 }
-
-extension AsyncInterspersedSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
+```

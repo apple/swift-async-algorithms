@@ -66,26 +66,33 @@ final class TestInterspersed: XCTestCase {
   func test_cancellation() async {
     let source = Indefinite(value: "test")
     let sequence = source.async.interspersed(with: "sep")
-    let finished = expectation(description: "finished")
-    let iterated = expectation(description: "iterated")
-    let task = Task {
+    let lockStepChannel = AsyncChannel<Void>()
 
-      var iterator = sequence.makeAsyncIterator()
-      let _ = await iterator.next()
-      iterated.fulfill()
+    await withTaskGroup(of: Void.self) { group in
+      group.addTask {
+        var iterator = sequence.makeAsyncIterator()
+        let _ = await iterator.next()
 
-      while let _ = await iterator.next() { }
+        // Information the parent task that we are consuming
+        await lockStepChannel.send(())
 
-      let pastEnd = await iterator.next()
-      XCTAssertNil(pastEnd)
+        while let _ = await iterator.next() { }
 
-      finished.fulfill()
+        let pastEnd = await iterator.next()
+        XCTAssertNil(pastEnd)
+
+        // Information the parent task that we finished consuming
+        await lockStepChannel.send(())
+      }
+
+      // Waiting until the child task started consuming
+      _ = await lockStepChannel.first { _ in true }
+
+      // Now we cancel the child
+      group.cancelAll()
+
+      // Waiting until the child task finished consuming
+      _ = await lockStepChannel.first { _ in true }
     }
-    // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
-    // cancellation should ensure the loop finishes
-    // without regards to the remaining underlying sequence
-    task.cancel()
-    wait(for: [finished], timeout: 1.0)
   }
 }
