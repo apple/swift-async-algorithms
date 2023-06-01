@@ -95,6 +95,56 @@ public extension AsyncSequence {
     func interspersed(every: Int = 1, with separator: @Sendable @escaping () async -> Element) -> AsyncInterspersedSequence<Self> {
         AsyncInterspersedSequence(self, every: every, separator: separator)
     }
+    
+    /// Returns a new asynchronous sequence containing the elements of this asynchronous sequence, inserting
+    /// the given separator between each element.
+    ///
+    /// Any value of this asynchronous sequence's element type can be used as the separator.
+    ///
+    /// The following example shows how an async sequences of `String`s can be interspersed using `-` as the separator:
+    ///
+    /// ```
+    /// let input = ["A", "B", "C"].async
+    /// let interspersed = input.interspersed(with: "-")
+    /// for await element in interspersed {
+    ///   print(element)
+    /// }
+    /// // Prints "A" "-" "B" "-" "C"
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - every: Dictates after how many elements a separator should be inserted.
+    ///   - separator: A closure that produces the value to insert in between each of this async sequence’s elements.
+    /// - Returns: The interspersed asynchronous sequence of elements.
+    @inlinable
+    public func interspersed(every: Int = 1, with separator: @Sendable @escaping () throws -> Element) -> AsyncThrowingInterspersedSequence<Self> {
+        AsyncThrowingInterspersedSequence(self, every: every, separator: separator)
+    }
+
+    /// Returns a new asynchronous sequence containing the elements of this asynchronous sequence, inserting
+    /// the given separator between each element.
+    ///
+    /// Any value of this asynchronous sequence's element type can be used as the separator.
+    ///
+    /// The following example shows how an async sequences of `String`s can be interspersed using `-` as the separator:
+    ///
+    /// ```
+    /// let input = ["A", "B", "C"].async
+    /// let interspersed = input.interspersed(with: "-")
+    /// for await element in interspersed {
+    ///   print(element)
+    /// }
+    /// // Prints "A" "-" "B" "-" "C"
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - every: Dictates after how many elements a separator should be inserted.
+    ///   - separator: A closure that produces the value to insert in between each of this async sequence’s elements.
+    /// - Returns: The interspersed asynchronous sequence of elements.
+    @inlinable
+    public func interspersed(every: Int = 1, with separator: @Sendable @escaping () async throws -> Element) -> AsyncThrowingInterspersedSequence<Self> {
+        AsyncThrowingInterspersedSequence(self, every: every, separator: separator)
+    }
 }
 ```
 

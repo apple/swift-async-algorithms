@@ -72,6 +72,49 @@ final class TestInterspersed: XCTestCase {
         XCTAssertEqual(actual, expected)
     }
 
+    func test_interspersed_throwing_closure() async {
+        let source = [1, 2]
+        let expected = [1]
+        var actual = [Int]()
+        let sequence = source.async.interspersed(with: { throw Failure() })
+
+        var iterator = sequence.makeAsyncIterator()
+        do {
+            while let item = try await iterator.next() {
+                actual.append(item)
+            }
+            XCTFail()
+        } catch {
+            XCTAssertEqual(Failure(), error as? Failure)
+        }
+        let pastEnd = try! await iterator.next()
+        XCTAssertNil(pastEnd)
+        XCTAssertEqual(actual, expected)
+    }
+
+    func test_interspersed_async_throwing_closure() async {
+        let source = [1, 2]
+        let expected = [1]
+        var actual = [Int]()
+        let sequence = source.async.interspersed {
+            try await Task.sleep(nanoseconds: 1000)
+            throw Failure()
+        }
+
+        var iterator = sequence.makeAsyncIterator()
+        do {
+            while let item = try await iterator.next() {
+                actual.append(item)
+            }
+            XCTFail()
+        } catch {
+            XCTAssertEqual(Failure(), error as? Failure)
+        }
+        let pastEnd = try! await iterator.next()
+        XCTAssertNil(pastEnd)
+        XCTAssertEqual(actual, expected)
+    }
+
     func test_interspersed_empty() async {
         let source = [Int]()
         let expected = [Int]()
