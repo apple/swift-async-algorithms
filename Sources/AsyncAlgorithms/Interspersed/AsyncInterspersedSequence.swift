@@ -44,7 +44,7 @@ extension AsyncSequence {
     ///
     /// ```
     /// let input = ["A", "B", "C"].async
-    /// let interspersed = input.interspersed(with: "-")
+    /// let interspersed = input.interspersed(with: { "-" })
     /// for await element in interspersed {
     ///   print(element)
     /// }
@@ -69,7 +69,7 @@ extension AsyncSequence {
     ///
     /// ```
     /// let input = ["A", "B", "C"].async
-    /// let interspersed = input.interspersed(with: "-")
+    /// let interspersed = input.interspersed(with: { "-" })
     /// for await element in interspersed {
     ///   print(element)
     /// }
@@ -94,7 +94,7 @@ extension AsyncSequence {
     ///
     /// ```
     /// let input = ["A", "B", "C"].async
-    /// let interspersed = input.interspersed(with: "-")
+    /// let interspersed = input.interspersed(with: { "-" })
     /// for await element in interspersed {
     ///   print(element)
     /// }
@@ -119,7 +119,7 @@ extension AsyncSequence {
     ///
     /// ```
     /// let input = ["A", "B", "C"].async
-    /// let interspersed = input.interspersed(with: "-")
+    /// let interspersed = input.interspersed(with: { "-" })
     /// for await element in interspersed {
     ///   print(element)
     /// }
