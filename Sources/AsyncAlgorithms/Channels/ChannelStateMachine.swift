@@ -10,8 +10,42 @@
 //===----------------------------------------------------------------------===//
 @_implementationOnly import OrderedCollections
 
-struct ChannelStateMachine<Element, Failure: Error>: Sendable {
-  private struct SuspendedProducer: Hashable {
+struct OrderedSetContainer<Element: Hashable> {
+  var contents: OrderedSet<Element>
+  
+  var isEmpty: Bool { contents.isEmpty }
+  
+  mutating func removeFirst() -> Element  {
+    contents.removeFirst()
+  }
+  
+  mutating func remove(_ element: Element) -> Element? {
+    contents.remove(element)
+  }
+  
+  @discardableResult
+  mutating func append(_ element: Element) -> (inserted: Bool, index: Int) {
+    contents.append(element)
+  }
+  
+  func map<T>(_ apply: (Element) throws -> T) rethrows -> [T] {
+    try contents.map(apply)
+  }
+}
+
+extension OrderedSetContainer: ExpressibleByArrayLiteral {
+  typealias ArrayLiteralElement = OrderedSet<Element>.ArrayLiteralElement
+  
+  init(arrayLiteral elements: ArrayLiteralElement...) {
+    contents = OrderedSet(elements)
+  }
+}
+
+extension OrderedSetContainer: @unchecked Sendable where Element: Sendable { }
+
+
+struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
+  private struct SuspendedProducer: Hashable, Sendable {
     let id: UInt64
     let continuation: UnsafeContinuation<Void, Never>?
     let element: Element?
@@ -29,7 +63,7 @@ struct ChannelStateMachine<Element, Failure: Error>: Sendable {
     }
   }
 
-  private struct SuspendedConsumer: Hashable {
+  private struct SuspendedConsumer: Hashable, Sendable {
     let id: UInt64
     let continuation: UnsafeContinuation<Element?, any Error>?
 
@@ -51,11 +85,11 @@ struct ChannelStateMachine<Element, Failure: Error>: Sendable {
     case failed(Error)
   }
 
-  private enum State {
+  private enum State: Sendable {
     case channeling(
-      suspendedProducers: OrderedSet<SuspendedProducer>,
+      suspendedProducers: OrderedSetContainer<SuspendedProducer>,
       cancelledProducers: Set<SuspendedProducer>,
-      suspendedConsumers: OrderedSet<SuspendedConsumer>,
+      suspendedConsumers: OrderedSetContainer<SuspendedConsumer>,
       cancelledConsumers: Set<SuspendedConsumer>
     )
     case terminated(Termination)

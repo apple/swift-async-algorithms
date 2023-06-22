@@ -8,7 +8,7 @@
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
-struct ChannelStorage<Element, Failure: Error>: Sendable {
+struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
   private let stateMachine: ManagedCriticalState<ChannelStateMachine<Element, Failure>>
   private let ids = ManagedCriticalState<UInt64>(0)
 

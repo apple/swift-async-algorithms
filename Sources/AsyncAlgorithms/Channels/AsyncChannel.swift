@@ -19,7 +19,7 @@
 /// on the `Iterator` is made, or when `finish()` is called from another Task.
 /// As `finish()` induces a terminal state, there is no more need for a back pressure management.
 /// This function does not suspend and will finish all the pending iterations.
-public final class AsyncChannel<Element>: AsyncSequence, @unchecked Sendable {
+public final class AsyncChannel<Element: Sendable>: AsyncSequence, @unchecked Sendable {
   public typealias Element = Element
   public typealias AsyncIterator = Iterator
 

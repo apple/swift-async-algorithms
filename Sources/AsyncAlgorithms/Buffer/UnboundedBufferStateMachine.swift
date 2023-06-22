@@ -21,7 +21,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
     case bufferingOldest(Int)
   }
 
-  private enum State {
+  fileprivate enum State {
     case initial(base: Base)
     case buffering(
       task: Task<Void, Never>,
@@ -248,3 +248,6 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
     }
   }
 }
+
+extension UnboundedBufferStateMachine: Sendable where Base: Sendable { }
+extension UnboundedBufferStateMachine.State: Sendable where Base: Sendable { }
