@@ -58,7 +58,7 @@ final class CombineLatestStorage<
               base1: base1,
               base2: base2,
               base3: base3,
-              downStreamContinuation: continuation
+              downstreamContinuation: continuation
             )
 
           case .resumeContinuation(let downstreamContinuation, let result):
@@ -108,7 +108,7 @@ final class CombineLatestStorage<
     base1: Base1,
     base2: Base2,
     base3: Base3?,
-    downStreamContinuation: StateMachine.DownstreamContinuation
+    downstreamContinuation: StateMachine.DownstreamContinuation
   ) {
     // This creates a new `Task` that is iterating the upstream
     // sequences. We must store it to cancel it at the right times.
@@ -350,6 +350,6 @@ final class CombineLatestStorage<
       }
     }
 
-    stateMachine.taskIsStarted(task: task, downstreamContinuation: downStreamContinuation)
+    stateMachine.taskIsStarted(task: task, downstreamContinuation: downstreamContinuation)
   }
 }

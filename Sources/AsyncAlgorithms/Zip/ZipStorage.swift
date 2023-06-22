@@ -49,7 +49,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
               base1: base1,
               base2: base2,
               base3: base3,
-              downStreamContinuation: continuation
+              downstreamContinuation: continuation
             )
 
           case .resumeUpstreamContinuations(let upstreamContinuations):
@@ -96,7 +96,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
     base1: Base1,
     base2: Base2,
     base3: Base3?,
-    downStreamContinuation: StateMachine.DownstreamContinuation
+    downstreamContinuation: StateMachine.DownstreamContinuation
   ) {
     // This creates a new `Task` that is iterating the upstream
     // sequences. We must store it to cancel it at the right times.
@@ -315,6 +315,6 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
       }
     }
 
-    stateMachine.taskIsStarted(task: task, downstreamContinuation: downStreamContinuation)
+    stateMachine.taskIsStarted(task: task, downstreamContinuation: downstreamContinuation)
   }
 }
