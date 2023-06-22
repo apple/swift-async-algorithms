@@ -49,7 +49,7 @@ public struct AsyncMerge3Sequence<
     ///     - base1: The first upstream ``Swift/AsyncSequence``.
     ///     - base2: The second upstream ``Swift/AsyncSequence``.
     ///     - base3: The third upstream ``Swift/AsyncSequence``.
-    public init(
+    init(
         _ base1: Base1,
         _ base2: Base2,
         _ base3: Base3

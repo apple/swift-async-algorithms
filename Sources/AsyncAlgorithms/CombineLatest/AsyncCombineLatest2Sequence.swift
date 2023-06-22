@@ -46,7 +46,7 @@ public struct AsyncCombineLatest2Sequence<
   let base1: Base1
   let base2: Base2
 
-  public init(_ base1: Base1, _ base2: Base2) {
+  init(_ base1: Base1, _ base2: Base2) {
     self.base1 = base1
     self.base2 = base2
   }
