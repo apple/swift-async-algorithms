@@ -24,6 +24,8 @@ internal struct Lock {
   typealias Primitive = pthread_mutex_t
 #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
+#else
+  typealias Primitive = Int
 #endif
   
   typealias PlatformLock = UnsafeMutablePointer<Primitive>

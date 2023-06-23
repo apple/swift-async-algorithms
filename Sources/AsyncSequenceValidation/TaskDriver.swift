@@ -50,8 +50,12 @@ final class TaskDriver {
   }
   
   func start() {
+#if canImport(Darwin) || canImport(Glibc)
     pthread_create(&thread, nil, start_thread,
       Unmanaged.passRetained(self).toOpaque())
+#elseif canImport(WinSDK)
+#error("TODO: Port TaskDriver threading to windows")
+#endif
   }
   
   func run() {
