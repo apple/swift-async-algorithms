@@ -270,7 +270,7 @@ final class TestThrowingChannel: XCTestCase {
     task1.cancel()
 
     // Then: the first sending operation is resumed
-    wait(for: [send1IsResumed], timeout: 1.0)
+    await fulfillment(of: [send1IsResumed], timeout: 1.0)
 
     // When: collecting elements
     var iterator = sut.makeAsyncIterator()

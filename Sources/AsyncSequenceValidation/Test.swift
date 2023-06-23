@@ -68,6 +68,12 @@ extension AsyncSequenceValidationDiagram {
   
   struct Context {
     final class ClockExecutor: SerialExecutor {
+      @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+      func enqueue(_ job: __owned ExecutorJob) {
+        job.runSynchronously(on: asUnownedSerialExecutor())
+      }
+      
+      @available(*, deprecated) // known deprecation warning
       func enqueue(_ job: UnownedJob) {
         job._runSynchronously(on: asUnownedSerialExecutor())
       }

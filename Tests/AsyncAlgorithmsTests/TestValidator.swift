@@ -24,7 +24,7 @@ final class TestValidator: XCTestCase {
     }
     XCTAssertFalse(state.withCriticalRegion { $0 })
     gate.open()
-    wait(for: [entered], timeout: 1.0)
+    await fulfillment(of: [entered], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
   }
   
@@ -52,18 +52,18 @@ final class TestValidator: XCTestCase {
       }
       finished.fulfill()
     }
-    wait(for: [started], timeout: 1.0)
+    await fulfillment(of: [started], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [])
     gated.advance()
-    wait(for: [expectations[0]], timeout: 1.0)
+    await fulfillment(of: [expectations[0]], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1])
     gated.advance()
-    wait(for: [expectations[1]], timeout: 1.0)
+    await fulfillment(of: [expectations[1]], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1, 2])
     gated.advance()
-    wait(for: [expectations[2]], timeout: 1.0)
+    await fulfillment(of: [expectations[2]], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1, 2, 3])
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
   
   func test_gatedSequence_throwing() async {
@@ -93,14 +93,14 @@ final class TestValidator: XCTestCase {
       }
       finished.fulfill()
     }
-    wait(for: [started], timeout: 1.0)
+    await fulfillment(of: [started], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [])
     gated.advance()
-    wait(for: [expectations[0]], timeout: 1.0)
+    await fulfillment(of: [expectations[0]], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1])
     gated.advance()
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1])
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1])
     XCTAssertEqual(failure.withCriticalRegion { $0 as? Failure }, Failure())
   }
@@ -131,7 +131,7 @@ final class TestValidator: XCTestCase {
     XCTAssertEqual(value, [2, 3, 4])
     a.advance()
     
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
     value = validator.current
     XCTAssertEqual(value, [2, 3, 4])
   }
