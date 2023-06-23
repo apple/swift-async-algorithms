@@ -58,7 +58,7 @@ extension AsyncInclusiveReductionsSequence: AsyncSequence {
     internal let transform: @Sendable (Base.Element, Base.Element) async -> Base.Element
 
     @inlinable
-    internal init(
+    init(
       _ iterator: Base.AsyncIterator,
       transform: @Sendable @escaping (Base.Element, Base.Element) async -> Base.Element
     ) {

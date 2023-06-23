@@ -41,7 +41,7 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable whe
     ///   - interval: The interval to debounce.
     ///   - tolerance: The tolerance of the clock.
     ///   - clock: The clock.
-    public init(_ base: Base, interval: C.Instant.Duration, tolerance: C.Instant.Duration?, clock: C) {
+    init(_ base: Base, interval: C.Instant.Duration, tolerance: C.Instant.Duration?, clock: C) {
         self.base = base
         self.interval = interval
         self.tolerance = tolerance

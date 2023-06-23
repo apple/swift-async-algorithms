@@ -70,7 +70,7 @@ public struct AsyncBufferSequencePolicy: Sendable {
 
 /// An `AsyncSequence` that buffers elements in regard to a policy.
 public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence {
-  enum StorageType<Base: AsyncSequence> {
+  enum StorageType {
     case transparent(Base.AsyncIterator)
     case bounded(storage: BoundedBufferStorage<Base>)
     case unbounded(storage: UnboundedBufferStorage<Base>)
@@ -82,7 +82,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   let base: Base
   let policy: AsyncBufferSequencePolicy
 
-  public init(
+  init(
     base: Base,
     policy: AsyncBufferSequencePolicy
   ) {
@@ -91,7 +91,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   }
 
   public func makeAsyncIterator() -> Iterator {
-    let storageType: StorageType<Base>
+    let storageType: StorageType
     switch self.policy.policy {
       case .bounded(...0), .bufferingNewest(...0), .bufferingOldest(...0):
         storageType = .transparent(self.base.makeAsyncIterator())
@@ -108,7 +108,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   }
 
   public struct Iterator: AsyncIteratorProtocol {
-    var storageType: StorageType<Base>
+    var storageType: StorageType
 
     public mutating func next() async rethrows -> Element? {
       switch self.storageType {
