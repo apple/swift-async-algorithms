@@ -87,13 +87,13 @@ final class TestChain2: XCTestCase {
     }
 
     // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
 
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence
     task.cancel()
 
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 }
 
@@ -192,12 +192,12 @@ final class TestChain3: XCTestCase {
     }
 
     // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
 
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence
     task.cancel()
 
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 }

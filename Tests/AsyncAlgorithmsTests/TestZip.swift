@@ -152,11 +152,11 @@ final class TestZip2: XCTestCase {
       finished.fulfill()
     }
     // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence
     task.cancel()
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 
   func test_zip_when_cancelled() async {
@@ -370,10 +370,10 @@ final class TestZip3: XCTestCase {
       finished.fulfill()
     }
     // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence
     task.cancel()
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 }

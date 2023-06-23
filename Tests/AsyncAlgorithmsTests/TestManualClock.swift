@@ -29,7 +29,7 @@ final class TestManualClock: XCTestCase {
     clock.advance()
     XCTAssertFalse(state.withCriticalRegion { $0 })
     clock.advance()
-    wait(for: [afterSleep], timeout: 1.0)
+    await fulfillment(of: [afterSleep], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
   }
   
@@ -51,7 +51,7 @@ final class TestManualClock: XCTestCase {
     XCTAssertFalse(state.withCriticalRegion { $0 })
     clock.advance()
     task.cancel()
-    wait(for: [afterSleep], timeout: 1.0)
+    await fulfillment(of: [afterSleep], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
     XCTAssertTrue(failure.withCriticalRegion { $0 is CancellationError })
   }
@@ -73,7 +73,7 @@ final class TestManualClock: XCTestCase {
     }
     XCTAssertFalse(state.withCriticalRegion { $0 })
     task.cancel()
-    wait(for: [afterSleep], timeout: 1.0)
+    await fulfillment(of: [afterSleep], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
     XCTAssertTrue(failure.withCriticalRegion { $0 is CancellationError })
   }

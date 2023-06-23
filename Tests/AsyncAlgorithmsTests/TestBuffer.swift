@@ -190,13 +190,13 @@ final class TestBuffer: XCTestCase {
       finished.fulfill()
     }
     // ensure the task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
 
     // When
     task.cancel()
 
     // Then
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 
   func test_given_a_base_sequence_when_buffering_with_bounded_then_the_buffer_is_filled_in_and_suspends() async {
@@ -310,13 +310,13 @@ final class TestBuffer: XCTestCase {
       finished.fulfill()
     }
     // ensure the other task actually starts
-    wait(for: [iterated], timeout: 1.0)
+    await fulfillment(of: [iterated], timeout: 1.0)
 
     // When
     task.cancel()
 
     // Then
-    wait(for: [finished], timeout: 1.0)
+    await fulfillment(of: [finished], timeout: 1.0)
   }
 
   func test_given_a_base_sequence_when_bounded_with_limit_0_then_the_policy_is_transparent() async {
