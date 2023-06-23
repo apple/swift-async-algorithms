@@ -132,3 +132,7 @@ extension AsyncSequenceValidationDiagram.Clock: TestClock { }
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncSequenceValidationDiagram.Clock: Clock { }
+
+// placeholders to avoid warnings
+extension AsyncSequenceValidationDiagram.Clock.Instant: Hashable { }
+extension AsyncSequenceValidationDiagram.Clock.Instant: Comparable { }
