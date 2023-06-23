@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-async-algorithms:20.04-5.8
+    build:
+      args:
+        base_image: "swiftlang/swift:nightly-5.8-focal"
+
+  build:
+    image: swift-async-algorithms:20.04-5.8
+
+  test:
+    image: swift-async-algorithms:20.04-5.8
+    environment: []
+      #- SANITIZER_ARG: "--sanitize=thread"
+      #- TSAN_OPTIONS: "no_huge_pages_for_shadow=0 suppressions=/code/tsan_suppressions.txt"
+
+  shell:
+    image: swift-async-algorithms:20.04-5.8
