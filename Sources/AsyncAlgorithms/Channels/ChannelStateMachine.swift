@@ -10,39 +10,8 @@
 //===----------------------------------------------------------------------===//
 @_implementationOnly import OrderedCollections
 
-struct OrderedSetContainer<Element: Hashable> {
-  var contents: OrderedSet<Element>
-  
-  var isEmpty: Bool { contents.isEmpty }
-  
-  mutating func removeFirst() -> Element  {
-    contents.removeFirst()
-  }
-  
-  mutating func remove(_ element: Element) -> Element? {
-    contents.remove(element)
-  }
-  
-  @discardableResult
-  mutating func append(_ element: Element) -> (inserted: Bool, index: Int) {
-    contents.append(element)
-  }
-  
-  func map<T>(_ apply: (Element) throws -> T) rethrows -> [T] {
-    try contents.map(apply)
-  }
-}
-
-extension OrderedSetContainer: ExpressibleByArrayLiteral {
-  typealias ArrayLiteralElement = OrderedSet<Element>.ArrayLiteralElement
-  
-  init(arrayLiteral elements: ArrayLiteralElement...) {
-    contents = OrderedSet(elements)
-  }
-}
-
-extension OrderedSetContainer: @unchecked Sendable where Element: Sendable { }
-
+// NOTE: this is only marked as unchecked since the swift-collections tag is before auditing for Sendable
+extension OrderedSet: @unchecked Sendable where Element: Sendable { }
 
 struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
   private struct SuspendedProducer: Hashable, Sendable {
@@ -87,9 +56,9 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   private enum State: Sendable {
     case channeling(
-      suspendedProducers: OrderedSetContainer<SuspendedProducer>,
+      suspendedProducers: OrderedSet<SuspendedProducer>,
       cancelledProducers: Set<SuspendedProducer>,
-      suspendedConsumers: OrderedSetContainer<SuspendedConsumer>,
+      suspendedConsumers: OrderedSet<SuspendedConsumer>,
       cancelledConsumers: Set<SuspendedConsumer>
     )
     case terminated(Termination)
