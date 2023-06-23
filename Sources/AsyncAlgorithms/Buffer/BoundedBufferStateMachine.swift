@@ -16,7 +16,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   typealias SuspendedProducer = UnsafeContinuation<Void, Never>
   typealias SuspendedConsumer = UnsafeContinuation<Result<Base.Element, Error>?, Never>
 
-  private enum State {
+  fileprivate enum State {
     case initial(base: Base)
     case buffering(
       task: Task<Void, Never>,
@@ -308,3 +308,6 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
     }
   }
 }
+
+extension BoundedBufferStateMachine: Sendable where Base: Sendable { }
+extension BoundedBufferStateMachine.State: Sendable where Base: Sendable { }

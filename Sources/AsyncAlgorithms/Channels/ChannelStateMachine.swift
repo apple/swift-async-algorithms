@@ -10,8 +10,11 @@
 //===----------------------------------------------------------------------===//
 @_implementationOnly import OrderedCollections
 
-struct ChannelStateMachine<Element, Failure: Error>: Sendable {
-  private struct SuspendedProducer: Hashable {
+// NOTE: this is only marked as unchecked since the swift-collections tag is before auditing for Sendable
+extension OrderedSet: @unchecked Sendable where Element: Sendable { }
+
+struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
+  private struct SuspendedProducer: Hashable, Sendable {
     let id: UInt64
     let continuation: UnsafeContinuation<Void, Never>?
     let element: Element?
@@ -29,7 +32,7 @@ struct ChannelStateMachine<Element, Failure: Error>: Sendable {
     }
   }
 
-  private struct SuspendedConsumer: Hashable {
+  private struct SuspendedConsumer: Hashable, Sendable {
     let id: UInt64
     let continuation: UnsafeContinuation<Element?, any Error>?
 
@@ -51,7 +54,7 @@ struct ChannelStateMachine<Element, Failure: Error>: Sendable {
     case failed(Error)
   }
 
-  private enum State {
+  private enum State: Sendable {
     case channeling(
       suspendedProducers: OrderedSet<SuspendedProducer>,
       cancelledProducers: Set<SuspendedProducer>,
