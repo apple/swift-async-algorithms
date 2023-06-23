@@ -20,12 +20,7 @@ let package = Package(
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: [.product(name: "Collections", package: "swift-collections"),],
-      swiftSettings: [
-        .unsafeFlags([
-          "-strict-concurrency=complete"
-        ], .when(configuration: .debug))
-      ]
+      dependencies: [.product(name: "Collections", package: "swift-collections")]
     ),
     .target(
       name: "AsyncSequenceValidation",
