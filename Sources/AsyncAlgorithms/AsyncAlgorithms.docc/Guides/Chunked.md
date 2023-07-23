@@ -213,7 +213,7 @@ If both count and signal are specified, the chunking asynchronous sequence emits
 Like the example above, this code emits up to 1024-byte `Data` instances, but a chunk will also be emitted every second.
 
 ```swift
-let packets = bytes.chunks(ofCount: 1024 or: .repeating(every: .seconds(1)), into: Data.self)
+let packets = bytes.chunks(ofCount: 1024, or: .repeating(every: .seconds(1)), into: Data.self)
 for try await packet in packets {
   write(packet)
 }
