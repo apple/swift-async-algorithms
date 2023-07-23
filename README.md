@@ -67,7 +67,7 @@ To use the `AsyncAlgorithms` library in a SwiftPM project,
 add the following line to the dependencies in your `Package.swift` file:
 
 ```swift
-.package(url: "https://github.com/apple/swift-async-algorithms"),
+.package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
 ```
 
 Include `"AsyncAlgorithms"` as a dependency for your executable target:
