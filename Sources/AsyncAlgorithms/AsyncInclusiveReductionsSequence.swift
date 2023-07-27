@@ -85,3 +85,6 @@ extension AsyncInclusiveReductionsSequence: AsyncSequence {
 }
 
 extension AsyncInclusiveReductionsSequence: Sendable where Base: Sendable { }
+
+@available(*, unavailable)
+extension AsyncInclusiveReductionsSequence.Iterator: Sendable { }

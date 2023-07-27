@@ -69,3 +69,6 @@ public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Asy
     }
   }
 }
+
+@available(*, unavailable)
+extension AsyncZip2Sequence.Iterator: Sendable { }

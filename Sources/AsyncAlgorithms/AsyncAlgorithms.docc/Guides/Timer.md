@@ -42,7 +42,7 @@ extension AsyncTimerSequence: Sendable { }
 extension AsyncTimerSequence.Iterator: Sendable { }
 ```
 
-Since all the types comprising `AsyncTimerSequence` and it's `Iterator` are `Sendable` these types are also `Sendable`.
+Since all the types comprising `AsyncTimerSequence` are `Sendable` these types are also `Sendable`.
 
 ## Credits/Inspiration
 

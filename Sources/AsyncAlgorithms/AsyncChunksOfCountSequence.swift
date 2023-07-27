@@ -83,3 +83,6 @@ public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeRe
 
 extension AsyncChunksOfCountSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
 extension AsyncChunksOfCountSequence.Iterator : Sendable where Base.AsyncIterator : Sendable, Base.Element : Sendable { }
+
+@available(*, unavailable)
+extension AsyncChunksOfCountSequence.Iterator: Sendable { }

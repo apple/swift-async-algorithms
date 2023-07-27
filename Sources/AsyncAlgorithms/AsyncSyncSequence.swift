@@ -67,3 +67,6 @@ public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
 }
 
 extension AsyncSyncSequence: Sendable where Base: Sendable { }
+
+@available(*, unavailable)
+extension AsyncSyncSequence.Iterator: Sendable { }

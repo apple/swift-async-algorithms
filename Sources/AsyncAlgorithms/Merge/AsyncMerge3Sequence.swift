@@ -61,18 +61,18 @@ public struct AsyncMerge3Sequence<
 }
 
 extension AsyncMerge3Sequence: AsyncSequence {
-    public func makeAsyncIterator() -> AsyncIterator {
+    public func makeAsyncIterator() -> Iterator {
         let storage = MergeStorage(
             base1: base1,
             base2: base2,
             base3: base3
         )
-        return AsyncIterator(storage: storage)
+        return Iterator(storage: storage)
     }
 }
 
 public extension AsyncMerge3Sequence {
-    struct AsyncIterator: AsyncIteratorProtocol {
+    struct Iterator: AsyncIteratorProtocol {
         /// This class is needed to hook the deinit to observe once all references to the ``AsyncIterator`` are dropped.
         ///
         /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncIterator`` struct itself.
@@ -103,3 +103,6 @@ public extension AsyncMerge3Sequence {
         }
     }
 }
+
+@available(*, unavailable)
+extension AsyncMerge3Sequence.Iterator: Sendable { }

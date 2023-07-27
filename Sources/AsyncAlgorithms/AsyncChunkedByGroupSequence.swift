@@ -117,4 +117,6 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
 }
 
 extension AsyncChunkedByGroupSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
-extension AsyncChunkedByGroupSequence.Iterator : Sendable where Base.AsyncIterator : Sendable, Base.Element : Sendable { }
+
+@available(*, unavailable)
+extension AsyncChunkedByGroupSequence.Iterator: Sendable { }

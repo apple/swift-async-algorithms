@@ -53,20 +53,20 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, C: Clock>: Sendable whe
 extension AsyncDebounceSequence: AsyncSequence {
     public typealias Element = Base.Element
 
-    public func makeAsyncIterator() -> AsyncIterator {
+    public func makeAsyncIterator() -> Iterator {
         let storage = DebounceStorage(
             base: self.base,
             interval: self.interval,
             tolerance: self.tolerance,
             clock: self.clock
         )
-        return AsyncIterator(storage: storage)
+        return Iterator(storage: storage)
     }
 }
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncDebounceSequence {
-    public struct AsyncIterator: AsyncIteratorProtocol {
+    public struct Iterator: AsyncIteratorProtocol {
         /// This class is needed to hook the deinit to observe once all references to the ``AsyncIterator`` are dropped.
         ///
         /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncIterator`` struct itself.
@@ -97,3 +97,6 @@ extension AsyncDebounceSequence {
         }
     }
 }
+
+@available(*, unavailable)
+extension AsyncDebounceSequence.Iterator: Sendable { }
