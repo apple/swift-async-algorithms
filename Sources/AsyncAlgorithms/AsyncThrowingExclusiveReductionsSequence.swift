@@ -119,3 +119,6 @@ extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
 }
 
 extension AsyncThrowingExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable { }
+
+@available(*, unavailable)
+extension AsyncThrowingExclusiveReductionsSequence.Iterator: Sendable { }

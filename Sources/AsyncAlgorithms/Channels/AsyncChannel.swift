@@ -58,3 +58,6 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, @unchecked Se
     }
   }
 }
+
+@available(*, unavailable)
+extension AsyncChannel.Iterator: Sendable { }

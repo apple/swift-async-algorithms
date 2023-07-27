@@ -142,3 +142,6 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
 
 extension AsyncJoinedBySeparatorSequence: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable { }
+
+@available(*, unavailable)
+extension AsyncJoinedBySeparatorSequence.Iterator: Sendable { }

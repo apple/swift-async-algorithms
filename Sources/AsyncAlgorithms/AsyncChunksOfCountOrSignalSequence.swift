@@ -128,3 +128,6 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
     return Iterator(iterator: merge(chain(base.map { Either.element($0) }, [.terminal].async), signal.map { _ in Either.signal }).makeAsyncIterator(), count: count)
   }
 }
+
+@available(*, unavailable)
+extension AsyncChunksOfCountOrSignalSequence.Iterator: Sendable { }

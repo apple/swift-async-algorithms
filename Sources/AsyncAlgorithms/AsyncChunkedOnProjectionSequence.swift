@@ -97,4 +97,6 @@ public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equ
 }
 
 extension AsyncChunkedOnProjectionSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
-extension AsyncChunkedOnProjectionSequence.Iterator : Sendable where Base.AsyncIterator : Sendable, Base.Element : Sendable, Subject : Sendable { }
+
+@available(*, unavailable)
+extension AsyncChunkedOnProjectionSequence.Iterator: Sendable { }

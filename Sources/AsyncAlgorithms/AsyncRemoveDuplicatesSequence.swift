@@ -143,3 +143,9 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
 
 extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
 extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
+
+@available(*, unavailable)
+extension AsyncRemoveDuplicatesSequence.Iterator: Sendable { }
+
+@available(*, unavailable)
+extension AsyncThrowingRemoveDuplicatesSequence.Iterator: Sendable { }

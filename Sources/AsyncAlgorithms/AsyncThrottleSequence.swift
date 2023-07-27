@@ -102,3 +102,6 @@ extension AsyncThrottleSequence: AsyncSequence {
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 extension AsyncThrottleSequence: Sendable where Base: Sendable, Element: Sendable { }
+
+@available(*, unavailable)
+extension AsyncThrottleSequence.Iterator: Sendable { }

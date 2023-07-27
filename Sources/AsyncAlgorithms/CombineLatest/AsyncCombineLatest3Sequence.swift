@@ -97,3 +97,6 @@ public struct AsyncCombineLatest3Sequence<
     }
   }
 }
+
+@available(*, unavailable)
+extension AsyncCombineLatest3Sequence.Iterator: Sendable { }

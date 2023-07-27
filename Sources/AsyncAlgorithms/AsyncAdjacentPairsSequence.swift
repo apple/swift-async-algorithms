@@ -9,6 +9,29 @@
 //
 //===----------------------------------------------------------------------===//
 
+extension AsyncSequence {
+  /// An `AsyncSequence` that iterates over the adjacent pairs of the original
+  /// original `AsyncSequence`.
+  ///
+  /// ```
+  /// for await (first, second) in (1...5).async.adjacentPairs() {
+  ///    print("First: \(first), Second: \(second)")
+  /// }
+  ///
+  /// // First: 1, Second: 2
+  /// // First: 2, Second: 3
+  /// // First: 3, Second: 4
+  /// // First: 4, Second: 5
+  /// ```
+  ///
+  /// - Returns: An `AsyncSequence` where the element is a tuple of two adjacent elements
+  ///   or the original `AsyncSequence`.
+  @inlinable
+  public func adjacentPairs() -> AsyncAdjacentPairsSequence<Self> {
+    AsyncAdjacentPairsSequence(self)
+  }
+}
+
 /// An `AsyncSequence` that iterates over the adjacent pairs of the original
 /// `AsyncSequence`.
 @frozen
@@ -57,29 +80,6 @@ public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base.makeAsyncIterator())
-  }
-}
-
-extension AsyncSequence {
-  /// An `AsyncSequence` that iterates over the adjacent pairs of the original
-  /// original `AsyncSequence`.
-  ///
-  /// ```
-  /// for await (first, second) in (1...5).async.adjacentPairs() {
-  ///    print("First: \(first), Second: \(second)")
-  /// }
-  ///
-  /// // First: 1, Second: 2
-  /// // First: 2, Second: 3
-  /// // First: 3, Second: 4
-  /// // First: 4, Second: 5
-  /// ```
-  ///
-  /// - Returns: An `AsyncSequence` where the element is a tuple of two adjacent elements
-  ///   or the original `AsyncSequence`.
-  @inlinable
-  public func adjacentPairs() -> AsyncAdjacentPairsSequence<Self> {
-    AsyncAdjacentPairsSequence(self)
   }
 }
 
