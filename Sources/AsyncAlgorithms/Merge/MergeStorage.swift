@@ -198,7 +198,7 @@ final class MergeStorage<
     private func iterateAsyncSequence<AsyncSequence: _Concurrency.AsyncSequence>(
         _ base: AsyncSequence,
         in taskGroup: inout ThrowingTaskGroup<Void, Error>
-    ) where AsyncSequence.Element == Base1.Element {
+    ) where AsyncSequence.Element == Base1.Element, AsyncSequence: Sendable {
         // For each upstream sequence we are adding a child task that
         // is consuming the upstream sequence
         taskGroup.addTask {

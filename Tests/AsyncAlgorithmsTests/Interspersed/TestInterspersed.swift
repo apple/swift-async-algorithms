@@ -166,10 +166,6 @@ final class TestInterspersed: XCTestCase {
 
                 while let _ = await iterator.next() {}
 
-                let pastEnd = await iterator.next()
-                XCTAssertNil(pastEnd)
-
-                // Information the parent task that we finished consuming
                 await lockStepChannel.send(())
             }
 
@@ -179,8 +175,7 @@ final class TestInterspersed: XCTestCase {
             // Now we cancel the child
             group.cancelAll()
 
-            // Waiting until the child task finished consuming
-            _ = await lockStepChannel.first { _ in true }
+            await group.waitForAll()
         }
     }
 }

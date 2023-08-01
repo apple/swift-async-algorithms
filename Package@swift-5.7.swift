@@ -1,4 +1,4 @@
-// swift-tools-version: 5.8
+// swift-tools-version: 5.6
 
 import PackageDescription
 
@@ -20,33 +20,18 @@ let package = Package(
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: [.product(name: "Collections", package: "swift-collections")],
-      swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
-      ]
+      dependencies: [.product(name: "Collections", package: "swift-collections")]
     ),
     .target(
       name: "AsyncSequenceValidation",
-      dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"],
-      swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
-      ]
-    ),
+      dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms_XCTest",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
-      swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
-      ]
-    ),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
-      swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
-      ]
-    ),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"]),
   ]
 )
 

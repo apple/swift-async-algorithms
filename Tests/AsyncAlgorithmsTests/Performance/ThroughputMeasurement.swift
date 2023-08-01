@@ -56,7 +56,7 @@ final class _ThroughputMetric: NSObject, XCTMetric, @unchecked Sendable {
 }
 
 extension XCTestCase {
-  public func measureChannelThroughput<Output>(output: @escaping @autoclosure () -> Output) async {
+  public func measureChannelThroughput<Output: Sendable>(output: @Sendable @escaping @autoclosure () -> Output) async {
     let metric = _ThroughputMetric()
     let sampleTime: Double = 0.1
 
@@ -85,7 +85,7 @@ extension XCTestCase {
     }
   }
 
-  public func measureThrowingChannelThroughput<Output>(output: @escaping @autoclosure () -> Output) async {
+  public func measureThrowingChannelThroughput<Output: Sendable>(output: @Sendable @escaping @autoclosure () -> Output) async {
     let metric = _ThroughputMetric()
     let sampleTime: Double = 0.1
 
