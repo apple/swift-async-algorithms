@@ -165,3 +165,47 @@ internal func XCTAssertThrowsError<T>(
         verify(error)
     }
 }
+
+class WaiterDelegate: NSObject, XCTWaiterDelegate {
+  let state: ManagedCriticalState<UnsafeContinuation<Void, Never>?> = ManagedCriticalState(nil)
+  
+  init(_ continuation: UnsafeContinuation<Void, Never>) {
+    state.withCriticalRegion { $0 = continuation }
+  }
+  
+  func waiter(_ waiter: XCTWaiter, didFulfillInvertedExpectation expectation: XCTestExpectation) {
+    resume()
+  }
+  
+  func waiter(_ waiter: XCTWaiter, didTimeoutWithUnfulfilledExpectations unfulfilledExpectations: [XCTestExpectation]) {
+    resume()
+  }
+  
+  func waiter(_ waiter: XCTWaiter, fulfillmentDidViolateOrderingConstraintsFor expectation: XCTestExpectation, requiredExpectation: XCTestExpectation) {
+    resume()
+  }
+  
+  func nestedWaiter(_ waiter: XCTWaiter, wasInterruptedByTimedOutWaiter outerWaiter: XCTWaiter) {
+    
+  }
+  
+  func resume() {
+    let continuation = state.withCriticalRegion { continuation in
+      defer { continuation = nil }
+      return continuation
+    }
+    continuation?.resume()
+  }
+}
+
+extension XCTestCase {
+  @_disfavoredOverload
+  func fulfillment(of expectations: [XCTestExpectation], timeout: TimeInterval, enforceOrder: Bool = false, file: StaticString = #file, line: Int = #line) async {
+    return await withUnsafeContinuation { continuation in
+      let delegate = WaiterDelegate(continuation)
+      let waiter = XCTWaiter(delegate: delegate)
+      waiter.wait(for: expectations, timeout: timeout, enforceOrder: enforceOrder)
+      delegate.resume()
+    }
+  }
+}
