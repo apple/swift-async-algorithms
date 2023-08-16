@@ -12,9 +12,9 @@
 import XCTest
 import AsyncAlgorithms
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 final class TestDebounce: XCTestCase {
   func test_delayingValues() throws {
-    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcd----e---f-g----|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
@@ -23,7 +23,6 @@ final class TestDebounce: XCTestCase {
   }
 
   func test_delayingValues_dangling_last() throws {
-    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcd----e---f-g-|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
@@ -33,7 +32,6 @@ final class TestDebounce: XCTestCase {
 
   
   func test_finishDoesntDebounce() throws {
-    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "a|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
@@ -42,7 +40,6 @@ final class TestDebounce: XCTestCase {
   }
   
   func test_throwDoesntDebounce() throws {
-    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "a^"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
@@ -51,7 +48,6 @@ final class TestDebounce: XCTestCase {
   }
   
   func test_noValues() throws {
-    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "----|"
       $0.inputs[0].debounce(for: .steps(3), clock: $0.clock)
@@ -60,7 +56,6 @@ final class TestDebounce: XCTestCase {
   }
 
     func test_Rethrows() async throws {
-        guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
 
         let debounce = [1].async.debounce(for: .zero, clock: ContinuousClock())
         for await _ in debounce {}
@@ -70,7 +65,6 @@ final class TestDebounce: XCTestCase {
     }
 
   func test_debounce_when_cancelled() async throws {
-      guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
 
       let t = Task {
         try? await Task.sleep(nanoseconds: 1_000_000_000)

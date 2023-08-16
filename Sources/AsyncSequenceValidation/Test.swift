@@ -19,6 +19,7 @@ internal func _swiftJobRun(
   _ executor: UnownedSerialExecutor
 ) -> ()
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
   var output: AsyncSequenceValidationDiagram.Specification { get }
@@ -26,6 +27,7 @@ public protocol AsyncSequenceValidationTest: Sendable {
   func test<C: TestClock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram {
   struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
     let inputs: [Specification]
@@ -65,23 +67,31 @@ extension AsyncSequenceValidationDiagram {
       }
     }
   }
-  
-  struct Context {
+
+    struct Context {
+    #if swift(<5.9)
     final class ClockExecutor: SerialExecutor {
-      @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-      func enqueue(_ job: __owned ExecutorJob) {
-        job.runSynchronously(on: asUnownedSerialExecutor())
-      }
-      
-      @available(*, deprecated) // known deprecation warning
       func enqueue(_ job: UnownedJob) {
-        job._runSynchronously(on: asUnownedSerialExecutor())
+        job._runSynchronously(on: self.asUnownedSerialExecutor())
       }
-      
+
       func asUnownedSerialExecutor() -> UnownedSerialExecutor {
         UnownedSerialExecutor(ordinary: self)
       }
     }
+    #else
+    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+    final class ClockExecutor: SerialExecutor {
+      @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+      func enqueue(_ job: __owned ExecutorJob) {
+       job.runSynchronously(on: asUnownedSerialExecutor())
+      }
+
+      func asUnownedSerialExecutor() -> UnownedSerialExecutor {
+        UnownedSerialExecutor(ordinary: self)
+      }
+    }
+    #endif
     
     static var clock: Clock?
     

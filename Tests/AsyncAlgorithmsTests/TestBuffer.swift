@@ -108,6 +108,7 @@ final class TestBuffer: XCTestCase {
     XCTAssertNil(pastFailure)
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingOldest_then_the_policy_is_applied() async {
     validate {
       "X-12-   34-    5   |"
@@ -116,6 +117,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingOldest_with_0_limit_then_the_policy_is_transparent() async {
     validate {
       "X-12-   34-    5   |"
@@ -124,6 +126,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingOldest_at_slow_pace_then_no_element_is_dropped() async {
     validate {
       "X-12   3   4   5   |"
@@ -132,6 +135,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_failable_base_sequence_when_bufferingOldest_then_the_failure_is_forwarded() async {
     validate {
       "X-12345^"
@@ -140,6 +144,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingNewest_then_the_policy_is_applied() async {
     validate {
       "X-12-   34    -5|"
@@ -148,6 +153,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingNewest_with_limit_0_then_the_policy_is_transparent() async {
     validate {
       "X-12-   34    -5|"
@@ -156,6 +162,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bufferingNewest_at_slow_pace_then_no_element_is_dropped() async {
     validate {
       "X-12   3   4   5   |"
@@ -164,6 +171,7 @@ final class TestBuffer: XCTestCase {
     }
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_failable_base_sequence_when_bufferingNewest_then_the_failure_is_forwarded() async {
     validate {
       "X-12345^"
@@ -319,6 +327,7 @@ final class TestBuffer: XCTestCase {
     await fulfillment(of: [finished], timeout: 1.0)
   }
 
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_given_a_base_sequence_when_bounded_with_limit_0_then_the_policy_is_transparent() async {
     validate {
       "X-12-   34    -5|"

@@ -23,7 +23,8 @@ extension XCTestCase {
     XCTFail(description, file: location.file, line: location.line)
 #endif
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     var expectations = expectedFailures
     var result: AsyncSequenceValidationDiagram.ExpectationResult?
@@ -61,15 +62,18 @@ extension XCTestCase {
       XCTFail("Expected failure: \(expectation) did not occur.", file: file, line: line)
     }
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func validate<Test: AsyncSequenceValidationTest>(expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: expectedFailures, build, file: file, line: line)
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: theme, expectedFailures: [], build, file: file, line: line)
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: [], build, file: file, line: line)
   }

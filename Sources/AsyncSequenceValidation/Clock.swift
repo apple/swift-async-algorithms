@@ -11,6 +11,7 @@
 
 import AsyncAlgorithms
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram {
   public struct Clock {
     let queue: WorkQueue
@@ -34,6 +35,7 @@ public protocol TestInstant: Equatable {
   associatedtype Duration
 }
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock {
   public struct Step: DurationProtocol, Hashable, CustomStringConvertible {
     internal var rawValue: Int
@@ -123,16 +125,22 @@ extension AsyncSequenceValidationDiagram.Clock {
   }
 }
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock.Instant: TestInstant { }
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock.Instant: InstantProtocol { }
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock: TestClock { }
 
-@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock: Clock { }
 
 // placeholders to avoid warnings
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock.Instant: Hashable { }
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension AsyncSequenceValidationDiagram.Clock.Instant: Comparable { }

@@ -20,11 +20,13 @@ import _CAsyncSequenceValidationSupport
 #endif
 
 #if canImport(Darwin)
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return nil
 }
 #elseif canImport(Glibc)
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
   return nil
@@ -33,6 +35,7 @@ func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
 #error("TODO: Port TaskDriver threading to windows")
 #endif
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 final class TaskDriver {
   let work: (TaskDriver) -> Void
   let queue: WorkQueue

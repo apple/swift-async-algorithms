@@ -158,7 +158,8 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a-c-e-g-|"
@@ -480,7 +481,8 @@ final class TestMerge3: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
+
+  @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a---e---|"
