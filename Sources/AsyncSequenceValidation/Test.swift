@@ -67,15 +67,27 @@ extension AsyncSequenceValidationDiagram {
   }
   
   struct Context {
+#if swift(<5.9)
     final class ClockExecutor: SerialExecutor {
-      @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+      func enqueue(_ job: UnownedJob) {
+        job._runSynchronously(on: self.asUnownedSerialExecutor())
+      }
+
+      func asUnownedSerialExecutor() -> UnownedSerialExecutor {
+        UnownedSerialExecutor(ordinary: self)
+      }
+    }
+    
+    private static let _executor = ClockExecutor()
+    
+    static var unownedExecutor: UnownedSerialExecutor {
+      _executor.asUnownedSerialExecutor()
+    }
+#else
+    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+    final class ClockExecutor_5_9:  SerialExecutor {
       func enqueue(_ job: __owned ExecutorJob) {
         job.runSynchronously(on: asUnownedSerialExecutor())
-      }
-      
-      @available(*, deprecated) // known deprecation warning
-      func enqueue(_ job: UnownedJob) {
-        job._runSynchronously(on: asUnownedSerialExecutor())
       }
       
       func asUnownedSerialExecutor() -> UnownedSerialExecutor {
@@ -83,9 +95,34 @@ extension AsyncSequenceValidationDiagram {
       }
     }
     
+    final class ClockExecutor_Pre5_9: SerialExecutor {
+      @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+      @available(*, deprecated, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
+      func enqueue(_ job: UnownedJob) {
+        job._runSynchronously(on: self.asUnownedSerialExecutor())
+      }
+
+      func asUnownedSerialExecutor() -> UnownedSerialExecutor {
+        UnownedSerialExecutor(ordinary: self)
+      }
+    }
+    
+    private static let _executor: AnyObject = {
+      if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+        return ClockExecutor_5_9()
+      } else {
+        return ClockExecutor_Pre5_9()
+      }
+    }()
+    
+    static var unownedExecutor: UnownedSerialExecutor {
+      (_executor as! any SerialExecutor).asUnownedSerialExecutor()
+    }
+#endif
+
     static var clock: Clock?
     
-    static let executor = ClockExecutor()
+    
     
     static var driver: TaskDriver?
     
