@@ -19,6 +19,6 @@ struct Job: Hashable, @unchecked Sendable {
   }
   
   func execute() {
-    _swiftJobRun(unsafeBitCast(job, to: UnownedJob.self), AsyncSequenceValidationDiagram.Context.executor.asUnownedSerialExecutor())
+    _swiftJobRun(unsafeBitCast(job, to: UnownedJob.self), AsyncSequenceValidationDiagram.Context.unownedExecutor)
   }
 }
