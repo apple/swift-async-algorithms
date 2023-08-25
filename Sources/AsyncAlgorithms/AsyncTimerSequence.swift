@@ -13,59 +13,49 @@
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 public struct AsyncTimerSequence<C: Clock>: AsyncSequence {
   public typealias Element = C.Instant
-  
+
   /// The iterator for an `AsyncTimerSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
     var clock: C?
     let interval: C.Instant.Duration
     let tolerance: C.Instant.Duration?
     var last: C.Instant?
-    
+
     init(interval: C.Instant.Duration, tolerance: C.Instant.Duration?, clock: C) {
       self.clock = clock
       self.interval = interval
       self.tolerance = tolerance
     }
-    
-    func nextDeadline(_ clock: C) -> C.Instant {
-      let now = clock.now
-      let last = self.last ?? now
-      let next = last.advanced(by: interval)
-      if next < now {
-        return last.advanced(by: interval * Int(((next.duration(to: now)) / interval).rounded(.up)))
-      } else {
-        return next
-      }
-    }
-    
+
     public mutating func next() async -> C.Instant? {
-      guard let clock = clock else {
+      guard let clock = self.clock else {
         return nil
       }
-      let next = nextDeadline(clock)
+
+      let next = (self.last ?? clock.now).advanced(by: self.interval)
       do {
-        try await clock.sleep(until: next, tolerance: tolerance)
+        try await clock.sleep(until: next, tolerance: self.tolerance)
       } catch {
         self.clock = nil
         return nil
       }
       let now = clock.now
-      last = next
+      self.last = next
       return now
     }
   }
-  
+
   let clock: C
   let interval: C.Instant.Duration
   let tolerance: C.Instant.Duration?
-  
+
   /// Create an `AsyncTimerSequence` with a given repeating interval.
   public init(interval: C.Instant.Duration, tolerance: C.Instant.Duration? = nil, clock: C) {
     self.clock = clock
     self.interval = interval
     self.tolerance = tolerance
   }
-  
+
   public func makeAsyncIterator() -> Iterator {
     Iterator(interval: interval, tolerance: tolerance, clock: clock)
   }
