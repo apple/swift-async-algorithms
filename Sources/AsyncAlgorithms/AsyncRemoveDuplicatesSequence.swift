@@ -74,7 +74,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
   @usableFromInline
   let predicate: @Sendable (Element, Element) async -> Bool
   
-  init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
+  public init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
     self.base = base
     self.predicate = predicate
   }
