@@ -72,7 +72,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
-      "a--d--g--j-|"
+      "a--d--g--j--[k|]"
     }
   }
   
@@ -81,7 +81,7 @@ final class TestThrottle: XCTestCase {
     validate {
       "abcdefghijk|"
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
-      "a--b--e--h-|"
+      "a--b--e--h--[k|]"
     }
   }
   
@@ -137,5 +137,23 @@ final class TestThrottle: XCTestCase {
       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
       "-a---c---e---g---i---k-|"
     }
+  }
+  
+  func test_trailing_delay_without_latest() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
+    validate {
+       "abcdefghijkl|"
+       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
+       "a--b--e--h--[k|]"
+     }
+  }
+  
+  func test_trailing_delay_with_latest() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
+    validate {
+       "abcdefghijkl|"
+       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: true)
+       "a--d--g--j--[l|]"
+     }
   }
 }

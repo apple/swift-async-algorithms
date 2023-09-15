@@ -81,7 +81,16 @@ extension AsyncThrottleSequence: AsyncSequence {
       let start = last ?? clock.now
       repeat {
         guard let element = try await base.next() else {
-          return nil
+          if reduced != nil, let last {
+            // ensure the rate of elements never exceeds the given interval
+            let amount = interval - last.duration(to: clock.now)
+            if amount > .zero {
+              try? await clock.sleep(for: amount)
+            }
+          }
+          // the last value is unable to have any subsequent
+          // values so always return the last reduction
+          return reduced
         }
         let reduction = await reducing(reduced, element)
         let now = clock.now
