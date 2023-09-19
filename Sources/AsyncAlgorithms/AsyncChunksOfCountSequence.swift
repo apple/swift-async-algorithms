@@ -49,6 +49,10 @@ public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeRe
         return nil
       }
 
+      if count == 1 {
+        return Collected(CollectionOfOne(first))
+      }
+
       var result: Collected = .init()
       result.append(first)
 
