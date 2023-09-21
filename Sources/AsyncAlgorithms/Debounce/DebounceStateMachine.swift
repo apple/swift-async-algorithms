@@ -10,10 +10,10 @@
 //===----------------------------------------------------------------------===//
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-struct DebounceStateMachine<Base: AsyncSequence, C: Clock> {
+struct DebounceStateMachine<Base: AsyncSequence & Sendable, C: Clock>: Sendable where Base.Element: Sendable {
     typealias Element = Base.Element
 
-    private enum State {
+    private enum State: Sendable {
         /// The initial state before a call to `next` happened.
         case initial(base: Base)
 
