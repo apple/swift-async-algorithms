@@ -17,7 +17,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(0), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(0), clock: $0.clock)
       "abcdefghijk|"
     }
   }
@@ -26,7 +26,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(0), clock: $0.clock, latest: false)
+      $0.inputs[0]._throttle(for: .steps(0), clock: $0.clock, latest: false)
       "abcdefghijk|"
     }
   }
@@ -35,7 +35,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(1), clock: $0.clock)
       "abcdefghijk|"
     }
   }
@@ -44,7 +44,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(1), clock: $0.clock, latest: false)
+      $0.inputs[0]._throttle(for: .steps(1), clock: $0.clock, latest: false)
       "abcdefghijk|"
     }
   }
@@ -53,7 +53,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock)
       "a-c-e-g-i-k|"
     }
   }
@@ -62,7 +62,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock, latest: false)
       "a-b-d-f-h-j|"
     }
   }
@@ -71,7 +71,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(3), clock: $0.clock)
       "a--d--g--j--[k|]"
     }
   }
@@ -80,7 +80,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdefghijk|"
-      $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
+      $0.inputs[0]._throttle(for: .steps(3), clock: $0.clock, latest: false)
       "a--b--e--h--[k|]"
     }
   }
@@ -89,7 +89,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdef^hijk|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock)
       "a-c-e-^"
     }
   }
@@ -98,7 +98,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "abcdef^hijk|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock, latest: false)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock, latest: false)
       "a-b-d-^"
     }
   }
@@ -107,7 +107,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
-      $0.inputs[0].throttle(for: .steps(1), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(1), clock: $0.clock)
       "-a-b-c-d-e-f-g-h-i-j-k-|"
     }
   }
@@ -116,7 +116,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock)
       "-a-b-c-d-e-f-g-h-i-j-k-|"
     }
   }
@@ -125,7 +125,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "--a--b--c--d--e--f--g|"
-      $0.inputs[0].throttle(for: .steps(2), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(2), clock: $0.clock)
       "--a--b--c--d--e--f--g|"
     }
   }
@@ -134,7 +134,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-a-b-c-d-e-f-g-h-i-j-k-|"
-      $0.inputs[0].throttle(for: .steps(3), clock: $0.clock)
+      $0.inputs[0]._throttle(for: .steps(3), clock: $0.clock)
       "-a---c---e---g---i---k-|"
     }
   }
@@ -143,7 +143,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
        "abcdefghijkl|"
-       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: false)
+       $0.inputs[0]._throttle(for: .steps(3), clock: $0.clock, latest: false)
        "a--b--e--h--[k|]"
      }
   }
@@ -152,7 +152,7 @@ final class TestThrottle: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
        "abcdefghijkl|"
-       $0.inputs[0].throttle(for: .steps(3), clock: $0.clock, latest: true)
+       $0.inputs[0]._throttle(for: .steps(3), clock: $0.clock, latest: true)
        "a--d--g--j--[l|]"
      }
   }
