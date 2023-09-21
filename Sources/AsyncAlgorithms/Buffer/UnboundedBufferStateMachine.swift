@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly import DequeModule
+import DequeModule
 
 struct UnboundedBufferStateMachine<Base: AsyncSequence> {
   typealias Element = Base.Element
