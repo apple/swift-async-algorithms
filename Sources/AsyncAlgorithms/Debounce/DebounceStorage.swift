@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-final class DebounceStorage<Base: AsyncSequence, C: Clock>: @unchecked Sendable where Base: Sendable {
+final class DebounceStorage<Base: AsyncSequence & Sendable, C: Clock>: Sendable where Base.Element: Sendable {
     typealias Element = Base.Element
 
     /// The state machine protected with a lock.
