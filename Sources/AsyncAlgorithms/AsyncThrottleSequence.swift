@@ -85,7 +85,7 @@ extension AsyncThrottleSequence: AsyncSequence {
             // ensure the rate of elements never exceeds the given interval
             let amount = interval - last.duration(to: clock.now)
             if amount > .zero {
-              try? await clock.sleep(for: amount)
+              try? await clock.sleep(until: clock.now.advanced(by: amount), tolerance: nil)
             }
           }
           // the last value is unable to have any subsequent
