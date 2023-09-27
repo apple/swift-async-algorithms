@@ -8,7 +8,7 @@
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
-@_implementationOnly import OrderedCollections
+import OrderedCollections
 
 // NOTE: this is only marked as unchecked since the swift-collections tag is before auditing for Sendable
 extension OrderedSet: @unchecked Sendable where Element: Sendable { }

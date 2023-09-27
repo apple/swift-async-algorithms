@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly import DequeModule
+import DequeModule
 
 /// Creates an asynchronous sequence of elements from two underlying asynchronous sequences
 public func merge<
