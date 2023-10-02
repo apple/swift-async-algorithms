@@ -64,7 +64,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   mutating func shouldSuspendProducer() -> Bool {
     switch state {
       case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+        preconditionFailure("Invalid state. The task should already be started.")
 
       case .buffering(_, let buffer, .none, .none):
         // we are either idle or the buffer is already in use (no awaiting consumer)
@@ -95,7 +95,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   mutating func producerSuspended(continuation: SuspendedProducer) -> ProducerSuspendedAction {
     switch self.state {
       case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+        preconditionFailure("Invalid state. The task should already be started.")
 
       case .buffering(let task, let buffer, .none, .none):
         // we are either idle or the buffer is already in use (no awaiting consumer)
@@ -132,7 +132,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   mutating func elementProduced(element: Element) -> ElementProducedAction {
     switch self.state {
       case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+        preconditionFailure("Invalid state. The task should already be started.")
 
       case .buffering(let task, var buffer, .none, .none):
         // we are either idle or the buffer is already in use (no awaiting consumer)
@@ -170,7 +170,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   mutating func finish(error: Error?) -> FinishAction {
     switch self.state {
       case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+        preconditionFailure("Invalid state. The task should already be started.")
 
       case .buffering(_, var buffer, .none, .none):
         // we are either idle or the buffer is already in use (no awaiting consumer)
@@ -245,7 +245,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   mutating func nextSuspended(continuation: SuspendedConsumer) -> NextSuspendedAction {
     switch self.state {
       case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+        preconditionFailure("Invalid state. The task should already be started.")
 
       case .buffering(let task, let buffer, .none, .none) where buffer.isEmpty:
         // we are idle, we confirm the suspension of the consumer
