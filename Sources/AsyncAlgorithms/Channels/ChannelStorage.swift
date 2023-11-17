@@ -25,21 +25,17 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
 
   func send(element: Element) async {
     // check if a suspension is needed
-    let shouldExit = self.stateMachine.withCriticalRegion { stateMachine -> Bool in
-      let action = stateMachine.send()
-
-      switch action {
-        case .suspend:
-          // the element has not been delivered because no consumer available, we must suspend
-          return false
-        case .resumeConsumer(let continuation):
-          continuation?.resume(returning: element)
-          return true
-      }
+    let action = self.stateMachine.withCriticalRegion { stateMachine in
+      stateMachine.send()
     }
 
-    if shouldExit {
-      return
+    switch action {
+      case .suspend:
+      break
+
+      case .resumeConsumer(let continuation):
+        continuation?.resume(returning: element)
+        return
     }
 
     let producerID = self.generateId()
@@ -47,102 +43,99 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     await withTaskCancellationHandler {
       // a suspension is needed
       await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
-        self.stateMachine.withCriticalRegion { stateMachine in
-          let action = stateMachine.sendSuspended(continuation: continuation, element: element, producerID: producerID)
-
-          switch action {
-            case .none:
-              break
-            case .resumeProducer:
-              continuation.resume()
-            case .resumeProducerAndConsumer(let consumerContinuation):
-              continuation.resume()
-              consumerContinuation?.resume(returning: element)
-          }
+        let action = self.stateMachine.withCriticalRegion { stateMachine in
+          stateMachine.sendSuspended(continuation: continuation, element: element, producerID: producerID)
         }
-      }
-    } onCancel: {
-      self.stateMachine.withCriticalRegion { stateMachine in
-        let action = stateMachine.sendCancelled(producerID: producerID)
 
         switch action {
           case .none:
             break
-          case .resumeProducer(let continuation):
-            continuation?.resume()
+          case .resumeProducer:
+            continuation.resume()
+          case .resumeProducerAndConsumer(let consumerContinuation):
+            continuation.resume()
+            consumerContinuation?.resume(returning: element)
         }
+      }
+    } onCancel: {
+      let action = self.stateMachine.withCriticalRegion { stateMachine in
+        stateMachine.sendCancelled(producerID: producerID)
+      }
+
+      switch action {
+        case .none:
+          break
+        case .resumeProducer(let continuation):
+          continuation?.resume()
       }
     }
   }
 
   func finish(error: Failure? = nil) {
-    self.stateMachine.withCriticalRegion { stateMachine in
-      let action = stateMachine.finish(error: error)
+    let action = self.stateMachine.withCriticalRegion { stateMachine in
+      stateMachine.finish(error: error)
+    }
 
-      switch action {
-        case .none:
-          break
-        case .resumeProducersAndConsumers(let producerContinuations, let consumerContinuations):
-          producerContinuations.forEach { $0?.resume() }
-          if let error {
-            consumerContinuations.forEach { $0?.resume(throwing: error) }
-          } else {
-            consumerContinuations.forEach { $0?.resume(returning: nil) }
-          }
-      }
+    switch action {
+      case .none:
+        break
+      case .resumeProducersAndConsumers(let producerContinuations, let consumerContinuations):
+        producerContinuations.forEach { $0?.resume() }
+        if let error {
+          consumerContinuations.forEach { $0?.resume(throwing: error) }
+        } else {
+          consumerContinuations.forEach { $0?.resume(returning: nil) }
+        }
     }
   }
 
   func next() async throws -> Element? {
-    let (shouldExit, result) = self.stateMachine.withCriticalRegion { stateMachine -> (Bool, Result<Element?, Error>?) in
-      let action = stateMachine.next()
-
-      switch action {
-        case .suspend:
-          return (false, nil)
-        case .resumeProducer(let producerContinuation, let result):
-          producerContinuation?.resume()
-          return (true, result)
-      }
+    let action = self.stateMachine.withCriticalRegion { stateMachine in
+      stateMachine.next()
     }
 
-    if shouldExit {
-      return try result?._rethrowGet()
+    switch action {
+      case .suspend:
+        break
+
+      case .resumeProducer(let producerContinuation, let result):
+        producerContinuation?.resume()
+        return try result._rethrowGet()
     }
 
     let consumerID = self.generateId()
 
     return try await withTaskCancellationHandler {
       try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Element?, any Error>) in
-        self.stateMachine.withCriticalRegion { stateMachine in
-          let action = stateMachine.nextSuspended(
+        let action = self.stateMachine.withCriticalRegion { stateMachine in
+          stateMachine.nextSuspended(
             continuation: continuation,
             consumerID: consumerID
           )
-
-          switch action {
-            case .none:
-              break
-            case .resumeConsumer(let element):
-              continuation.resume(returning: element)
-            case .resumeConsumerWithError(let error):
-              continuation.resume(throwing: error)
-            case .resumeProducerAndConsumer(let producerContinuation, let element):
-              producerContinuation?.resume()
-              continuation.resume(returning: element)
-          }
         }
-      }
-    } onCancel: {
-      self.stateMachine.withCriticalRegion { stateMachine in
-        let action = stateMachine.nextCancelled(consumerID: consumerID)
 
         switch action {
           case .none:
             break
-          case .resumeConsumer(let continuation):
-            continuation?.resume(returning: nil)
+          case .resumeConsumer(let element):
+            continuation.resume(returning: element)
+          case .resumeConsumerWithError(let error):
+            continuation.resume(throwing: error)
+          case .resumeProducerAndConsumer(let producerContinuation, let element):
+            producerContinuation?.resume()
+            continuation.resume(returning: element)
         }
+      }
+    } onCancel: {
+      let action = self.stateMachine.withCriticalRegion { stateMachine in
+        stateMachine.nextCancelled(consumerID: consumerID)
+      }
+
+      switch action {
+        case .none:
+          break
+        case .resumeConsumer(let continuation):
+          continuation?.resume(returning: nil)
       }
     }
   }

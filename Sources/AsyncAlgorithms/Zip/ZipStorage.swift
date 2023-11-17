@@ -39,7 +39,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
   func next() async rethrows -> (Base1.Element, Base2.Element, Base3.Element?)? {
     try await withTaskCancellationHandler {
       let result = await withUnsafeContinuation { continuation in
-        self.stateMachine.withCriticalRegion { stateMachine in
+        let action: StateMachine.NextAction? = self.stateMachine.withCriticalRegion { stateMachine in
           let action = stateMachine.next(for: continuation)
           switch action {
           case .startTask(let base1, let base2, let base3):
@@ -51,42 +51,59 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
               base3: base3,
               downstreamContinuation: continuation
             )
+            return nil
 
-          case .resumeUpstreamContinuations(let upstreamContinuations):
-            // bases can be iterated over for 1 iteration so their next value can be retrieved
-            upstreamContinuations.forEach { $0.resume() }
+          case .resumeUpstreamContinuations:
+            return action
 
-          case .resumeDownstreamContinuationWithNil(let continuation):
-            // the async sequence is already finished, immediately resuming
-            continuation.resume(returning: .success(nil))
+          case .resumeDownstreamContinuationWithNil:
+            return action
           }
+        }
+
+        switch action {
+        case .startTask:
+            // We are handling the startTask in the lock already because we want to avoid
+            // other inputs interleaving while starting the task
+            fatalError("Internal inconsistency")
+
+        case .resumeUpstreamContinuations(let upstreamContinuations):
+          // bases can be iterated over for 1 iteration so their next value can be retrieved
+          upstreamContinuations.forEach { $0.resume() }
+
+        case .resumeDownstreamContinuationWithNil(let continuation):
+          // the async sequence is already finished, immediately resuming
+          continuation.resume(returning: .success(nil))
+
+        case .none:
+            break
         }
       }
 
       return try result._rethrowGet()
 
     } onCancel: {
-      self.stateMachine.withCriticalRegion { stateMachine in
-        let action = stateMachine.cancelled()
+      let action = self.stateMachine.withCriticalRegion { stateMachine in
+        stateMachine.cancelled()
+      }
 
-        switch action {
-        case .resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamContinuations(
-          let downstreamContinuation,
-          let task,
-          let upstreamContinuations
-        ):
-          upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-          task.cancel()
+      switch action {
+      case .resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamContinuations(
+        let downstreamContinuation,
+        let task,
+        let upstreamContinuations
+      ):
+        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+        task.cancel()
 
-          downstreamContinuation.resume(returning: .success(nil))
+        downstreamContinuation.resume(returning: .success(nil))
 
-        case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-          upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-          task.cancel()
+      case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
+        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+        task.cancel()
 
-        case .none:
-          break
-        }
+      case .none:
+        break
       }
     }
   }
@@ -112,53 +129,53 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
             // element from upstream. This continuation is only resumed
             // if the downstream consumer called `next` to signal his demand.
             try await withUnsafeThrowingContinuation { continuation in
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.childTaskSuspended(baseIndex: 0, continuation: continuation)
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.childTaskSuspended(baseIndex: 0, continuation: continuation)
+              }
 
-                switch action {
-                case .resumeContinuation(let upstreamContinuation):
-                  upstreamContinuation.resume()
+              switch action {
+              case .resumeContinuation(let upstreamContinuation):
+                upstreamContinuation.resume()
 
-                case .resumeContinuationWithError(let upstreamContinuation, let error):
-                  upstreamContinuation.resume(throwing: error)
+              case .resumeContinuationWithError(let upstreamContinuation, let error):
+                upstreamContinuation.resume(throwing: error)
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             }
 
             if let element1 = try await base1Iterator.next() {
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.elementProduced((element1, nil, nil))
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.elementProduced((element1, nil, nil))
+              }
 
-                switch action {
-                case .resumeContinuation(let downstreamContinuation, let result):
-                  downstreamContinuation.resume(returning: result)
+              switch action {
+              case .resumeContinuation(let downstreamContinuation, let result):
+                downstreamContinuation.resume(returning: result)
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             } else {
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.upstreamFinished()
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.upstreamFinished()
+              }
 
-                switch action {
-                case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
-                  let downstreamContinuation,
-                  let task,
-                  let upstreamContinuations
-                ):
+              switch action {
+              case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
+                let downstreamContinuation,
+                let task,
+                let upstreamContinuations
+              ):
 
-                  upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-                  task.cancel()
+                upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                task.cancel()
 
-                  downstreamContinuation.resume(returning: .success(nil))
+                downstreamContinuation.resume(returning: .success(nil))
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             }
           }
@@ -172,53 +189,53 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
             // element from upstream. This continuation is only resumed
             // if the downstream consumer called `next` to signal his demand.
             try await withUnsafeThrowingContinuation { continuation in
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.childTaskSuspended(baseIndex: 1, continuation: continuation)
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.childTaskSuspended(baseIndex: 1, continuation: continuation)
+              }
 
-                switch action {
-                case .resumeContinuation(let upstreamContinuation):
-                  upstreamContinuation.resume()
+              switch action {
+              case .resumeContinuation(let upstreamContinuation):
+                upstreamContinuation.resume()
 
-                case .resumeContinuationWithError(let upstreamContinuation, let error):
-                  upstreamContinuation.resume(throwing: error)
+              case .resumeContinuationWithError(let upstreamContinuation, let error):
+                upstreamContinuation.resume(throwing: error)
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             }
 
             if let element2 = try await base2Iterator.next() {
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.elementProduced((nil, element2, nil))
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.elementProduced((nil, element2, nil))
+              }
 
-                switch action {
-                case .resumeContinuation(let downstreamContinuation, let result):
-                  downstreamContinuation.resume(returning: result)
+              switch action {
+              case .resumeContinuation(let downstreamContinuation, let result):
+                downstreamContinuation.resume(returning: result)
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             } else {
-              self.stateMachine.withCriticalRegion { stateMachine in
-                let action = stateMachine.upstreamFinished()
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.upstreamFinished()
+              }
 
-                switch action {
-                case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
-                  let downstreamContinuation,
-                  let task,
-                  let upstreamContinuations
-                ):
+              switch action {
+              case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
+                let downstreamContinuation,
+                let task,
+                let upstreamContinuations
+              ):
 
-                  upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-                  task.cancel()
+                upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                task.cancel()
 
-                  downstreamContinuation.resume(returning: .success(nil))
+                downstreamContinuation.resume(returning: .success(nil))
 
-                case .none:
-                  break
-                }
+              case .none:
+                break
               }
             }
           }
@@ -233,53 +250,53 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
               // element from upstream. This continuation is only resumed
               // if the downstream consumer called `next` to signal his demand.
               try await withUnsafeThrowingContinuation { continuation in
-                self.stateMachine.withCriticalRegion { stateMachine in
-                  let action = stateMachine.childTaskSuspended(baseIndex: 2, continuation: continuation)
+                let action = self.stateMachine.withCriticalRegion { stateMachine in
+                  stateMachine.childTaskSuspended(baseIndex: 2, continuation: continuation)
+                }
 
-                  switch action {
-                  case .resumeContinuation(let upstreamContinuation):
-                    upstreamContinuation.resume()
+                switch action {
+                case .resumeContinuation(let upstreamContinuation):
+                  upstreamContinuation.resume()
 
-                  case .resumeContinuationWithError(let upstreamContinuation, let error):
-                    upstreamContinuation.resume(throwing: error)
+                case .resumeContinuationWithError(let upstreamContinuation, let error):
+                  upstreamContinuation.resume(throwing: error)
 
-                  case .none:
-                    break
-                  }
+                case .none:
+                  break
                 }
               }
 
               if let element3 = try await base3Iterator.next() {
-                self.stateMachine.withCriticalRegion { stateMachine in
-                  let action = stateMachine.elementProduced((nil, nil, element3))
+                let action = self.stateMachine.withCriticalRegion { stateMachine in
+                  stateMachine.elementProduced((nil, nil, element3))
+                }
 
-                  switch action {
-                  case .resumeContinuation(let downstreamContinuation, let result):
-                    downstreamContinuation.resume(returning: result)
+                switch action {
+                case .resumeContinuation(let downstreamContinuation, let result):
+                  downstreamContinuation.resume(returning: result)
 
-                  case .none:
-                    break
-                  }
+                case .none:
+                  break
                 }
               } else {
-                self.stateMachine.withCriticalRegion { stateMachine in
-                  let action = stateMachine.upstreamFinished()
+                let action = self.stateMachine.withCriticalRegion { stateMachine in
+                  stateMachine.upstreamFinished()
+                }
 
-                  switch action {
-                  case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
-                    let downstreamContinuation,
-                    let task,
-                    let upstreamContinuations
-                  ):
+                switch action {
+                case .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
+                  let downstreamContinuation,
+                  let task,
+                  let upstreamContinuations
+                ):
 
-                    upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-                    task.cancel()
+                  upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                  task.cancel()
 
-                    downstreamContinuation.resume(returning: .success(nil))
+                  downstreamContinuation.resume(returning: .success(nil))
 
-                  case .none:
-                    break
-                  }
+                case .none:
+                  break
                 }
               }
             }
@@ -291,25 +308,25 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
                 try await group.next()
             } catch {
             // One of the upstream sequences threw an error
-                self.stateMachine.withCriticalRegion { stateMachine in
-                    let action = stateMachine.upstreamThrew(error)
-                    switch action {
-                    case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
-                      let downstreamContinuation,
-                      let error,
-                      let task,
-                      let upstreamContinuations
-                    ):
-                      upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-                      task.cancel()
+              let action = self.stateMachine.withCriticalRegion { stateMachine in
+                stateMachine.upstreamThrew(error)
+              }
+              switch action {
+              case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+                let downstreamContinuation,
+                let error,
+                let task,
+                let upstreamContinuations
+              ):
+                upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+                task.cancel()
 
-                      downstreamContinuation.resume(returning: .failure(error))
-                    case .none:
-                        break
-                    }
-                }
+                downstreamContinuation.resume(returning: .failure(error))
+              case .none:
+                  break
+              }
 
-                group.cancelAll()
+              group.cancelAll()
             }
         }
       }

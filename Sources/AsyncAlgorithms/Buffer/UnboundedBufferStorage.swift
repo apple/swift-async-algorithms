@@ -19,32 +19,41 @@ final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Se
   func next() async -> Result<Base.Element, Error>? {
     return await withTaskCancellationHandler {
 
-      let (shouldSuspend, result) = self.stateMachine.withCriticalRegion { stateMachine -> (Bool, Result<Base.Element, Error>?) in
+      let action: UnboundedBufferStateMachine<Base>.NextAction? = self.stateMachine.withCriticalRegion { stateMachine in
         let action = stateMachine.next()
         switch action {
           case .startTask(let base):
             self.startTask(stateMachine: &stateMachine, base: base)
-            return (true, nil)
+            return nil
           case .suspend:
-            return (true, nil)
-          case .returnResult(let result):
-            return (false, result)
+            return action
+          case .returnResult:
+            return action
         }
       }
 
-      if !shouldSuspend {
-        return result
+      switch action {
+        case .startTask:
+          // We are handling the startTask in the lock already because we want to avoid
+          // other inputs interleaving while starting the task
+          fatalError("Internal inconsistency")
+        case .suspend:
+          break
+        case .returnResult(let result):
+          return result
+        case .none:
+          break
       }
 
       return await withUnsafeContinuation { (continuation: UnsafeContinuation<Result<Base.Element, Error>?, Never>) in
-        self.stateMachine.withCriticalRegion { stateMachine in
-          let action = stateMachine.nextSuspended(continuation: continuation)
-          switch action {
-            case .none:
-              break
-            case .resumeConsumer(let result):
-              continuation.resume(returning: result)
-          }
+        let action = self.stateMachine.withCriticalRegion { stateMachine in
+          stateMachine.nextSuspended(continuation: continuation)
+        }
+        switch action {
+          case .none:
+            break
+          case .resumeConsumer(let result):
+            continuation.resume(returning: result)
         }
       }
     } onCancel: {
@@ -59,35 +68,35 @@ final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Se
     let task = Task {
       do {
         for try await element in base {
-          self.stateMachine.withCriticalRegion { stateMachine in
-            let action = stateMachine.elementProduced(element: element)
-            switch action {
-              case .none:
-                break
-              case .resumeConsumer(let continuation, let result):
-                continuation.resume(returning: result)
-            }
+          let action = self.stateMachine.withCriticalRegion { stateMachine in
+            stateMachine.elementProduced(element: element)
+          }
+          switch action {
+            case .none:
+              break
+            case .resumeConsumer(let continuation, let result):
+              continuation.resume(returning: result)
           }
         }
 
-        self.stateMachine.withCriticalRegion { stateMachine in
-          let action = stateMachine.finish(error: nil)
-          switch action {
-            case .none:
-              break
-            case .resumeConsumer(let continuation):
-              continuation?.resume(returning: nil)
-          }
+        let action = self.stateMachine.withCriticalRegion { stateMachine in
+          stateMachine.finish(error: nil)
+        }
+        switch action {
+          case .none:
+            break
+          case .resumeConsumer(let continuation):
+            continuation?.resume(returning: nil)
         }
       } catch {
-        self.stateMachine.withCriticalRegion { stateMachine in
-          let action = stateMachine.finish(error: error)
-          switch action {
-            case .none:
-              break
-            case .resumeConsumer(let continuation):
-              continuation?.resume(returning: .failure(error))
-          }
+        let action = self.stateMachine.withCriticalRegion { stateMachine in
+          stateMachine.finish(error: error)
+        }
+        switch action {
+          case .none:
+            break
+          case .resumeConsumer(let continuation):
+            continuation?.resume(returning: .failure(error))
         }
       }
     }
@@ -96,15 +105,15 @@ final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Se
   }
 
   func interrupted() {
-    self.stateMachine.withCriticalRegion { stateMachine in
-      let action = stateMachine.interrupted()
-      switch action {
-        case .none:
-          break
-        case .resumeConsumer(let task, let continuation):
-          task.cancel()
-          continuation?.resume(returning: nil)
-      }
+    let action = self.stateMachine.withCriticalRegion { stateMachine in
+      stateMachine.interrupted()
+    }
+    switch action {
+      case .none:
+        break
+      case .resumeConsumer(let task, let continuation):
+        task.cancel()
+        continuation?.resume(returning: nil)
     }
   }
 
