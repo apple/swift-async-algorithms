@@ -20,7 +20,10 @@ let package = Package(
   targets: [
     .target(
       name: "AsyncAlgorithms",
-      dependencies: [.product(name: "OrderedCollections", package: "swift-collections")],
+      dependencies: [
+          .product(name: "OrderedCollections", package: "swift-collections"),
+          .product(name: "DequeModule", package: "swift-collections"),
+      ],
       swiftSettings: [
           .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
