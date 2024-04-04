@@ -16,16 +16,19 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   typealias SuspendedProducer = UnsafeContinuation<Void, Never>
   typealias SuspendedConsumer = UnsafeContinuation<Result<Base.Element, Error>?, Never>
 
+  // We are using UnsafeTransfer here since we have to get the elements from the task
+  // into the consumer task. This is a transfer but we cannot prove this to the compiler at this point
+  // since next is not marked as transferring the return value.
   fileprivate enum State {
     case initial(base: Base)
     case buffering(
       task: Task<Void, Never>,
-      buffer: Deque<Result<Element, Error>>,
+      buffer: Deque<Result<UnsafeTransfer<Element>, Error>>,
       suspendedProducer: SuspendedProducer?,
       suspendedConsumer: SuspendedConsumer?
     )
     case modifying
-    case finished(buffer: Deque<Result<Element, Error>>)
+    case finished(buffer: Deque<Result<UnsafeTransfer<Element>, Error>>)
   }
 
   private var state: State
@@ -139,7 +142,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
         // we have to stack the new element or suspend the producer if the buffer is full
         precondition(buffer.count < limit, "Invalid state. The buffer should be available for stacking a new element.")
         self.state = .modifying
-        buffer.append(.success(element))
+        buffer.append(.success(.init(element)))
         self.state = .buffering(task: task, buffer: buffer, suspendedProducer: nil, suspendedConsumer: nil)
         return .none
 
@@ -218,7 +221,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .buffering(task: task, buffer: buffer, suspendedProducer: nil, suspendedConsumer: nil)
-        return .returnResult(producerContinuation: suspendedProducer, result: result)
+        return .returnResult(producerContinuation: suspendedProducer, result: result.map { $0.wrapped })
 
       case .buffering(_, _, _, .some):
         preconditionFailure("Invalid states. There is already a suspended consumer.")
@@ -233,7 +236,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .finished(buffer: buffer)
-        return .returnResult(producerContinuation: nil, result: result)
+        return .returnResult(producerContinuation: nil, result: result.map { $0.wrapped })
     }
   }
 
@@ -257,7 +260,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .buffering(task: task, buffer: buffer, suspendedProducer: nil, suspendedConsumer: nil)
-        return .returnResult(producerContinuation: suspendedProducer, result: result)
+        return .returnResult(producerContinuation: suspendedProducer, result: result.map { $0.wrapped })
 
       case .buffering(_, _, _, .some):
         preconditionFailure("Invalid states. There is already a suspended consumer.")
@@ -272,7 +275,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .finished(buffer: buffer)
-        return .returnResult(producerContinuation: nil, result: result)
+        return .returnResult(producerContinuation: nil, result: result.map { $0.wrapped })
     }
   }
 
