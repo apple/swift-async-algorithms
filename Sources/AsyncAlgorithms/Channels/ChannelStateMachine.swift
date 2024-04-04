@@ -10,9 +10,6 @@
 //===----------------------------------------------------------------------===//
 import OrderedCollections
 
-// NOTE: this is only marked as unchecked since the swift-collections tag is before auditing for Sendable
-extension OrderedSet: @unchecked Sendable where Element: Sendable { }
-
 struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
   private struct SuspendedProducer: Hashable, Sendable {
     let id: UInt64

@@ -21,15 +21,18 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
     case bufferingOldest(Int)
   }
 
+  // We are using UnsafeTransfer here since we have to get the elements from the task
+  // into the consumer task. This is a transfer but we cannot prove this to the compiler at this point
+  // since next is not marked as transferring the return value.
   fileprivate enum State {
     case initial(base: Base)
     case buffering(
       task: Task<Void, Never>,
-      buffer: Deque<Result<Element, Error>>,
+      buffer: Deque<Result<UnsafeTransfer<Element>, Error>>,
       suspendedConsumer: SuspendedConsumer?
     )
     case modifying
-    case finished(buffer: Deque<Result<Element, Error>>)
+    case finished(buffer: Deque<Result<UnsafeTransfer<Element>, Error>>)
   }
 
   private var state: State
@@ -84,15 +87,15 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         switch self.policy {
           case .unlimited:
-            buffer.append(.success(element))
+            buffer.append(.success(.init(element)))
           case .bufferingNewest(let limit):
             if buffer.count >= limit {
               _ = buffer.popFirst()
             }
-            buffer.append(.success(element))
+            buffer.append(.success(.init(element)))
           case .bufferingOldest(let limit):
             if buffer.count < limit {
-              buffer.append(.success(element))
+              buffer.append(.success(.init(element)))
             }
         }
         self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
@@ -170,7 +173,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .returnResult(result)
+        return .returnResult(result.map { $0.wrapped })
 
       case .modifying:
         preconditionFailure("Invalid state.")
@@ -182,7 +185,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .finished(buffer: buffer)
-        return .returnResult(result)
+        return .returnResult(result.map { $0.wrapped })
     }
   }
 
@@ -208,7 +211,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .resumeConsumer(result)
+        return .resumeConsumer(result.map { $0.wrapped })
 
       case .modifying:
         preconditionFailure("Invalid state.")
@@ -220,7 +223,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
         self.state = .modifying
         let result = buffer.popFirst()!
         self.state = .finished(buffer: buffer)
-        return .resumeConsumer(result)
+        return .resumeConsumer(result.map { $0.wrapped })
     }
   }
 
@@ -251,3 +254,5 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
 extension UnboundedBufferStateMachine: Sendable where Base: Sendable { }
 extension UnboundedBufferStateMachine.State: Sendable where Base: Sendable { }
+
+
