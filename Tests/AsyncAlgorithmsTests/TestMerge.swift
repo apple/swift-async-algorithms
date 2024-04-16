@@ -201,6 +201,38 @@ final class TestMerge2: XCTestCase {
         }
         t.cancel()
     }
+
+    func testAsyncStreamElementsThatAreInjectedOnCancellationAreDelivered() async {
+        let (stream1, continuation1) = AsyncStream.makeStream(of: Int.self)
+        let (stream2, continuation2) = AsyncStream.makeStream(of: Int.self)
+        continuation1.onTermination = { reason in
+            XCTAssertEqual(reason, .cancelled)
+            continuation1.yield(1)
+        }
+        continuation2.onTermination = { reason in
+            XCTAssertEqual(reason, .cancelled)
+            continuation2.yield(2)
+        }
+        continuation1.yield(0) // initial
+        let merge = merge(stream1, stream2)
+        let finished = expectation(description: "finished")
+        let iterated = expectation(description: "iterated")
+        let task = Task {
+            var count = 0
+            for await _ in merge {
+                if count == 0 { iterated.fulfill() }
+                count += 1
+            }
+            finished.fulfill()
+            XCTAssertEqual(count, 3)
+        }
+        // ensure the other task actually starts
+        await fulfillment(of: [iterated], timeout: 1.0)
+        // cancellation should ensure the loop finishes
+        // without regards to the remaining underlying sequence
+        task.cancel()
+        await fulfillment(of: [finished], timeout: 1.0)
+    }
 }
 
 final class TestMerge3: XCTestCase {
@@ -554,5 +586,42 @@ final class TestMerge3: XCTestCase {
         XCTAssertNil(firstValue)
 
         iterator = nil
+    }
+
+    func testAsyncStreamElementsThatAreInjectedOnCancellationAreDelivered() async {
+        let (stream1, continuation1) = AsyncStream.makeStream(of: Int.self)
+        let (stream2, continuation2) = AsyncStream.makeStream(of: Int.self)
+        let (stream3, continuation3) = AsyncStream.makeStream(of: Int.self)
+        continuation1.onTermination = { reason in
+            XCTAssertEqual(reason, .cancelled)
+            continuation1.yield(1)
+        }
+        continuation2.onTermination = { reason in
+            XCTAssertEqual(reason, .cancelled)
+            continuation2.yield(2)
+        }
+        continuation3.onTermination = { reason in
+            XCTAssertEqual(reason, .cancelled)
+            continuation3.yield(3)
+        }
+        continuation1.yield(0) // initial
+        let merge = merge(stream1, stream2, stream3)
+        let finished = expectation(description: "finished")
+        let iterated = expectation(description: "iterated")
+        let task = Task {
+            var count = 0
+            for await _ in merge {
+                if count == 0 { iterated.fulfill() }
+                count += 1
+            }
+            finished.fulfill()
+            XCTAssertEqual(count, 4)
+        }
+        // ensure the other task actually starts
+        await fulfillment(of: [iterated], timeout: 1.0)
+        // cancellation should ensure the loop finishes
+        // without regards to the remaining underlying sequence
+        task.cancel()
+        await fulfillment(of: [finished], timeout: 1.0)
     }
 }

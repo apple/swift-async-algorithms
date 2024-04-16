@@ -128,12 +128,7 @@ final class MergeStorage<
 
                 downstreamContinuation.resume(returning: nil)
 
-            case let .cancelTaskAndUpstreamContinuations(
-                task,
-                upstreamContinuations
-            ):
-                upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-
+            case let .cancelTask(task):
                 task.cancel()
 
             case .none:
@@ -262,8 +257,8 @@ final class MergeStorage<
                         task,
                         upstreamContinuations
                     ):
-                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
                         task.cancel()
+                        upstreamContinuations.forEach { $0.resume() }
 
                         downstreamContinuation.resume(returning: nil)
 
@@ -273,8 +268,8 @@ final class MergeStorage<
                         task,
                         upstreamContinuations
                     ):
-                        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
                         task.cancel()
+                        upstreamContinuations.forEach { $0.resume() }
 
                         break loop
                     case .none:
