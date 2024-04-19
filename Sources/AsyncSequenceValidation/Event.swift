@@ -149,7 +149,11 @@ extension AsyncSequenceValidationDiagram {
             if grouping == 0 {
               when = when.advanced(by: .steps(1))
             }
-            emissions.append((when, .value(String(ch), index)))
+            if ch != "_" {
+              emissions.append((when, .value(String(ch), index)))
+            } else {
+              emissions.append((when, .value(String(), index)))
+            }
           } else {
             string?.append(str)
           }

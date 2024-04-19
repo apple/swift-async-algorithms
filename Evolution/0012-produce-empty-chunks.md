@@ -1,14 +1,36 @@
-//===----------------------------------------------------------------------===//
-//
-// This source file is part of the Swift Async Algorithms open source project
-//
-// Copyright (c) 2021 Apple Inc. and the Swift project authors
-// Licensed under Apache License v2.0 with Runtime Library Exception
-//
-// See https://swift.org/LICENSE.txt for license information
-//
-//===----------------------------------------------------------------------===//
+# Produce Empty Chunks
 
+* Proposal: [0012](0012-produce-empty-chunks.md)
+* Author: [Rick Newton-Rogers](https://github.com/rnro)
+* Review Manager: TBD
+* Status: **Implemented**
+
+* Implementation: 
+  [Source](https://github.com/rnewtonrogers/swift-async-algorithms/blob/allow_empty_chunks/Sources/AsyncAlgorithms/AsyncChunksOfCountOrSignalSequence.swift) | 
+  [Tests](https://github.com/rnewtonrogers/swift-async-algorithms/blob/allow_empty_chunks/Tests/AsyncAlgorithmsTests/TestChunk.swift)
+  
+## Introduction
+
+At the moment it is possible to use a signal `AsyncSequence` to provide marks at which elements of a primary 
+`AsyncSequence` should be 'chunked' into collections. However if one or more signals arrive when there are no elements 
+from the primary sequence to vend as output then they will be ignored.
+
+## Motivation
+
+As noted in [a GitHub Issue](https://github.com/apple/swift-async-algorithms/issues/247) it could be useful to output empty 
+chunks in the outlined case to provide information of a lack of activity on the primary sequence. This would likely be 
+particularly useful when combined with a timer as a signaling source.
+
+## Proposed solution
+
+Modify the API of the `AsyncSequence` `chunks` and `chunked` extensions to allow specifying of a new parameter 
+(`produceEmptyChunks`) which determines if the output sequence produces empty chunks. The new parameter will retain the 
+previous behavior by default.
+
+## Detailed design
+
+The modified API will look as follows:
+```swift
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when a signal `AsyncSequence` produces an element.
   public func chunks<Signal, Collected: RangeReplaceableCollection>(ofCount count: Int, or signal: Signal, into: Collected.Type, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
@@ -54,87 +76,21 @@ extension AsyncSequence {
       chunked(by: timer, into: [Element].self, produceEmptyChunks: produceEmptyChunks)
   }
 }
+```
+The previous API will be marked as deprecated and `@_disfavoredOverload` to avoid ambiguity with the new versions.
 
-/// An `AsyncSequence` that chunks elements into collected `RangeReplaceableCollection` instances by either count or a signal from another `AsyncSequence`.
-public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Signal: AsyncSequence>: AsyncSequence, Sendable where Collected.Element == Base.Element, Base: Sendable, Signal: Sendable, Base.Element: Sendable, Signal.Element: Sendable {
 
-  public typealias Element = Collected
+## Effect on API resilience
 
-  enum Either {
-    case element(Base.Element)
-    case terminal
-    case signal
-  }
-  
-  /// The iterator for a `AsyncChunksOfCountOrSignalSequence` instance.
-  public struct Iterator: AsyncIteratorProtocol {
-    typealias EitherMappedBase = AsyncMapSequence<Base, Either>
-    typealias EitherMappedSignal = AsyncMapSequence<Signal, Either>
-    typealias ChainedBase = AsyncChain2Sequence<EitherMappedBase, AsyncSyncSequence<[Either]>>
-    typealias Merged = AsyncMerge2Sequence<ChainedBase, EitherMappedSignal>
-    
-    let count: Int?
-    let produceEmptyChunks: Bool
-    var iterator: Merged.AsyncIterator
-    var terminated = false
-    
-    init(iterator: Merged.AsyncIterator, count: Int?, produceEmptyChunks: Bool) {
-      self.count = count
-      self.iterator = iterator
-      self.produceEmptyChunks = produceEmptyChunks
-    }
-    
-    public mutating func next() async rethrows -> Collected? {
-      guard !terminated else {
-        return nil
-      }
-      var result: Collected?
-      while let next = try await iterator.next() {
-        switch next {
-        case .element(let element):
-          if result == nil {
-            result = Collected()
-          }
-          result!.append(element)
-          if result?.count == count {
-            return result
-          }
-        case .terminal:
-          terminated = true
-          return result
-        case .signal:
-          if result != nil {
-            return result
-          }
-          if self.produceEmptyChunks {
-            return Collected()
-          }
-        }
-      }
-      return result
-    }
-  }
+This change is API-safe due to the default value but ABI-unsafe.
 
-  let base: Base
-  let signal: Signal
-  let count: Int?
-  let produceEmptyChunks: Bool
-  init(_ base: Base, count: Int?, signal: Signal, produceEmptyChunks: Bool) {
-    if let count = count {
-      precondition(count > 0)
-    }
+## Alternatives considered
 
-    self.base = base
-    self.count = count
-    self.signal = signal
-    self.produceEmptyChunks = produceEmptyChunks
-  }
+- Providing a config struct to future-proof the API against further changes in the future was rejected because it 
+seems to add overhead defending against an unlikely event.
+- Providing entirely new API without deprecating the old one was ruled out to avoid an explosion in API complexity 
+which increases maintenance burden and reduces readability of code.
 
-  public func makeAsyncIterator() -> Iterator {
-    
-    return Iterator(iterator: merge(chain(base.map { Either.element($0) }, [.terminal].async), signal.map { _ in Either.signal }).makeAsyncIterator(), count: count, produceEmptyChunks: produceEmptyChunks)
-  }
-}
+## Acknowledgments
 
-@available(*, unavailable)
-extension AsyncChunksOfCountOrSignalSequence.Iterator: Sendable { }
+- [@tachyonics](https://github.com/tachyonics) for the initial GitHub issue describing the requirement.
