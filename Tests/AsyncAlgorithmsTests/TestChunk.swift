@@ -54,7 +54,7 @@ final class TestChunk: XCTestCase {
     validate {
       "--1--|"
       "XX-XX|"
-      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunked(by: $0.inputs[1], produceEmptyChunks: false).map(concatCharacters)
       "---1-|"
     }
   }
@@ -63,8 +63,8 @@ final class TestChunk: XCTestCase {
     validate {
       "--1--|"
       "XX-XX|"
-      $0.inputs[0].chunked(by: $0.inputs[1], produceEmptyChunks: true).map(concatCharacters)
-      "__-1_|"
+      $0.inputs[0].chunked(by: $0.inputs[1]).map(concatCharacters)
+      "''''-1''|"
     }
   }
 
@@ -99,7 +99,7 @@ final class TestChunk: XCTestCase {
     validate {
       "AB   --A-B   -|"
       "--   X----   X|"
-      $0.inputs[0].chunks(ofCount: 2, or: $0.inputs[1]).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 2, or: $0.inputs[1], produceEmptyChunks: false).map(concatCharacters)
       "-'AB'----'AB'-|"
     }
   }
@@ -108,8 +108,8 @@ final class TestChunk: XCTestCase {
     validate {
       "AB   --A-B   -|"
       "--   X----   X|"
-      $0.inputs[0].chunks(ofCount: 2, or: $0.inputs[1], produceEmptyChunks: true).map(concatCharacters)
-      "-'AB'_---'AB'_|"
+      $0.inputs[0].chunks(ofCount: 2, or: $0.inputs[1]).map(concatCharacters)
+      "-'AB'''---'AB'''|"
     }
   }
 
@@ -162,7 +162,7 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-- 1- --|"
-      $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock), produceEmptyChunks: false).map(concatCharacters)
       "-- -1 --|"
     }
   }
@@ -171,8 +171,8 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "-- 1- --|"
-      $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock), produceEmptyChunks: true).map(concatCharacters)
-      "-_ -1 -_|"
+      $0.inputs[0].chunked(by: .repeating(every: .steps(2), clock: $0.clock)).map(concatCharacters)
+      "-'' -1 -''|"
     }
   }
 
@@ -207,7 +207,7 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB   --A-B   -|"
-      $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock), produceEmptyChunks: false).map(concatCharacters)
       "-'AB'----'AB'-|"
     }
   }
@@ -216,8 +216,8 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "AB   --A-B   -|"
-      $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock), produceEmptyChunks: true).map(concatCharacters)
-      "-'AB'----'AB'_|"
+      $0.inputs[0].chunks(ofCount: 2, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "-'AB'----'AB'''|"
     }
   }
 
@@ -225,7 +225,7 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "ABCDE      --- ABCDE      |"
-      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
+      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock), produceEmptyChunks: false).map(concatCharacters)
       "----'ABCDE'--- ----'ABCDE'|"
     }
   }
@@ -234,8 +234,8 @@ final class TestChunk: XCTestCase {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else { throw XCTSkip("Skipped due to Clock/Instant/Duration availability") }
     validate {
       "ABCDE      --- ABCDE      |"
-      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock), produceEmptyChunks: true).map(concatCharacters)
-      "----'ABCDE'--_ ----'ABCDE'|"
+      $0.inputs[0].chunks(ofCount: 5, or: .repeating(every: .steps(8), clock: $0.clock)).map(concatCharacters)
+      "----'ABCDE'--'' ----'ABCDE'|"
     }
   }
 

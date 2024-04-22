@@ -11,46 +11,46 @@
 
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when a signal `AsyncSequence` produces an element.
-  public func chunks<Signal, Collected: RangeReplaceableCollection>(ofCount count: Int, or signal: Signal, into: Collected.Type, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunks<Signal, Collected: RangeReplaceableCollection>(ofCount count: Int, or signal: Signal, into: Collected.Type, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: count, signal: signal, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when a signal `AsyncSequence` produces an element.
-  public func chunks<Signal>(ofCount count: Int, or signal: Signal, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
+  public func chunks<Signal>(ofCount count: Int, or signal: Signal, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
       chunks(ofCount: count, or: signal, into: [Element].self, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when a signal `AsyncSequence` produces an element.
-  public func chunked<Signal, Collected: RangeReplaceableCollection>(by signal: Signal, into: Collected.Type, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunked<Signal, Collected: RangeReplaceableCollection>(by signal: Signal, into: Collected.Type, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: nil, signal: signal, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks when a signal `AsyncSequence` produces an element.
-  public func chunked<Signal>(by signal: Signal, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
+  public func chunked<Signal>(by signal: Signal, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
       chunked(by: signal, into: [Element].self, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int, or timer: AsyncTimerSequence<C>, into: Collected.Type, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int, or timer: AsyncTimerSequence<C>, into: Collected.Type, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: count, signal: timer, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunks<C: Clock>(ofCount count: Int, or timer: AsyncTimerSequence<C>, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+  public func chunks<C: Clock>(ofCount count: Int, or timer: AsyncTimerSequence<C>, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
       chunks(ofCount: count, or: timer, into: [Element].self, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(by timer: AsyncTimerSequence<C>, into: Collected.Type, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(by timer: AsyncTimerSequence<C>, into: Collected.Type, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: nil, signal: timer, produceEmptyChunks: produceEmptyChunks)
   }
 
   /// Creates an asynchronous sequence that creates chunks when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunked<C: Clock>(by timer: AsyncTimerSequence<C>, produceEmptyChunks: Bool = false) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+  public func chunked<C: Clock>(by timer: AsyncTimerSequence<C>, produceEmptyChunks: Bool = true) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
       chunked(by: timer, into: [Element].self, produceEmptyChunks: produceEmptyChunks)
   }
 }

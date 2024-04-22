@@ -48,7 +48,6 @@ extension AsyncSequenceValidationDiagram {
       case "[": return .beginGroup
       case "]": return .endGroup
       case " ": return .skip
-      case "_": return .value(String())
       default: return .value(String(character))
       }
     }
@@ -65,11 +64,7 @@ extension AsyncSequenceValidationDiagram {
       case .beginGroup: return "["
       case .endGroup: return "]"
       case .skip: return " "
-      case .value(let value):
-        if value.count == 0 {
-          return "_"
-        }
-        return value
+      case .value(let value): return value
       }
     }
   }
