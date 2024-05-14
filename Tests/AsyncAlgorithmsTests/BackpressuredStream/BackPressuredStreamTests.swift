@@ -16,8 +16,8 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - sequenceDeinitialized
 
     func testSequenceDeinitialized_whenNoIterator() async throws {
-        var (stream, source): (AsyncBackPressuredStream?, AsyncBackPressuredStream.Source) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel?, MultiProducerSingleConsumerChannel.Source) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -48,7 +48,7 @@ final class BackPressuredStreamTests: XCTestCase {
                 _ = try { try source.write(2) }()
                 XCTFail("Expected an error to be thrown")
             } catch {
-                XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+                XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
             }
 
             group.cancelAll()
@@ -56,8 +56,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSequenceDeinitialized_whenIterator() async throws {
-        var (stream, source): (AsyncBackPressuredStream?, AsyncBackPressuredStream.Source) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel?, MultiProducerSingleConsumerChannel.Source) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -104,8 +104,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSequenceDeinitialized_whenFinished() async throws {
-        var (stream, source): (AsyncBackPressuredStream?, AsyncBackPressuredStream.Source) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel?, MultiProducerSingleConsumerChannel.Source) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -139,7 +139,7 @@ final class BackPressuredStreamTests: XCTestCase {
                 _ = try { try source.write(1) }()
                 XCTFail("Expected an error to be thrown")
             } catch {
-                XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+                XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
             }
 
             group.cancelAll()
@@ -147,8 +147,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSequenceDeinitialized_whenStreaming_andSuspendedProducer() async throws {
-        var (stream, source): (AsyncBackPressuredStream?, AsyncBackPressuredStream.Source) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel?, MultiProducerSingleConsumerChannel.Source) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 1, high: 2)
             )
@@ -165,14 +165,14 @@ final class BackPressuredStreamTests: XCTestCase {
                 _ = stream?.makeAsyncIterator()
             }
         } catch {
-            XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
         }
     }
 
     // MARK: - iteratorInitialized
 
     func testIteratorInitialized_whenInitial() async throws {
-        let (stream, _) = AsyncBackPressuredStream.makeStream(
+        let (stream, _) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -181,7 +181,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorInitialized_whenStreaming() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -194,7 +194,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorInitialized_whenSourceFinished() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -210,7 +210,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorInitialized_whenFinished() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -225,7 +225,7 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - iteratorDeinitialized
 
     func testIteratorDeinitialized_whenInitial() async throws {
-        var (stream, source) = AsyncBackPressuredStream.makeStream(
+        var (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -246,7 +246,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             iterator = nil
             _ = try await iterator?.next()
 
@@ -258,7 +258,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenStreaming() async throws {
-        var (stream, source) = AsyncBackPressuredStream.makeStream(
+        var (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -281,7 +281,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             iterator = nil
             _ = try await iterator?.next()
 
@@ -293,7 +293,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenSourceFinished() async throws {
-        var (stream, source) = AsyncBackPressuredStream.makeStream(
+        var (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -317,7 +317,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             iterator = nil
             _ = try await iterator?.next()
 
@@ -329,7 +329,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenFinished() async throws {
-        var (stream, source) = AsyncBackPressuredStream.makeStream(
+        var (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 5, high: 10)
         )
@@ -352,7 +352,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             iterator = nil
             _ = try await iterator?.next()
 
@@ -364,13 +364,13 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenStreaming_andSuspendedProducer() async throws {
-        var (stream, source): (AsyncBackPressuredStream?, AsyncBackPressuredStream.Source) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel?, MultiProducerSingleConsumerChannel.Source) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 1, high: 2)
             )
 
-        var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream?.makeAsyncIterator()
+        var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream?.makeAsyncIterator()
         stream = nil
 
         _ = try { try source.write(1) }()
@@ -384,7 +384,7 @@ final class BackPressuredStreamTests: XCTestCase {
                 iterator = nil
             }
         } catch {
-            XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
         }
 
         _ = try await iterator?.next()
@@ -393,8 +393,8 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - sourceDeinitialized
 
     func testSourceDeinitialized_whenInitial() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -427,8 +427,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSourceDeinitialized_whenStreaming_andEmptyBuffer() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -451,7 +451,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             _ = try await iterator?.next()
 
             source = nil
@@ -464,8 +464,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSourceDeinitialized_whenStreaming_andNotEmptyBuffer() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -489,7 +489,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             _ = try await iterator?.next()
 
             source = nil
@@ -507,8 +507,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSourceDeinitialized_whenSourceFinished() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -533,7 +533,7 @@ final class BackPressuredStreamTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: AsyncBackPressuredStream<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
+            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = stream.makeAsyncIterator()
             _ = try await iterator?.next()
 
             source = nil
@@ -551,8 +551,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSourceDeinitialized_whenFinished() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 5, high: 10)
             )
@@ -589,8 +589,8 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testSourceDeinitialized_whenStreaming_andSuspendedProducer() async throws {
-        var (stream, source): (AsyncBackPressuredStream, AsyncBackPressuredStream.Source?) =
-            AsyncBackPressuredStream.makeStream(
+        var (stream, source): (MultiProducerSingleConsumerChannel, MultiProducerSingleConsumerChannel.Source?) =
+            MultiProducerSingleConsumerChannel.makeStream(
                 of: Int.self,
                 backPressureStrategy: .watermark(low: 0, high: 0)
             )
@@ -608,14 +608,14 @@ final class BackPressuredStreamTests: XCTestCase {
             try await producerStream.first { _ in true }
             XCTFail("We expected to throw here")
         } catch {
-            XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
         }
     }
 
     // MARK: - write
 
     func testWrite_whenInitial() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 5)
         )
@@ -628,7 +628,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testWrite_whenStreaming_andNoConsumer() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 5)
         )
@@ -644,7 +644,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testWrite_whenStreaming_andSuspendedConsumer() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 5)
         )
@@ -664,7 +664,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testWrite_whenStreaming_andSuspendedConsumer_andEmptySequence() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 5)
         )
@@ -687,7 +687,7 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - enqueueProducer
 
     func testEnqueueProducer_whenStreaming_andAndCancelled() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 2)
         )
@@ -721,7 +721,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testEnqueueProducer_whenStreaming_andAndCancelled_andAsync() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 2)
         )
@@ -747,7 +747,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testEnqueueProducer_whenStreaming_andInterleaving() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 1)
         )
@@ -777,7 +777,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testEnqueueProducer_whenStreaming_andSuspending() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 1)
         )
@@ -807,7 +807,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testEnqueueProducer_whenFinished() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 1)
         )
@@ -835,14 +835,14 @@ final class BackPressuredStreamTests: XCTestCase {
             _ = try await producerStream.first { _ in true }
             XCTFail("Expected an error to be thrown")
         } catch {
-            XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
         }
     }
 
     // MARK: - cancelProducer
 
     func testCancelProducer_whenStreaming() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 2)
         )
@@ -876,7 +876,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testCancelProducer_whenSourceFinished() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 2)
         )
@@ -904,7 +904,7 @@ final class BackPressuredStreamTests: XCTestCase {
             _ = try await producerStream.first { _ in true }
             XCTFail("Expected an error to be thrown")
         } catch {
-            XCTAssertTrue(error is AsyncBackPressuredStreamAlreadyFinishedError)
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
         }
 
         let element = try await stream.first { _ in true }
@@ -914,7 +914,7 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - finish
 
     func testFinish_whenStreaming_andConsumerSuspended() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 1)
         )
@@ -934,7 +934,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testFinish_whenInitial() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 1, high: 1)
         )
@@ -953,7 +953,7 @@ final class BackPressuredStreamTests: XCTestCase {
     // MARK: - Backpressure
 
     func testBackPressure() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 4)
         )
@@ -989,7 +989,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testBackPressureSync() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 4)
         )
@@ -1035,7 +1035,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testWatermarkWithCustomCoount() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: [Int].self,
             backPressureStrategy: .watermark(low: 2, high: 4, waterLevelForElement: { $0.count })
         )
@@ -1051,7 +1051,7 @@ final class BackPressuredStreamTests: XCTestCase {
     }
 
     func testThrowsError() async throws {
-        let (stream, source) = AsyncBackPressuredStream.makeStream(
+        let (stream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 4)
         )
@@ -1079,7 +1079,7 @@ final class BackPressuredStreamTests: XCTestCase {
 
     func testAsyncSequenceWrite() async throws {
         let (stream, continuation) = AsyncStream<Int>.makeStream()
-        let (backpressuredStream, source) = AsyncBackPressuredStream.makeStream(
+        let (backpressuredStream, source) = MultiProducerSingleConsumerChannel.makeStream(
             of: Int.self,
             backPressureStrategy: .watermark(low: 2, high: 4)
         )
@@ -1143,7 +1143,7 @@ extension AsyncSequence {
     }
 }
 
-extension AsyncBackPressuredStream.Source.WriteResult {
+extension MultiProducerSingleConsumerChannel.Source.WriteResult {
     func assertIsProducerMore() {
         switch self {
         case .produceMore:

@@ -11,7 +11,7 @@
 
 import DequeModule
 
-struct _AsyncBackPressuredStreamWatermarkBackPressureStrategy<Element> {
+struct _MultiProducerSingleConsumerChannelWatermarkBackPressureStrategy<Element> {
     /// The low watermark where demand should start.
     private let low: Int
     /// The high watermark where demand should be stopped.
@@ -54,8 +54,8 @@ struct _AsyncBackPressuredStreamWatermarkBackPressureStrategy<Element> {
     }
 }
 
-enum _AsyncBackPressuredStreamInternalBackPressureStrategy<Element> {
-    case watermark(_AsyncBackPressuredStreamWatermarkBackPressureStrategy<Element>)
+enum _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element> {
+    case watermark(_MultiProducerSingleConsumerChannelWatermarkBackPressureStrategy<Element>)
 
     mutating func didYield(elements: Deque<Element>.SubSequence) -> Bool {
         switch self {
@@ -77,7 +77,7 @@ enum _AsyncBackPressuredStreamInternalBackPressureStrategy<Element> {
 }
 
 // We are unchecked Sendable since we are protecting our state with a lock.
-final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Error>: @unchecked Sendable {
+final class _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure: Error>: @unchecked Sendable {
     /// The state machine
     var _stateMachine: ManagedCriticalState<_AsyncBackPressuredStateMachine<Element, Failure>>
 
@@ -95,7 +95,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
     }
 
     init(
-        backPressureStrategy: _AsyncBackPressuredStreamInternalBackPressureStrategy<Element>
+        backPressureStrategy: _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element>
     ) {
         self._stateMachine = .init(.init(backPressureStrategy: backPressureStrategy))
     }
@@ -111,7 +111,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
         case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
             for producerContinuation in producerContinuations {
-                producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
             }
             onTermination?()
 
@@ -137,7 +137,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
         case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
             for producerContinuation in producerContinuations {
-                producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
             }
             onTermination?()
 
@@ -157,13 +157,13 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
         case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
             for producerContinuation in producerContinuations {
-                producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
             }
             onTermination?()
 
         case .failProducers(let producerContinuations):
             for producerContinuation in producerContinuations {
-                producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
             }
 
         case .none:
@@ -173,7 +173,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
     func write(
         contentsOf sequence: some Sequence<Element>
-    ) throws -> AsyncBackPressuredStream<Element, Failure>.Source.WriteResult {
+    ) throws -> MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult {
         let action = self._stateMachine.withCriticalRegion {
             return $0.write(sequence)
         }
@@ -194,12 +194,12 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
             return .enqueueCallback(callbackToken)
 
         case .throwFinishedError:
-            throw AsyncBackPressuredStreamAlreadyFinishedError()
+            throw MultiProducerSingleConsumerChannelAlreadyFinishedError()
         }
     }
 
     func enqueueProducer(
-        callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken,
+        callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken,
         onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
     ) {
         let action = self._stateMachine.withCriticalRegion {
@@ -219,7 +219,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
     }
 
     func cancelProducer(
-        callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken
+        callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken
     ) {
         let action = self._stateMachine.withCriticalRegion {
             $0.cancelProducer(callbackToken: callbackToken)
@@ -255,7 +255,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
         case .resumeProducers(let producerContinuations):
             for producerContinuation in producerContinuations {
-                producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
             }
 
         case .none:
@@ -343,7 +343,7 @@ final class _AsyncBackPressuredStreamBackPressuredStorage<Element, Failure: Erro
 
             case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
                 for producerContinuation in producerContinuations {
-                    producerContinuation(.failure(AsyncBackPressuredStreamAlreadyFinishedError()))
+                    producerContinuation(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
                 }
                 onTermination?()
 
@@ -359,7 +359,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
     enum _State {
         struct Initial {
             /// The backpressure strategy.
-            var backPressureStrategy: _AsyncBackPressuredStreamInternalBackPressureStrategy<Element>
+            var backPressureStrategy: _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element>
             /// Indicates if the iterator was initialized.
             var iteratorInitialized: Bool
             /// The onTermination callback.
@@ -368,7 +368,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
 
         struct Streaming {
             /// The backpressure strategy.
-            var backPressureStrategy: _AsyncBackPressuredStreamInternalBackPressureStrategy<Element>
+            var backPressureStrategy: _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element>
             /// Indicates if the iterator was initialized.
             var iteratorInitialized: Bool
             /// The onTermination callback.
@@ -466,7 +466,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
     ///
     /// - Parameter backPressureStrategy: The back-pressure strategy.
     init(
-        backPressureStrategy: _AsyncBackPressuredStreamInternalBackPressureStrategy<Element>
+        backPressureStrategy: _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element>
     ) {
         self._state = .initial(
             .init(
@@ -478,7 +478,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
     }
 
     /// Generates the next callback token.
-    mutating func nextCallbackToken() -> AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken {
+    mutating func nextCallbackToken() -> MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken {
         let id = self.nextCallbackTokenID
         self.nextCallbackTokenID += 1
         return .init(id: id)
@@ -711,7 +711,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
         case returnProduceMore
         /// Indicates that the producer should be suspended to stop producing.
         case returnEnqueue(
-            callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken
+            callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken
         )
         /// Indicates that the consumer should be resumed and the producer should be notified to produce more.
         case resumeConsumerAndReturnProduceMore(
@@ -722,13 +722,13 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
         case resumeConsumerAndReturnEnqueue(
             continuation: CheckedContinuation<Element?, Error>,
             element: Element,
-            callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken
+            callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken
         )
         /// Indicates that the producer has been finished.
         case throwFinishedError
 
         init(
-            callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken?,
+            callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken?,
             continuationAndElement: (CheckedContinuation<Element?, Error>, Element)? = nil
         ) {
             switch (callbackToken, continuationAndElement) {
@@ -830,7 +830,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
     }
 
     mutating func enqueueProducer(
-        callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken,
+        callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken,
         onProduceMore: @Sendable @escaping (Result<Void, Error>) -> Void
     ) -> EnqueueProducerAction? {
         switch self._state {
@@ -862,7 +862,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
         case .sourceFinished, .finished:
             // Since we are unlocking between yielding and suspending the yield
             // It can happen that the source got finished or the consumption fully finishes.
-            return .resumeProducerWithError(onProduceMore, AsyncBackPressuredStreamAlreadyFinishedError())
+            return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerChannelAlreadyFinishedError())
 
         case .modify:
             fatalError("AsyncStream internal inconsistency")
@@ -876,7 +876,7 @@ struct _AsyncBackPressuredStateMachine<Element, Failure: Error>: Sendable {
     }
 
     mutating func cancelProducer(
-        callbackToken: AsyncBackPressuredStream<Element, Failure>.Source.WriteResult.CallbackToken
+        callbackToken: MultiProducerSingleConsumerChannel<Element, Failure>.Source.WriteResult.CallbackToken
     ) -> CancelProducerAction? {
         switch self._state {
         case .initial:

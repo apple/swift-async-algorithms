@@ -9,28 +9,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A struct that acts as a source asynchronous sequence.
+/// Error that is thrown from the various `send` methods of the
+/// ``MultiProducerSingleConsumerChannel/Source``.
 ///
-/// The ``AsyncNonThrowingBackPressuredStream`` provides a ``AsyncNonThrowingBackPressuredStream/Source`` to
-/// write values to the stream. The source exposes the internal backpressure of the asynchronous sequence to the
+/// This error is thrown when the channel  is already finished when
+/// trying to send new elements to the source.
+public struct MultiProducerSingleConsumerChannelAlreadyFinishedError: Error {}
+
+/// A multi producer single consumer asynchronous sequence..
+///
+/// The ``MultiProducerSingleConsumerChannel`` provides a ``MultiProducerSingleConsumerChannel/Source`` to
+/// send values to the channel. The source exposes the internal backpressure of the asynchronous sequence to the
 /// external producer. This allows to bridge both synchronous and asynchronous producers into an asynchronous sequence.
 ///
-/// ## Using an AsyncNonThrowingBackPressuredStream
+/// ## Using an MultiProducerSingleConsumerChannel
 ///
-/// To use an ``AsyncNonThrowingBackPressuredStream`` you have to create a new stream with it's source first by calling
-/// the ``AsyncNonThrowingBackPressuredStream/makeStream(of:backpressureStrategy:)`` method.
-/// Afterwards, you can pass the source to the producer and the stream to the consumer.
+/// To use a ``MultiProducerSingleConsumerChannel`` you have to create a new stream with it's source first by calling
+/// the ``MultiProducerSingleConsumerChannel/makeChannel(of:throwing:backPressureStrategy:)`` method.
+/// Afterwards, you can pass the source to the producer and the channel to the consumer.
 ///
 /// ```
-/// let (stream, source) = AsyncNonThrowingBackPressuredStream<Int>.makeStream(
+/// let (channel, source) = MultiProducerSingleConsumerChannel<Int, Never>.makeChannel(
 ///     backpressureStrategy: .watermark(low: 2, high: 4)
 /// )
 ///
 /// try await withThrowingTaskGroup(of: Void.self) { group in
 ///     group.addTask {
-///         try await source.write(1)
-///         try await source.write(2)
-///         try await source.write(3)
+///         try await source.send(1)
+///         try await source.send(2)
+///         try await source.send(3)
 ///     }
 ///
 ///     for await element in stream {
@@ -39,15 +46,15 @@
 /// }
 /// ```
 ///
-/// The source also exposes synchronous write methods that communicate the backpressure via callbacks.
-public struct AsyncNonThrowingBackPressuredStream<Element>: AsyncSequence {
-    /// A private class to give the ``AsyncNonThrowingBackPressuredStream`` a deinit so we
+/// The source also exposes synchronous send methods that communicate the backpressure via callbacks.
+public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: AsyncSequence {
+    /// A private class to give the ``MultiProducerSingleConsumerChannel`` a deinit so we
     /// can tell the producer when any potential consumer went away.
     private final class _Backing: Sendable {
         /// The underlying storage.
-        fileprivate let storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>
+        fileprivate let storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>
 
-        init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+        init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
             self.storage = storage
         }
 
@@ -59,18 +66,20 @@ public struct AsyncNonThrowingBackPressuredStream<Element>: AsyncSequence {
     /// The backing storage.
     private let backing: _Backing
 
-    /// Initializes a new ``AsyncNonThrowingBackPressuredStream`` and an ``AsyncNonThrowingBackPressuredStream/Source``.
+    /// Initializes a new ``MultiProducerSingleConsumerChannel`` and an ``MultiProducerSingleConsumerChannel/Source``.
     ///
     /// - Parameters:
     ///   - elementType: The element type of the stream.
+    ///   - failureType: The failure type of the stream.
     ///   - backPressureStrategy: The backpressure strategy that the stream should use.
     /// - Returns: A tuple containing the stream and its source. The source should be passed to the
     ///   producer while the stream should be passed to the consumer.
-    public static func makeStream(
+    public static func makeChannel(
         of elementType: Element.Type = Element.self,
+        throwing failureType: Failure.Type = Failure.self,
         backPressureStrategy: Source.BackPressureStrategy
-    ) -> (`Self`, Source) {
-        let storage = _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>(
+    ) -> (`Self`, Source) where Failure == Error {
+        let storage = _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>(
             backPressureStrategy: backPressureStrategy.internalBackPressureStrategy
         )
         let source = Source(storage: storage)
@@ -78,24 +87,24 @@ public struct AsyncNonThrowingBackPressuredStream<Element>: AsyncSequence {
         return (.init(storage: storage), source)
     }
 
-    init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+    init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
         self.backing = .init(storage: storage)
     }
 }
 
-extension AsyncNonThrowingBackPressuredStream {
-    /// A struct to interface between producer code and an asynchronous stream.
+extension MultiProducerSingleConsumerChannel {
+    /// A struct to send values to the channel.
     ///
-    /// Use this source to provide elements to the stream by calling one of the `write` methods, then terminate the stream normally
+    /// Use this source to provide elements to the channel by calling one of the `send` methods, then terminate the channel normally
     /// by calling the `finish()` method. You can also use the source's `finish(throwing:)` method to terminate the stream by
     /// throwing an error.
     ///
-    /// - Important: You must  terminate the source by calling one of the `finish` methods otherwise the stream's iterator
+    /// - Important: You must terminate the source by calling one of the `finish` methods otherwise the stream's iterator
     /// will never terminate.
     public struct Source: Sendable {
         /// A strategy that handles the backpressure of the asynchronous stream.
         public struct BackPressureStrategy: Sendable {
-            var internalBackPressureStrategy: _AsyncBackPressuredStreamInternalBackPressureStrategy<Element>
+            var internalBackPressureStrategy: _MultiProducerSingleConsumerChannelInternalBackPressureStrategy<Element>
 
             /// A backpressure strategy using a high and low watermark to suspend and resume production respectively.
             ///
@@ -132,8 +141,8 @@ extension AsyncNonThrowingBackPressuredStream {
             }
         }
 
-        /// A type that indicates the result of writing elements to the source.
-        public enum WriteResult: Sendable {
+        /// A type that indicates the result of sending elements to the source.
+        public enum SendResult: Sendable {
             /// A token that is returned when the asynchronous stream's backpressure strategy indicated that production should
             /// be suspended. Use this token to enqueue a callback by  calling the ``enqueueCallback(_:)`` method.
             public struct CallbackToken: Sendable {
@@ -151,9 +160,9 @@ extension AsyncNonThrowingBackPressuredStream {
 
         /// Backing class for the source used to hook a deinit.
         final class _Backing: Sendable {
-            let storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>
+            let storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>
 
-            init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+            init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
                 self.storage = storage
             }
 
@@ -180,11 +189,11 @@ extension AsyncNonThrowingBackPressuredStream {
 
         private var _backing: _Backing
 
-        internal init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+        internal init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
             self._backing = .init(storage: storage)
         }
 
-        /// Writes new elements to the asynchronous stream.
+        /// Sends new elements to the channel.
         ///
         /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
         /// first element of the provided sequence. If the asynchronous stream already terminated then this method will throw an error
@@ -192,16 +201,11 @@ extension AsyncNonThrowingBackPressuredStream {
         ///
         /// - Parameter sequence: The elements to write to the asynchronous stream.
         /// - Returns: The result that indicates if more elements should be produced at this time.
-        public func write<S>(contentsOf sequence: S) throws -> WriteResult where Element == S.Element, S: Sequence {
-            switch try self._backing.storage.write(contentsOf: sequence) {
-            case .produceMore:
-                return .produceMore
-            case .enqueueCallback(let callbackToken):
-                return .enqueueCallback(.init(id: callbackToken.id))
-            }
+        public func send<S>(contentsOf sequence: S) throws -> SendResult where Element == S.Element, S: Sequence {
+            try self._backing.storage.write(contentsOf: sequence)
         }
 
-        /// Write the element to the asynchronous stream.
+        /// Send the element to the channel.
         ///
         /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
         /// provided element. If the asynchronous stream already terminated then this method will throw an error
@@ -209,18 +213,13 @@ extension AsyncNonThrowingBackPressuredStream {
         ///
         /// - Parameter element: The element to write to the asynchronous stream.
         /// - Returns: The result that indicates if more elements should be produced at this time.
-        public func write(_ element: Element) throws -> WriteResult {
-            switch try self._backing.storage.write(contentsOf: CollectionOfOne(element)) {
-            case .produceMore:
-                return .produceMore
-            case .enqueueCallback(let callbackToken):
-                return .enqueueCallback(.init(id: callbackToken.id))
-            }
+        public func send(_ element: Element) throws -> SendResult {
+            try self._backing.storage.write(contentsOf: CollectionOfOne(element))
         }
 
         /// Enqueues a callback that will be invoked once more elements should be produced.
         ///
-        /// Call this method after ``write(contentsOf:)`` or ``write(:)`` returned ``WriteResult/enqueueCallback(_:)``.
+        /// Call this method after ``send(contentsOf:)-4amlx`` or ``send(_:)-8e7el`` returned ``SendResult/enqueueCallback(_:)``.
         ///
         /// - Important: Enqueueing the same token multiple times is not allowed.
         ///
@@ -228,12 +227,9 @@ extension AsyncNonThrowingBackPressuredStream {
         ///   - callbackToken: The callback token.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
         public func enqueueCallback(
-            callbackToken: WriteResult.CallbackToken,
+            callbackToken: SendResult.CallbackToken,
             onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
         ) {
-            let callbackToken = AsyncBackPressuredStream<Element, Never>.Source.WriteResult.CallbackToken(
-                id: callbackToken.id
-            )
             self._backing.storage.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
         }
 
@@ -245,29 +241,26 @@ extension AsyncNonThrowingBackPressuredStream {
         /// will mark the passed `callbackToken` as cancelled.
         ///
         /// - Parameter callbackToken: The callback token.
-        public func cancelCallback(callbackToken: WriteResult.CallbackToken) {
-            let callbackToken = AsyncBackPressuredStream<Element, Never>.Source.WriteResult.CallbackToken(
-                id: callbackToken.id
-            )
+        public func cancelCallback(callbackToken: SendResult.CallbackToken) {
             self._backing.storage.cancelProducer(callbackToken: callbackToken)
         }
 
-        /// Write new elements to the asynchronous stream and provide a callback which will be invoked once more elements should be produced.
+        /// Send new elements to the channel and provide a callback which will be invoked once more elements should be produced.
         ///
-        /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
-        /// first element of the provided sequence. If the asynchronous stream already terminated then `onProduceMore` will be invoked with
+        /// If there is a task consuming the channel and awaiting the next element then the task will get resumed with the
+        /// first element of the provided sequence. If the channel already terminated then `onProduceMore` will be invoked with
         /// a `Result.failure`.
         ///
         /// - Parameters:
-        ///   - sequence: The elements to write to the asynchronous stream.
+        ///   - sequence: The elements to send to the channel.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced. This callback might be
-        ///   invoked during the call to ``write(contentsOf:onProduceMore:)``.
-        public func write<S>(contentsOf sequence: S, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void)
+        ///   invoked during the call to ``send(contentsOf:onProduceMore:)``.
+        public func send<S>(contentsOf sequence: S, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void)
         where Element == S.Element, S: Sequence {
             do {
-                let writeResult = try self.write(contentsOf: sequence)
+                let sendResult = try self.send(contentsOf: sequence)
 
-                switch writeResult {
+                switch sendResult {
                 case .produceMore:
                     onProduceMore(Result<Void, Error>.success(()))
 
@@ -279,34 +272,34 @@ extension AsyncNonThrowingBackPressuredStream {
             }
         }
 
-        /// Writes the element to the asynchronous stream.
+        /// Sends the element to the channel.
         ///
         /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
         /// provided element. If the asynchronous stream already terminated then `onProduceMore` will be invoked with
         /// a `Result.failure`.
         ///
         /// - Parameters:
-        ///   - sequence: The element to write to the asynchronous stream.
+        ///   - sequence: The element to send to the channel.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced. This callback might be
         ///   invoked during the call to ``write(_:onProduceMore:)``.
-        public func write(_ element: Element, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void) {
-            self.write(contentsOf: CollectionOfOne(element), onProduceMore: onProduceMore)
+        public func send(_ element: Element, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void) {
+            self.send(contentsOf: CollectionOfOne(element), onProduceMore: onProduceMore)
         }
 
-        /// Write new elements to the asynchronous stream.
+        /// Send new elements to the channel.
         ///
-        /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
-        /// first element of the provided sequence. If the asynchronous stream already terminated then this method will throw an error
+        /// If there is a task consuming the channel and awaiting the next element then the task will get resumed with the
+        /// first element of the provided sequence. If the channel already terminated then this method will throw an error
         /// indicating the failure.
         ///
         /// This method returns once more elements should be produced.
         ///
         /// - Parameters:
-        ///   - sequence: The elements to write to the asynchronous stream.
-        public func write<S>(contentsOf sequence: S) async throws where Element == S.Element, S: Sequence {
-            let writeResult = try { try self.write(contentsOf: sequence) }()
+        ///   - sequence: The elements to send to the channel.
+        public func send<S>(contentsOf sequence: S) async throws where Element == S.Element, S: Sequence {
+            let sendResult = try { try self.send(contentsOf: sequence) }()
 
-            switch writeResult {
+            switch sendResult {
             case .produceMore:
                 return
 
@@ -331,29 +324,29 @@ extension AsyncNonThrowingBackPressuredStream {
             }
         }
 
-        /// Write new element to the asynchronous stream.
+        /// Send new element to the channel.
         ///
-        /// If there is a task consuming the stream and awaiting the next element then the task will get resumed with the
-        /// provided element. If the asynchronous stream already terminated then this method will throw an error
+        /// If there is a task consuming the channel and awaiting the next element then the task will get resumed with the
+        /// provided element. If the channel already terminated then this method will throw an error
         /// indicating the failure.
         ///
         /// This method returns once more elements should be produced.
         ///
         /// - Parameters:
-        ///   - sequence: The element to write to the asynchronous stream.
-        public func write(_ element: Element) async throws {
-            try await self.write(contentsOf: CollectionOfOne(element))
+        ///   - sequence: The element to send to the channel.
+        public func send(_ element: Element) async throws {
+            try await self.send(contentsOf: CollectionOfOne(element))
         }
 
-        /// Write the elements of the asynchronous sequence to the asynchronous stream.
+        /// Send the elements of the asynchronous sequence to the channel.
         ///
-        /// This method returns once the provided asynchronous sequence or the  the asynchronous stream finished.
+        /// This method returns once the provided asynchronous sequence or  the channel finished.
         ///
         /// - Important: This method does not finish the source if consuming the upstream sequence terminated.
         ///
         /// - Parameters:
-        ///   - sequence: The elements to write to the asynchronous stream.
-        public func write<S>(contentsOf sequence: S) async throws where Element == S.Element, S: AsyncSequence {
+        ///   - sequence: The elements to send to the channel.
+        public func send<S>(contentsOf sequence: S) async throws where Element == S.Element, S: AsyncSequence {
             for try await element in sequence {
                 try await self.write(contentsOf: CollectionOfOne(element))
             }
@@ -361,17 +354,20 @@ extension AsyncNonThrowingBackPressuredStream {
 
         /// Indicates that the production terminated.
         ///
-        /// After all buffered elements are consumed the next iteration point will return `nil`.
+        /// After all buffered elements are consumed the next iteration point will return `nil` or throw an error.
         ///
         /// Calling this function more than once has no effect. After calling finish, the stream enters a terminal state and doesn't accept
         /// new elements.
-        public func finish() {
-            self._backing.storage.finish(nil)
+        ///
+        /// - Parameters:
+        ///   - error: The error to throw, or `nil`, to finish normally.
+        public func finish(throwing error: Failure?) {
+            self._backing.storage.finish(error)
         }
     }
 }
 
-extension AsyncNonThrowingBackPressuredStream {
+extension MultiProducerSingleConsumerChannel {
     /// The asynchronous iterator for iterating an asynchronous stream.
     ///
     /// This type is not `Sendable`. Don't use it from multiple
@@ -380,9 +376,9 @@ extension AsyncNonThrowingBackPressuredStream {
     /// results in a call to `fatalError()`.
     public struct Iterator: AsyncIteratorProtocol {
         private class _Backing {
-            let storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>
+            let storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>
 
-            init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+            init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
                 self.storage = storage
                 self.storage.iteratorInitialized()
             }
@@ -394,7 +390,7 @@ extension AsyncNonThrowingBackPressuredStream {
 
         private let backing: _Backing
 
-        init(storage: _AsyncBackPressuredStreamBackPressuredStorage<Element, Never>) {
+        init(storage: _MultiProducerSingleConsumerChannelBackPressuredStorage<Element, Failure>) {
             self.backing = .init(storage: storage)
         }
 
@@ -411,8 +407,8 @@ extension AsyncNonThrowingBackPressuredStream {
         /// awaiting a value, the `AsyncThrowingStream` terminates. In this case,
         /// `next()` may return `nil` immediately, or else return `nil` on
         /// subsequent calls.
-        public mutating func next() async -> Element? {
-            try! await self.backing.storage.next()
+        public mutating func next() async throws -> Element? {
+            try await self.backing.storage.next()
         }
     }
 
@@ -423,7 +419,7 @@ extension AsyncNonThrowingBackPressuredStream {
     }
 }
 
-extension AsyncNonThrowingBackPressuredStream: Sendable where Element: Sendable {}
+extension MultiProducerSingleConsumerChannel: Sendable where Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncNonThrowingBackPressuredStream.Iterator: Sendable {}
+extension MultiProducerSingleConsumerChannel.Iterator: Sendable {}
