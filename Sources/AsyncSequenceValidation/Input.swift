@@ -52,7 +52,7 @@ extension AsyncSequenceValidationDiagram {
         }
         return try await withTaskCancellationHandler {
           try await withUnsafeThrowingContinuation { continuation in
-            queue.enqueue(Context.currentJob, deadline: when, continuation: continuation, results[eventIndex], index: index, token: token)
+            queue.enqueue(Context.state.withCriticalRegion(\.currentJob), deadline: when, continuation: continuation, results[eventIndex], index: index, token: token)
           }
         } onCancel: { [queue] in
           queue.cancel(token)
