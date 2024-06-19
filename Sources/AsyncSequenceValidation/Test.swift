@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import _CAsyncSequenceValidationSupport
+@preconcurrency import _CAsyncSequenceValidationSupport
 import AsyncAlgorithms
 
 @_silgen_name("swift_job_run")
@@ -48,17 +48,17 @@ extension AsyncSequenceValidationDiagram {
         do {
           if let pastEnd = try await iterator.next(){
             let failure = ExpectationFailure(
-              when: Context.clock!.now,
+              when: Context.state.withCriticalRegion(\.clock!.now),
               kind: .specificationViolationGotValueAfterIteration(pastEnd),
               specification: output)
-            Context.specificationFailures.append(failure)
+            Context.state.withCriticalRegion { $0.specificationFailures.append(failure) }
           }
         } catch {
           let failure = ExpectationFailure(
-            when: Context.clock!.now,
+            when: Context.state.withCriticalRegion(\.clock!.now),
             kind: .specificationViolationGotFailureAfterIteration(error),
             specification: output)
-          Context.specificationFailures.append(failure)
+          Context.state.withCriticalRegion { $0.specificationFailures.append(failure) }
         }
       } catch {
         throw error
@@ -107,7 +107,7 @@ extension AsyncSequenceValidationDiagram {
       }
     }
     
-    private static let _executor: AnyObject = {
+    private static let _executor: any SerialExecutor = {
       if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
         return ClockExecutor_5_9()
       } else {
@@ -116,19 +116,18 @@ extension AsyncSequenceValidationDiagram {
     }()
     
     static var unownedExecutor: UnownedSerialExecutor {
-      (_executor as! any SerialExecutor).asUnownedSerialExecutor()
+      _executor.asUnownedSerialExecutor()
     }
 #endif
 
-    static var clock: Clock?
-    
-    
-    
-    static var driver: TaskDriver?
-    
-    static var currentJob: Job?
-    
-    static var specificationFailures = [ExpectationFailure]()
+    static let state = ManagedCriticalState(State())
+
+    struct State {
+      var clock: Clock?
+      var driver: TaskDriver?
+      var currentJob: Job?
+      var specificationFailures = [ExpectationFailure]()
+    }
   }
   
   enum ActualResult {
@@ -158,9 +157,9 @@ extension AsyncSequenceValidationDiagram {
     actual: [(Clock.Instant, Result<String?, Error>)]
   ) -> (ExpectationResult, [ExpectationFailure]) {
     let result = ExpectationResult(expected: expected, actual: actual)
-    var failures = Context.specificationFailures
-    Context.specificationFailures.removeAll()
-    
+    var failures = Context.state.withCriticalRegion(\.specificationFailures)
+    Context.state.withCriticalRegion { $0.specificationFailures.removeAll() }
+
     let actualTimes = actual.map { when, _ in when }
     let expectedTimes = expected.map { $0.when }
     
@@ -349,55 +348,58 @@ extension AsyncSequenceValidationDiagram {
     }
 
     let actual = ManagedCriticalState([(Clock.Instant, Result<String?, Error>)]())
-    Context.clock = clock
-    Context.specificationFailures.removeAll()
-    // This all needs to be isolated from potential Tasks (the caller function might be async!)
-    Context.driver = TaskDriver(queue: diagram.queue) { driver in
-      swift_task_enqueueGlobal_hook = { job, original in
-        Context.driver?.enqueue(job)
-      }
-      
-      let runner = Task {
-        do {
-          try await test.test(with: clock, activeTicks: activeTicks, output: test.output) { event in
+    Context.state.withCriticalRegion { state in
+      state.clock = clock
+      state.specificationFailures.removeAll()
+      // This all needs to be isolated from potential Tasks (the caller function might be async!)
+      state.driver = TaskDriver(queue: diagram.queue) { driver in
+        swift_task_enqueueGlobal_hook = { job, original in
+          Context.state.withCriticalRegion(\.driver)?.enqueue(job)
+        }
+
+        let runner = Task {
+          do {
+            try await test.test(with: clock, activeTicks: activeTicks, output: test.output) { event in
+              actual.withCriticalRegion { values in
+                values.append((clock.now, .success(event)))
+              }
+            }
             actual.withCriticalRegion { values in
-              values.append((clock.now, .success(event)))
+              values.append((clock.now, .success(nil)))
+            }
+          } catch {
+            actual.withCriticalRegion { values in
+              values.append((clock.now, .failure(error)))
             }
           }
-          actual.withCriticalRegion { values in
-            values.append((clock.now, .success(nil)))
-          }
-        } catch {
-          actual.withCriticalRegion { values in
-            values.append((clock.now, .failure(error)))
-          }
         }
-      }
-      
-      // Drain off any initial work. Work may spawn additional work to be done.
-      // If the driver ever becomes blocked on the clock, exit early out of that
-      // drain, because the drain cant make any forward progress if it is blocked
-      // by a needed clock advancement.
-      diagram.queue.drain()
-      // Next make sure to iterate a decent amount past the end of the maximum
-      // scheduled things (that way we ensure any reasonable errors are caught)
-      for _ in 0..<(end.when.rawValue * 2) {
-        if cancelEvents.contains(diagram.queue.now.advanced(by: .steps(1))) {
-          runner.cancel()
+
+        // Drain off any initial work. Work may spawn additional work to be done.
+        // If the driver ever becomes blocked on the clock, exit early out of that
+        // drain, because the drain cant make any forward progress if it is blocked
+        // by a needed clock advancement.
+        diagram.queue.drain()
+        // Next make sure to iterate a decent amount past the end of the maximum
+        // scheduled things (that way we ensure any reasonable errors are caught)
+        for _ in 0..<(end.when.rawValue * 2) {
+          if cancelEvents.contains(diagram.queue.now.advanced(by: .steps(1))) {
+            runner.cancel()
+          }
+          diagram.queue.advance()
         }
-        diagram.queue.advance()
+
+        runner.cancel()
+        Context.state.withCriticalRegion { $0.clock = nil }
+        swift_task_enqueueGlobal_hook = nil
       }
-      
-      runner.cancel()
-      Context.clock = nil
-      swift_task_enqueueGlobal_hook = nil
     }
-    Context.driver?.start()
+    let driver = Context.state.withCriticalRegion(\.driver)
+    driver?.start()
     // This is only valid since we are doing tests here
     // else wise this would cause QoS inversions
-    Context.driver?.join()
-    Context.driver = nil
-    
+    driver?.join()
+    Context.state.withCriticalRegion { $0.driver = nil }
+
     return validate(
       inputs: test.inputs,
       output: test.output,

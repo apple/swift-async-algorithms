@@ -24,7 +24,7 @@ extension XCTestCase {
 #endif
   }
   
-  func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #filePath, line: UInt = #line) {
     var expectations = expectedFailures
     var result: AsyncSequenceValidationDiagram.ExpectationResult?
     var failures = [AsyncSequenceValidationDiagram.ExpectationFailure]()
@@ -62,15 +62,15 @@ extension XCTestCase {
     }
   }
   
-  func validate<Test: AsyncSequenceValidationTest>(expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  func validate<Test: AsyncSequenceValidationTest>(expectedFailures: Set<String>, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #filePath, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: expectedFailures, build, file: file, line: line)
   }
   
-  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(theme: Theme, @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #filePath, line: UInt = #line) {
     validate(theme: theme, expectedFailures: [], build, file: file, line: line)
   }
   
-  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #file, line: UInt = #line) {
+  public func validate<Test: AsyncSequenceValidationTest>(@AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test, file: StaticString = #filePath, line: UInt = #line) {
     validate(theme: .ascii, expectedFailures: [], build, file: file, line: line)
   }
 }

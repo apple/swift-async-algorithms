@@ -19,22 +19,8 @@ import Glibc
 #error("TODO: Port TaskDriver threading to windows")
 #endif
 
-#if canImport(Darwin)
-func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-  Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
-  return nil
-}
-#elseif canImport(Glibc)
-func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
-  Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
-  return nil
-}
-#elseif canImport(WinSDK)
-#error("TODO: Port TaskDriver threading to windows")
-#endif
-
-final class TaskDriver {
-  let work: (TaskDriver) -> Void
+final class TaskDriver: @unchecked Sendable {
+  let work: @Sendable (TaskDriver) -> Void
   let queue: WorkQueue
 #if canImport(Darwin)
   var thread: pthread_t?
@@ -43,19 +29,37 @@ final class TaskDriver {
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
 #endif
-  
-  init(queue: WorkQueue, _ work: @escaping (TaskDriver) -> Void) {
+
+  private let lock = Lock.allocate()
+
+  init(queue: WorkQueue, _ work: @Sendable @escaping (TaskDriver) -> Void) {
     self.queue = queue
     self.work = work
   }
   
   func start() {
-#if canImport(Darwin) || canImport(Glibc)
-    pthread_create(&thread, nil, start_thread,
-      Unmanaged.passRetained(self).toOpaque())
+#if canImport(Darwin)
+    func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
+      Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
+      return nil
+    }
+#elseif canImport(Glibc)
+    func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+      Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
+      return nil
+    }
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
 #endif
+
+    lock.withLockVoid {
+#if canImport(Darwin) || canImport(Glibc)
+      pthread_create(&thread, nil, start_thread,
+                     Unmanaged.passRetained(self).toOpaque())
+#elseif canImport(WinSDK)
+#error("TODO: Port TaskDriver threading to windows")
+#endif
+    }
   }
   
   func run() {
@@ -77,11 +81,11 @@ final class TaskDriver {
   
   func enqueue(_ job: JobRef) {
     let job = Job(job)
-    queue.enqueue(AsyncSequenceValidationDiagram.Context.currentJob) {
-      let previous = AsyncSequenceValidationDiagram.Context.currentJob
-      AsyncSequenceValidationDiagram.Context.currentJob = job
+    queue.enqueue(AsyncSequenceValidationDiagram.Context.state.withCriticalRegion(\.currentJob)) {
+      let previous = AsyncSequenceValidationDiagram.Context.state.withCriticalRegion(\.currentJob)
+      AsyncSequenceValidationDiagram.Context.state.withCriticalRegion { $0.currentJob = job }
       job.execute()
-      AsyncSequenceValidationDiagram.Context.currentJob = previous
+      AsyncSequenceValidationDiagram.Context.state.withCriticalRegion { $0.currentJob = previous }
     }
   }
 }
