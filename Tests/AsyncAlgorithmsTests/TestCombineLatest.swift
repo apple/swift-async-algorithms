@@ -394,3 +394,87 @@ final class TestCombineLatest3: XCTestCase {
     XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5), (3, "b", 5), (3, "c", 5), (3, "c", 6)])
   }
 }
+
+@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+final class TestCombineLatestMultiple: XCTestCase {
+
+    func test_CorrectOrdering() async throws {
+        let s1 = AsyncStream {
+            $0.yield(1)
+            $0.finish()
+        }
+
+        let s2 = AsyncStream { continuation in
+            Task {
+                continuation.yield(2)
+                try? await Task.sleep(nanoseconds: 20_000_000)
+                continuation.yield(5)
+                continuation.finish()
+            }
+        }
+
+        let s3 = AsyncStream { continuation in
+            Task {
+                continuation.yield(3)
+                try? await Task.sleep(nanoseconds: 10_000_000)
+                continuation.yield(4)
+                continuation.finish()
+            }
+        }
+
+        let s4 = AsyncStream {
+            $0.yield(0)
+            $0.finish()
+        }
+
+        let expectedResult = [
+            [1, 2, 3, 0],
+            [1, 2, 4, 0],
+            [1, 5, 4, 0]
+        ]
+        var expectedResultIterator = expectedResult.makeIterator()
+
+        for try await result in combineLatest(s1, s2, s3, s4) {
+            XCTAssertEqual(result, expectedResultIterator.next())
+        }
+    }
+
+    func test_EarlyReturn() async throws {
+        let s1 = AsyncStream {
+            $0.yield(1)
+            $0.finish()
+        }
+
+        let s2 = AsyncStream<Int> {
+            $0.finish()
+        }
+
+        for try await _ in combineLatest(s1, s2, s1, s1) {
+            XCTFail("`combineLatest` shouldn't return any value as s2 never emits any value.")
+        }
+    }
+
+    func test_ThrowingPropagation() async throws {
+        let s1 = AsyncThrowingStream<Int, Error> {
+            $0.yield(1)
+            $0.finish()
+        }
+
+        let s2 = AsyncThrowingStream<Int, Error> {
+            $0.finish(throwing: Some.error)
+        }
+
+        do {
+            for try await _ in combineLatest(s1, s2, s1, s1) {
+                XCTFail("Expects error to be thrown")
+            }
+        } catch {
+            let error = try XCTUnwrap(error as? Some)
+            XCTAssertEqual(error, .error)
+        }
+    }
+
+    private enum Some: Error {
+        case error
+    }
+}
