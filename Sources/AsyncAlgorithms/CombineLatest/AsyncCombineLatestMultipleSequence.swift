@@ -10,8 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import os
-
 /// Creates an asynchronous sequence that combines the latest values from multiple ``AsyncSequence`` with the same element type
 /// by emitting an array of the values.
 ///
