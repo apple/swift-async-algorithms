@@ -23,7 +23,6 @@ import os
 /// - Throws: It throws when one of the bases throws.
 ///
 /// - Note: This function requires the return type to be the same for all ``AsyncSequence``.
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ sequences: [Sequence]) -> AsyncThrowingStream<[ElementOfResult], Error> where Sequence.Element == ElementOfResult, Sequence: Sendable {
     AsyncCombineLatestMultipleSequence(sequences: sequences).stream
 }
@@ -39,49 +38,30 @@ public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ 
 /// - Throws: It throws when one of the bases throws.
 ///
 /// - Note: This function requires the return type to be the same for all ``AsyncSequence``.
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ sequences: Sequence...) -> AsyncThrowingStream<[ElementOfResult], Error> where Sequence.Element == ElementOfResult, Sequence: Sendable {
     AsyncCombineLatestMultipleSequence(sequences: sequences).stream
 }
 
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
-fileprivate final class AsyncCombineLatestMultipleSequence<Sequence: AsyncSequence, ElementOfResult: Sendable>: @unchecked Sendable where Sequence.Element == ElementOfResult, Sequence: Sendable {
+fileprivate final class AsyncCombineLatestMultipleSequence<Sequence: AsyncSequence, ElementOfResult: Sendable>: Sendable where Sequence.Element == ElementOfResult, Sequence: Sendable {
 
     private let sequences: [Sequence]
+    private let results: ManagedCriticalState<[State]>
+    private let continuation: AsyncThrowingStream<[ElementOfResult], Error>.Continuation
 
-    private var results: OSAllocatedUnfairLock<[State]>
-    private var task: Task<Void, Never>?
-    private var continuation: AsyncThrowingStream<[ElementOfResult], Error>.Continuation?
-
-    fileprivate lazy var stream: AsyncThrowingStream<[ElementOfResult], Error> = {
-        let stream = AsyncThrowingStream { continuation in
-            self.continuation = continuation
-            continuation.onTermination = { [weak self] _ in
-                self?.task?.cancel()
-            }
-        }
-        startTasks()
-        return stream
-    }()
+    fileprivate let stream: AsyncThrowingStream<[ElementOfResult], Error>
 
     fileprivate init(sequences: [Sequence]) {
         self.sequences = sequences
-        self.results = OSAllocatedUnfairLock(
-            initialState: Array(
+        self.results = .init(
+            Array(
                 repeating: State.initial,
                 count: sequences.count
             )
         )
-    }
-}
 
-// MARK: - Private helpers
+        (self.stream, self.continuation) = AsyncThrowingStream<[ElementOfResult], Error>.makeStream()
 
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
-private extension AsyncCombineLatestMultipleSequence {
-
-    func startTasks() {
-        task = Task {
+        let task = Task {
             await withTaskGroup(of: Void.self) { group in
                 for (index, sequence) in sequences.enumerated() {
                     group.addTask {
@@ -99,10 +79,19 @@ private extension AsyncCombineLatestMultipleSequence {
                 }
             }
         }
+
+        continuation.onTermination = { _ in
+            task.cancel()
+        }
     }
+}
+
+// MARK: - Private helpers
+
+private extension AsyncCombineLatestMultipleSequence {
 
     func set(state: State, at index: Int) {
-        results.withLock { array in
+        results.withCriticalRegion { array in
             array[index] = state
 
             var allFinished = true
@@ -120,7 +109,7 @@ private extension AsyncCombineLatestMultipleSequence {
                         allFinished = false
 
                     case .failed(let error):
-                        continuation?.finish(throwing: error)
+                        continuation.finish(throwing: error)
                         return
 
                     case .finished(let lastKnownValue):
@@ -130,16 +119,16 @@ private extension AsyncCombineLatestMultipleSequence {
                             // If `lastKnownValue` is nil,
                             // that means the async sequence finished before emitting any value.
                             // And we'll never be able to complete the entire array.
-                            continuation?.finish()
+                            continuation.finish()
                             return
                         }
                 }
             }
 
             if allFinished {
-                continuation?.finish()
+                continuation.finish()
             } else if case .succeeded = state {
-                continuation?.yield(latestResults)
+                continuation.yield(latestResults)
             }
         }
     }
@@ -147,7 +136,6 @@ private extension AsyncCombineLatestMultipleSequence {
 
 // MARK: - Type definitions
 
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 private extension AsyncCombineLatestMultipleSequence {
 
     enum State {
