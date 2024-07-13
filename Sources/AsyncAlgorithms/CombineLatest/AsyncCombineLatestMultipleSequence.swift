@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// MARK: - Public interface
+
 /// Creates an asynchronous sequence that combines the latest values from multiple ``AsyncSequence`` with the same element type
 /// by emitting an array of the values.
 ///
@@ -39,6 +41,8 @@ public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ 
 public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ sequences: Sequence...) -> AsyncThrowingStream<[ElementOfResult], Error> where Sequence.Element == ElementOfResult, Sequence: Sendable {
     AsyncCombineLatestMultipleSequence(sequences: sequences).stream
 }
+
+// MARK: - Private helpers
 
 fileprivate final class AsyncCombineLatestMultipleSequence<Sequence: AsyncSequence, ElementOfResult: Sendable>: Sendable where Sequence.Element == ElementOfResult, Sequence: Sendable {
 
@@ -81,8 +85,6 @@ fileprivate final class AsyncCombineLatestMultipleSequence<Sequence: AsyncSequen
         }
     }
 }
-
-// MARK: - Private helpers
 
 private extension AsyncCombineLatestMultipleSequence {
 
