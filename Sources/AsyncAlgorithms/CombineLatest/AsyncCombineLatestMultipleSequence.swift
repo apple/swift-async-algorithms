@@ -42,14 +42,12 @@ public func combineLatest<Sequence: AsyncSequence, ElementOfResult: Sendable>(_ 
 
 fileprivate final class AsyncCombineLatestMultipleSequence<Sequence: AsyncSequence, ElementOfResult: Sendable>: Sendable where Sequence.Element == ElementOfResult, Sequence: Sendable {
 
-    private let sequences: [Sequence]
     private let results: ManagedCriticalState<[State]>
     private let continuation: AsyncThrowingStream<[ElementOfResult], Error>.Continuation
 
     fileprivate let stream: AsyncThrowingStream<[ElementOfResult], Error>
 
     fileprivate init(sequences: [Sequence]) {
-        self.sequences = sequences
         self.results = .init(
             Array(
                 repeating: State.initial,
