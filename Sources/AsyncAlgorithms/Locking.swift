@@ -29,7 +29,7 @@ internal struct Lock {
 #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
 #else
-  typealias Primitive = Int
+  #error("Unsupported platform")
 #endif
   
   typealias PlatformLock = UnsafeMutablePointer<Primitive>
@@ -47,6 +47,8 @@ internal struct Lock {
     precondition(result == 0, "pthread_mutex_init failed")
 #elseif canImport(WinSDK)
     InitializeSRWLock(platformLock)
+#else
+    #error("Unsupported platform")
 #endif
   }
   
@@ -65,6 +67,8 @@ internal struct Lock {
     pthread_mutex_lock(platformLock)
 #elseif canImport(WinSDK)
     AcquireSRWLockExclusive(platformLock)
+#else
+    #error("Unsupported platform")
 #endif
   }
   
@@ -76,6 +80,8 @@ internal struct Lock {
     precondition(result == 0, "pthread_mutex_unlock failed")
 #elseif canImport(WinSDK)
     ReleaseSRWLockExclusive(platformLock)
+#else
+    #error("Unsupported platform")
 #endif
   }
 
