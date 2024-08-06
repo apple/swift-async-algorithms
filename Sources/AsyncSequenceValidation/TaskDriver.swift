@@ -17,6 +17,8 @@ import Darwin
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(Bionic)
+import Bionic
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
 #else
@@ -28,10 +30,15 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return nil
 }
-#elseif canImport(Glibc) || canImport(Musl)
+#elseif (canImport(Glibc) && !os(Android)) || canImport(Musl)
 func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
   return nil
+}
+#elseif os(Android)
+func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+  Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
+  return UnsafeMutableRawPointer(bitPattern: 0xdeadbee)!
 }
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
@@ -42,7 +49,7 @@ final class TaskDriver {
   let queue: WorkQueue
 #if canImport(Darwin)
   var thread: pthread_t?
-#elseif canImport(Glibc) || canImport(Musl)
+#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   var thread = pthread_t()
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
@@ -54,7 +61,7 @@ final class TaskDriver {
   }
   
   func start() {
-#if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     pthread_create(&thread, nil, start_thread,
       Unmanaged.passRetained(self).toOpaque())
 #elseif canImport(WinSDK)
@@ -72,7 +79,7 @@ final class TaskDriver {
   func join() {
 #if canImport(Darwin)
     pthread_join(thread!, nil)
-#elseif canImport(Glibc) || canImport(Musl)
+#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     pthread_join(thread, nil)
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
