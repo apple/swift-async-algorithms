@@ -134,7 +134,7 @@ struct ManagedCriticalState<State> {
     }
   }
   
-  private let buffer: ManagedBuffer<State, Lock.Primitive>
+  private var buffer: ManagedBuffer<State, Lock.Primitive>
   
   init(_ initial: State) {
     buffer = LockedBuffer.create(minimumCapacity: 1) { buffer in
@@ -149,6 +149,10 @@ struct ManagedCriticalState<State> {
       defer { Lock.unlock(lock) }
       return try critical(&header.pointee)
     }
+  }
+  
+  mutating func isKnownUniquelyReferenced() -> Bool {
+    Swift.isKnownUniquelyReferenced(&buffer)
   }
 }
 
