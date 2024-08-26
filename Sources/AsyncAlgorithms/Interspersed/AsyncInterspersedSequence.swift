@@ -157,7 +157,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
 
     @usableFromInline
     internal init(_ base: Base, every: Int, separator: Element) {
-        precondition(every > 0, "Separators can only be interspersed ever 1+ elements")
+        precondition(every > 0, "Separators can only be interspersed every 1+ elements")
         self.base = base
         self.separator = .element(separator)
         self.every = every
@@ -165,7 +165,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
 
     @usableFromInline
     internal init(_ base: Base, every: Int, separator: @Sendable @escaping () -> Element) {
-        precondition(every > 0, "Separators can only be interspersed ever 1+ elements")
+        precondition(every > 0, "Separators can only be interspersed every 1+ elements")
         self.base = base
         self.separator = .syncClosure(separator)
         self.every = every
@@ -173,7 +173,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
 
     @usableFromInline
     internal init(_ base: Base, every: Int, separator: @Sendable @escaping () async -> Element) {
-        precondition(every > 0, "Separators can only be interspersed ever 1+ elements")
+        precondition(every > 0, "Separators can only be interspersed every 1+ elements")
         self.base = base
         self.separator = .asyncClosure(separator)
         self.every = every
@@ -310,7 +310,7 @@ public struct AsyncThrowingInterspersedSequence<Base: AsyncSequence> {
 
     @usableFromInline
     internal init(_ base: Base, every: Int, separator: @Sendable @escaping () throws -> Element) {
-        precondition(every > 0, "Separators can only be interspersed ever 1+ elements")
+        precondition(every > 0, "Separators can only be interspersed every 1+ elements")
         self.base = base
         self.separator = .syncClosure(separator)
         self.every = every
@@ -318,7 +318,7 @@ public struct AsyncThrowingInterspersedSequence<Base: AsyncSequence> {
 
     @usableFromInline
     internal init(_ base: Base, every: Int, separator: @Sendable @escaping () async throws -> Element) {
-        precondition(every > 0, "Separators can only be interspersed ever 1+ elements")
+        precondition(every > 0, "Separators can only be interspersed every 1+ elements")
         self.base = base
         self.separator = .asyncClosure(separator)
         self.every = every
