@@ -13,7 +13,7 @@
 
 ## Introduction
 
-Similar to the `zip` algorithm there is a need to combine the latest values from multiple input asynchronous sequences. Since `AsyncSequence` augments the concept of sequence with the characteristic of time it means that the composition of elements may not just be pairwise emissions but instead be temporal composition. This means that it is useful to emit a new tuple _when_ a value is produced. The `combineLatest` algorithm provides precicely that.
+Similar to the `zip` algorithm there is a need to combine the latest values from multiple input asynchronous sequences. Since `AsyncSequence` augments the concept of sequence with the characteristic of time it means that the composition of elements may not just be pairwise emissions but instead be temporal composition. This means that it is useful to emit a new tuple _when_ a value is produced. The `combineLatest` algorithm provides precisely that.
 
 ## Detailed Design
 
