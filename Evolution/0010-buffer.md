@@ -28,7 +28,7 @@ By applying the buffer operator to the previous example, the file can be read as
 
 ## Proposed Solution
 
-We propose to extend `AsyncSequence` with a `buffer()` operator. This operator will return an `AsyncBuffereSequence` that wraps the source `AsyncSequence` and handle the buffering mechanism.
+We propose to extend `AsyncSequence` with a `buffer()` operator. This operator will return an `AsyncBufferSequence` that wraps the source `AsyncSequence` and handle the buffering mechanism.
 
 This operator will accept an `AsyncBufferSequencePolicy`. The policy will dictate the behaviour in case of a buffer overflow.
 
@@ -43,7 +43,7 @@ public struct AsyncBufferSequencePolicy: Sendable {
 }
 ``` 
 
-And the public API of `AsyncBuffereSequence` will be:
+And the public API of `AsyncBufferSequence` will be:
 
 ```swift
 extension AsyncSequence where Self: Sendable {

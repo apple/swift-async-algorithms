@@ -18,7 +18,7 @@
 
 ## Introduction
 
-When events can potentially happen faster than the desired consumption rate, there are multiple ways to handle the situation. One approach is to only emit values after a given period of time of inactivity, or "quiescence", has elapsed. This algorithm is commonly referred to as debouncing. A very close reelativee is an apporach to emit values after a given period has elapsed. These emitted values can be reduced from the values encountered during the waiting period. This algorithm is commonly referred to as throttling. 
+When events can potentially happen faster than the desired consumption rate, there are multiple ways to handle the situation. One approach is to only emit values after a given period of time of inactivity, or "quiescence", has elapsed. This algorithm is commonly referred to as debouncing. A very close relative is an approach to emit values after a given period has elapsed. These emitted values can be reduced from the values encountered during the waiting period. This algorithm is commonly referred to as throttling. 
 
 ## Proposed Solution
 
