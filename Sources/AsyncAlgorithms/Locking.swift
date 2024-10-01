@@ -95,6 +95,7 @@ internal struct Lock {
 
   func deinitialize() {
     Lock.deinitialize(platformLock)
+    platformLock.deallocate()
   }
 
   func lock() {
