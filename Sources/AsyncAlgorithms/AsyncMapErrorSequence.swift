@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public extension AsyncSequence {
+extension AsyncSequence {
 
     /// Converts any failure into a new error.
     ///
@@ -18,13 +18,13 @@ public extension AsyncSequence {
     /// - Returns: An asynchronous sequence that maps the error thrown into the one produced by the transform closure.
     ///
     /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
-    func mapError<ErrorType>(transform: @Sendable @escaping (Error) -> ErrorType) -> AsyncMapErrorSequence<Self, ErrorType> {
+    public func mapError<ErrorType>(transform: @Sendable @escaping (Error) -> ErrorType) -> AsyncMapErrorSequence<Self, ErrorType> {
         .init(base: self, transform: transform)
     }
 }
 
 /// An asynchronous sequence that converts any failure into a new error.
-public struct AsyncMapErrorSequence<Base: AsyncSequence, ErrorType: Error>: AsyncSequence, Sendable where Base: Sendable {
+public struct AsyncMapErrorSequence<Base: AsyncSequence, ErrorType: Error>: AsyncSequence {
 
     public typealias AsyncIterator = Iterator
     public typealias Element = Base.Element
@@ -48,10 +48,10 @@ public struct AsyncMapErrorSequence<Base: AsyncSequence, ErrorType: Error>: Asyn
     }
 }
 
-public extension AsyncMapErrorSequence {
+extension AsyncMapErrorSequence {
     
     /// The iterator that produces elements of the map sequence.
-    struct Iterator: AsyncIteratorProtocol {
+    public struct Iterator: AsyncIteratorProtocol {
 
         public typealias Element = Base.Element
 
@@ -59,7 +59,7 @@ public extension AsyncMapErrorSequence {
 
         private let transform: @Sendable (Error) -> ErrorType
 
-        public init(
+        init(
             base: Base.AsyncIterator,
             transform: @Sendable @escaping (Error) -> ErrorType
         ) {
@@ -67,6 +67,24 @@ public extension AsyncMapErrorSequence {
             self.transform = transform
         }
 
+#if compiler(>=6.0)
+        public mutating func next() async throws(ErrorType) -> Element? {
+            do {
+                return try await base.next()
+            } catch {
+                throw transform(error)
+            }
+        }
+
+        @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+        public mutating func next(isolation actor: isolated (any Actor)?) async throws(ErrorType) -> Element? {
+            do {
+                return try await base.next(isolation: actor)
+            } catch {
+                throw transform(error)
+            }
+        }
+#else
         public mutating func next() async throws -> Element? {
             do {
                 return try await base.next()
@@ -74,5 +92,8 @@ public extension AsyncMapErrorSequence {
                 throw transform(error)
             }
         }
+#endif
     }
 }
+
+extension AsyncMapErrorSequence: Sendable where Base: Sendable, Base.Element: Sendable {}

@@ -16,7 +16,13 @@ final class TestMapError: XCTestCase {
                 XCTFail("sequence should throw")
             }
         } catch {
-            _ = try XCTUnwrap(error as? MyAwesomeError)
+#if compiler(>=6.0)
+            // NO-OP
+            // The compiler already checks that for us since we're using typed throws.
+            // Writing that assert will just give compiler warning.
+#else
+            XCTAssert(error is MyAwesomeError)
+#endif
         }
     }
 
