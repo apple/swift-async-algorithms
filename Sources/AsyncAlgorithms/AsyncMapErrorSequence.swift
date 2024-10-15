@@ -18,7 +18,7 @@ extension AsyncSequence {
     /// - Returns: An asynchronous sequence that maps the error thrown into the one produced by the transform closure.
     ///
     /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
-    public func mapError<ErrorType>(transform: @Sendable @escaping (Error) -> ErrorType) -> AsyncMapErrorSequence<Self, ErrorType> {
+    public func mapError<ErrorType: Error>(transform: @Sendable @escaping (any Error) -> ErrorType) -> AsyncMapErrorSequence<Self, ErrorType> {
         .init(base: self, transform: transform)
     }
 }
@@ -30,11 +30,11 @@ public struct AsyncMapErrorSequence<Base: AsyncSequence, ErrorType: Error>: Asyn
     public typealias Element = Base.Element
 
     private let base: Base
-    private let transform: @Sendable (Error) -> ErrorType
+    private let transform: @Sendable (any Error) -> ErrorType
 
     init(
         base: Base,
-        transform: @Sendable @escaping (Error) -> ErrorType
+        transform: @Sendable @escaping (any Error) -> ErrorType
     ) {
         self.base = base
         self.transform = transform
@@ -57,11 +57,11 @@ extension AsyncMapErrorSequence {
 
         private var base: Base.AsyncIterator
 
-        private let transform: @Sendable (Error) -> ErrorType
+        private let transform: @Sendable (any Error) -> ErrorType
 
         init(
             base: Base.AsyncIterator,
-            transform: @Sendable @escaping (Error) -> ErrorType
+            transform: @Sendable @escaping (any Error) -> ErrorType
         ) {
             self.base = base
             self.transform = transform
