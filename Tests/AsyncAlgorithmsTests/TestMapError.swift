@@ -3,6 +3,31 @@ import XCTest
 
 final class TestMapError: XCTestCase {
 
+    func test_mapAnyError() async throws {
+        let array = [URLError(.badURL)]
+        let sequence = array.async
+            .map { throw $0 }
+            .mapAnyError { _ in
+                MyAwesomeError()
+            }
+
+        do {
+            for try await _ in sequence {
+                XCTFail("sequence should throw")
+            }
+        } catch {
+#if compiler(>=6.0)
+            // NO-OP
+            // The compiler already checks that for us since we're using typed throws.
+            // Writing that assert will just give compiler warning.
+            error.hoorayTypedThrows()
+#else
+            XCTAssert(error is MyAwesomeError)
+#endif
+        }
+    }
+
+    @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
     func test_mapError() async throws {
         let array = [URLError(.badURL)]
         let sequence = array.async
@@ -16,20 +41,14 @@ final class TestMapError: XCTestCase {
                 XCTFail("sequence should throw")
             }
         } catch {
-#if compiler(>=6.0)
-            // NO-OP
-            // The compiler already checks that for us since we're using typed throws.
-            // Writing that assert will just give compiler warning.
-#else
-            XCTAssert(error is MyAwesomeError)
-#endif
+            error.hoorayTypedThrows()
         }
     }
 
-    func test_nonThrowing() async throws {
+    func test_mapAnyError_nonThrowing() async throws {
         let array = [1, 2, 3, 4, 5]
         let sequence = array.async
-            .mapError { _ in
+            .mapAnyError { _ in
                 MyAwesomeError()
             }
 
@@ -40,9 +59,9 @@ final class TestMapError: XCTestCase {
         XCTAssertEqual(array, actual)
     }
 
-    func test_cancellation() async throws {
+    func test_mapAnyError_cancellation() async throws {
         let source = Indefinite(value: "test").async
-        let sequence = source.mapError { _ in MyAwesomeError() }
+        let sequence = source.mapAnyError { _ in MyAwesomeError() }
 
         let finished = expectation(description: "finished")
         let iterated = expectation(description: "iterated")
@@ -68,10 +87,10 @@ final class TestMapError: XCTestCase {
         await fulfillment(of: [finished], timeout: 1.0)
     }
 
-    func test_empty() async throws {
+    func test_mapAnyError_empty() async throws {
         let array: [Int] = []
         let sequence = array.async
-            .mapError { _ in
+            .mapAnyError { _ in
                 MyAwesomeError()
             }
 
@@ -85,5 +104,8 @@ final class TestMapError: XCTestCase {
 
 private extension TestMapError {
 
-    struct MyAwesomeError: Error {}
+    struct MyAwesomeError: Error {
+
+        func hoorayTypedThrows() {}
+    }
 }
