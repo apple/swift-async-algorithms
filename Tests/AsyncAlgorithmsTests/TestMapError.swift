@@ -3,11 +3,11 @@ import XCTest
 
 final class TestMapError: XCTestCase {
 
-    func test_mapAnyError() async throws {
+    func test_mapError() async throws {
         let array = [URLError(.badURL)]
         let sequence = array.async
             .map { throw $0 }
-            .mapAnyError { _ in
+            .mapError { _ in
                 MyAwesomeError()
             }
 
@@ -28,11 +28,11 @@ final class TestMapError: XCTestCase {
     }
 
     @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-    func test_mapError() async throws {
+    func test_mapFailure() async throws {
         let array = [URLError(.badURL)]
         let sequence = array.async
             .map { throw $0 }
-            .mapError { _ in
+            .mapFailure { _ in
                 MyAwesomeError()
             }
 
@@ -45,10 +45,10 @@ final class TestMapError: XCTestCase {
         }
     }
 
-    func test_mapAnyError_nonThrowing() async throws {
+    func test_mapError_nonThrowing() async throws {
         let array = [1, 2, 3, 4, 5]
         let sequence = array.async
-            .mapAnyError { _ in
+            .mapError { _ in
                 MyAwesomeError()
             }
 
@@ -59,9 +59,9 @@ final class TestMapError: XCTestCase {
         XCTAssertEqual(array, actual)
     }
 
-    func test_mapAnyError_cancellation() async throws {
+    func test_mapError_cancellation() async throws {
         let source = Indefinite(value: "test").async
-        let sequence = source.mapAnyError { _ in MyAwesomeError() }
+        let sequence = source.mapError { _ in MyAwesomeError() }
 
         let finished = expectation(description: "finished")
         let iterated = expectation(description: "iterated")
@@ -87,10 +87,10 @@ final class TestMapError: XCTestCase {
         await fulfillment(of: [finished], timeout: 1.0)
     }
 
-    func test_mapAnyError_empty() async throws {
+    func test_mapError_empty() async throws {
         let array: [Int] = []
         let sequence = array.async
-            .mapAnyError { _ in
+            .mapError { _ in
                 MyAwesomeError()
             }
 
