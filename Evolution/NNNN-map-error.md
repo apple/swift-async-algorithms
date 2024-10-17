@@ -1,6 +1,6 @@
 # Map Error
 
-* Proposal: [NNNN](NNNN-map-error.md)
+* Proposal: [SAA-NNNN](NNNN-map-error.md)
 * Authors: [Clive Liu](https://github.com/clive819)
 * Review Manager: TBD
 * Status: **Awaiting review**
@@ -62,7 +62,7 @@ As to the naming `mapError` versus `mapAnyError`, this is the trade off we have 
 
 This function returns a concrete type instead of `some AsyncSequence` because using an opaque type would render typed throws feature ineffective by erasing the type, thereby preventing the compiler from ensuring that the returned sequence matches our intended new type. The benefits of using typed throws for this specific case outweigh the exposure of the internal types.
 
-```
+```swift
 /// An asynchronous sequence that converts any failure into a new error.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 public struct AsyncMapErrorSequence<Base: AsyncSequence, ErrorType: Error>: AsyncSequence {
