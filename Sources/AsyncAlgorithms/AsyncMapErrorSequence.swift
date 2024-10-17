@@ -90,7 +90,6 @@ extension AsyncMapErrorSequence {
             self.transform = transform
         }
 
-
         public mutating func next() async throws(ErrorType) -> Element? {
             do {
                 return try await base.next(isolation: nil)
