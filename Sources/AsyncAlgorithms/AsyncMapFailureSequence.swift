@@ -84,11 +84,7 @@ extension AsyncMapFailureSequence {
         }
 
         mutating func next() async throws(MappedFailure) -> Element? {
-            do {
-                return try await base.next(isolation: nil)
-            } catch {
-                throw transform(error)
-            }
+            try await self.next(isolation: nil)
         }
 
         mutating func next(isolation actor: isolated (any Actor)?) async throws(MappedFailure) -> Element? {
