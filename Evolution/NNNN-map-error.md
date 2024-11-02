@@ -1,6 +1,6 @@
-# Map Failure
+# Map Error
 
-* Proposal: [SAA-NNNN](NNNN-map-failure.md)
+* Proposal: [SAA-NNNN](NNNN-map-error.md)
 * Authors: [Clive Liu](https://github.com/clive819)
 * Review Manager: TBD
 * Status: **Awaiting review**
@@ -13,13 +13,13 @@
 
 ## Introduction
 
-The `mapFailure` function empowers developers to elegantly transform errors within asynchronous sequences, enhancing code readability and maintainability.
+The `mapError` function empowers developers to elegantly transform errors within asynchronous sequences, enhancing code readability and maintainability.
 
 ```swift
 extension AsyncSequence {
 
-    public func mapFailure<MappedFailure: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedFailure) -> some AsyncSequence<Self.Element, MappedFailure> {
-        AsyncMapFailureSequence(base: self, transform: transform)
+    public func mapError<MappedFailure: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedFailure) -> some AsyncSequence<Self.Element, MappedFailure> {
+        AsyncMapErrorSequence(base: self, transform: transform)
     }
 }
 ```
@@ -29,7 +29,7 @@ extension AsyncSequence {
 The function iterates through the elements of an `AsyncSequence` within a do-catch block. If an error is caught, it calls the `transform` closure to convert the error into a new type and then throws it.
 
 ```swift
-struct AsyncMapFailureSequence<Base: AsyncSequence, MappedFailure: Error>: AsyncSequence {
+struct AsyncMapErrorSequence<Base: AsyncSequence, MappedFailure: Error>: AsyncSequence {
 
     ...
 
@@ -41,7 +41,7 @@ struct AsyncMapFailureSequence<Base: AsyncSequence, MappedFailure: Error>: Async
     }
 }
 
-extension AsyncMapFailureSequence {
+extension AsyncMapErrorSequence {
 
     struct Iterator: AsyncIteratorProtocol {
 
@@ -77,9 +77,9 @@ extension AsyncMapFailureSequence {
     }
 }
 
-extension AsyncMapFailureSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+extension AsyncMapErrorSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 ```
 
 ## Naming
 
-Using `mapFailure` since `Failure` defines the type that can be thrown from an `AsyncSequence`.
+The naming follows to current method naming of the Combine [mapError](https://developer.apple.com/documentation/combine/publisher/maperror(_:)) method.

@@ -3,9 +3,9 @@ import XCTest
 
 #if compiler(>=6.0)
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-final class TestMapFailure: XCTestCase {
+final class TestMapError: XCTestCase {
 
-    func test_mapFailure() async throws {
+    func test_mapError() async throws {
         let array: [Any] = [1, 2, 3, MyAwesomeError.originalError, 4, 5, 6]
         let sequence = array.async
             .map {
@@ -15,7 +15,7 @@ final class TestMapFailure: XCTestCase {
                     $0 as! Int
                 }
             }
-            .mapFailure { _ in
+            .mapError { _ in
                 MyAwesomeError.mappedError
             }
 
@@ -33,7 +33,7 @@ final class TestMapFailure: XCTestCase {
         XCTAssertEqual(results, [1, 2, 3])
     }
 
-    func test_mapFailure_cancellation() async throws {
+    func test_mapError_cancellation() async throws {
         let value = "test"
         let source = Indefinite(value: value).async
         let sequence = source
@@ -44,7 +44,7 @@ final class TestMapFailure: XCTestCase {
                     $0
                 }
             }
-            .mapFailure { _ in
+            .mapError { _ in
                 MyAwesomeError.mappedError
             }
 
@@ -72,7 +72,7 @@ final class TestMapFailure: XCTestCase {
         await fulfillment(of: [finished], timeout: 1.0)
     }
 
-    func test_mapFailure_empty() async throws {
+    func test_mapError_empty() async throws {
         let array: [String] = []
         let sequence = array.async
             .map {
@@ -82,7 +82,7 @@ final class TestMapFailure: XCTestCase {
                     $0
                 }
             }
-            .mapFailure { _ in
+            .mapError { _ in
                 MyAwesomeError.mappedError
             }
 
@@ -95,7 +95,7 @@ final class TestMapFailure: XCTestCase {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-private extension TestMapFailure {
+private extension TestMapError {
 
     enum MyAwesomeError: Error {
         case originalError
