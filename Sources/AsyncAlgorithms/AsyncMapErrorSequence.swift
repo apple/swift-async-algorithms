@@ -20,7 +20,7 @@ extension AsyncSequence {
     ///
     /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
     @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-    public func mapError<MappedFailure: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedFailure) -> some AsyncSequence<Self.Element, MappedFailure> {
+    public func mapError<MappedError: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedError) -> some AsyncSequence<Self.Element, MappedError> {
         AsyncMapErrorSequence(base: self, transform: transform)
     }
 
@@ -31,25 +31,25 @@ extension AsyncSequence {
     ///
     /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
     @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-    public func mapError<MappedFailure: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedFailure) -> (some AsyncSequence<Self.Element, MappedFailure> & Sendable) where Self: Sendable, Self.Element: Sendable {
+    public func mapError<MappedError: Error>(_ transform: @Sendable @escaping (Self.Failure) -> MappedError) -> (some AsyncSequence<Self.Element, MappedError> & Sendable) where Self: Sendable, Self.Element: Sendable {
         AsyncMapErrorSequence(base: self, transform: transform)
     }
 }
 
 /// An asynchronous sequence that converts any failure into a new error.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-fileprivate struct AsyncMapErrorSequence<Base: AsyncSequence, MappedFailure: Error>: AsyncSequence {
+fileprivate struct AsyncMapErrorSequence<Base: AsyncSequence, MappedError: Error>: AsyncSequence {
 
     typealias AsyncIterator = Iterator
     typealias Element = Base.Element
     typealias Failure = Base.Failure
 
     private let base: Base
-    private let transform: @Sendable (Failure) -> MappedFailure
+    private let transform: @Sendable (Failure) -> MappedError
 
     init(
         base: Base,
-        transform: @Sendable @escaping (Failure) -> MappedFailure
+        transform: @Sendable @escaping (Failure) -> MappedError
     ) {
         self.base = base
         self.transform = transform
@@ -73,21 +73,21 @@ extension AsyncMapErrorSequence {
 
         private var base: Base.AsyncIterator
 
-        private let transform: @Sendable (Failure) -> MappedFailure
+        private let transform: @Sendable (Failure) -> MappedError
 
         init(
             base: Base.AsyncIterator,
-            transform: @Sendable @escaping (Failure) -> MappedFailure
+            transform: @Sendable @escaping (Failure) -> MappedError
         ) {
             self.base = base
             self.transform = transform
         }
 
-        mutating func next() async throws(MappedFailure) -> Element? {
+        mutating func next() async throws(MappedError) -> Element? {
             try await self.next(isolation: nil)
         }
 
-        mutating func next(isolation actor: isolated (any Actor)?) async throws(MappedFailure) -> Element? {
+        mutating func next(isolation actor: isolated (any Actor)?) async throws(MappedError) -> Element? {
             do {
                 return try await base.next(isolation: actor)
             } catch {
