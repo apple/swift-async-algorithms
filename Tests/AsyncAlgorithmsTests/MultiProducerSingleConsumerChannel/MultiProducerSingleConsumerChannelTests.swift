@@ -15,7 +15,7 @@ import XCTest
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     // MARK: - sourceDeinitialized
-    
+
     func testSourceDeinitialized_whenChanneling_andNoSuspendedConsumer() async throws {
         let manualExecutor = ManualTaskExecutor()
         try await withThrowingTaskGroup { group in
@@ -25,17 +25,17 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             )
             var channel = consume channelAndSource.channel
             let source = consume channelAndSource.source
-            
+
             nonisolated(unsafe) var didTerminate = false
             source.setOnTerminationCallback {
                 didTerminate = true
             }
-            
+
             group.addTask(executorPreference: manualExecutor) {
                 await channel.next()
             }
-            
-            withExtendedLifetime(source) { }
+
+            withExtendedLifetime(source) {}
             _ = consume source
             XCTAssertFalse(didTerminate)
             manualExecutor.run()
@@ -43,7 +43,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertTrue(didTerminate)
         }
     }
-    
+
     func testSourceDeinitialized_whenChanneling_andSuspendedConsumer() async throws {
         let manualExecutor = ManualTaskExecutor()
         try await withThrowingTaskGroup { group in
@@ -57,21 +57,21 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             source.setOnTerminationCallback {
                 didTerminate = true
             }
-            
+
             group.addTask(executorPreference: manualExecutor) {
                 await channel.next()
             }
             manualExecutor.run()
             XCTAssertFalse(didTerminate)
-            
-            withExtendedLifetime(source) { }
+
+            withExtendedLifetime(source) {}
             _ = consume source
             XCTAssertTrue(didTerminate)
             manualExecutor.run()
             _ = try await group.next()
         }
     }
-    
+
     func testSourceDeinitialized_whenMultipleSources() async throws {
         let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
@@ -100,7 +100,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         _ = await channel.next()
         XCTAssertTrue(didTerminate)
     }
-    
+
     func testSourceDeinitialized_whenSourceFinished() async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
@@ -119,7 +119,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             try await source?.send(1)
             try await source?.send(2)
             source?.finish(throwing: nil)
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -161,7 +161,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             source?.finish(throwing: nil)
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -182,9 +182,9 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             group.cancelAll()
         }
     }
-    
+
     // MARK: Channel deinitialized
-    
+
     func testChannelDeinitialized() async throws {
         let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
@@ -194,14 +194,14 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         let source = consume channelAndSource.source
         nonisolated(unsafe) var didTerminate = false
         source.setOnTerminationCallback { didTerminate = true }
-        
+
         XCTAssertFalse(didTerminate)
         _ = consume channel
         XCTAssertTrue(didTerminate)
     }
-    
+
     // MARK: - sequenceDeinitialized
-    
+
     func testSequenceDeinitialized_whenChanneling_andNoSuspendedConsumer() async throws {
         let manualExecutor = ManualTaskExecutor()
         try await withThrowingTaskGroup { group in
@@ -214,12 +214,12 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             let source = consume channelAndSource.source
             nonisolated(unsafe) var didTerminate = false
             source.setOnTerminationCallback { didTerminate = true }
-            
+
             group.addTask(executorPreference: manualExecutor) {
                 await asyncSequence.first { _ in true }
             }
-            
-            withExtendedLifetime(source) { }
+
+            withExtendedLifetime(source) {}
             _ = consume source
             XCTAssertFalse(didTerminate)
             manualExecutor.run()
@@ -227,7 +227,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertTrue(didTerminate)
         }
     }
-    
+
     func testSequenceDeinitialized_whenChanneling_andSuspendedConsumer() async throws {
         let manualExecutor = ManualTaskExecutor()
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -240,14 +240,14 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             let source = consume channelAndSource.source
             nonisolated(unsafe) var didTerminate = false
             source.setOnTerminationCallback { didTerminate = true }
-            
+
             group.addTask(executorPreference: manualExecutor) {
                 _ = await asyncSequence.first { _ in true }
             }
             manualExecutor.run()
             XCTAssertFalse(didTerminate)
-            
-            withExtendedLifetime(source) { }
+
+            withExtendedLifetime(source) {}
             _ = consume source
             XCTAssertTrue(didTerminate)
             manualExecutor.run()
@@ -331,7 +331,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             source.setOnTerminationCallback {
                 onTerminationContinuation.finish()
             }
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -368,7 +368,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             try await source.send(1)
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -406,7 +406,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
 
             try await source.send(1)
             source.finish(throwing: nil)
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -444,7 +444,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             source.finish(throwing: nil)
-            
+
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -538,9 +538,9 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             )
             var channel = channelAndSource.channel
             var source = consume channelAndSource.source
-            
+
             group.addTask {
-                return await channel.next()
+                await channel.next()
             }
 
             // This is always going to be a bit racy since we need the call to next() suspend
@@ -561,7 +561,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var channel = channelAndSource.channel
             var source = consume channelAndSource.source
             group.addTask {
-                return await channel.next()
+                await channel.next()
             }
 
             // This is always going to be a bit racy since we need the call to next() suspend
@@ -573,7 +573,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertEqual(element, 1)
         }
     }
-    
+
     func testWrite_whenSourceFinished() async throws {
         let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
@@ -582,7 +582,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         var channel = consume channelAndSource.channel
         var source1 = consume channelAndSource.source
         var source2 = source1.copy()
-        
+
         try await source1.send(1)
         source1.finish()
         do {
@@ -596,7 +596,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         let element2 = await channel.next()
         XCTAssertNil(element2)
     }
-    
+
     func testWrite_whenConcurrentProduction() async throws {
         await withThrowingTaskGroup { group in
             let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
@@ -606,27 +606,27 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var channel = consume channelAndSource.channel
             var source1 = consume channelAndSource.source
             var source2 = Optional.some(source1.copy())
-            
+
             let manualExecutor1 = ManualTaskExecutor()
             group.addTask(executorPreference: manualExecutor1) {
                 try await source1.send(1)
             }
-            
+
             let manualExecutor2 = ManualTaskExecutor()
             group.addTask(executorPreference: manualExecutor2) {
                 var source2 = source2.take()!
                 try await source2.send(2)
                 source2.finish()
             }
-            
+
             manualExecutor1.run()
             let element1 = await channel.next()
             XCTAssertEqual(element1, 1)
-            
+
             manualExecutor2.run()
             let element2 = await channel.next()
             XCTAssertEqual(element2, 2)
-            
+
             let element3 = await channel.next()
             XCTAssertNil(element3)
         }
@@ -680,7 +680,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var source = consume channelAndSource.source
 
             try await source.send(1)
-            
+
             group.addTask {
                 try await source.send(2)
             }
@@ -692,7 +692,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             } catch {
                 XCTAssertTrue(error is CancellationError)
             }
-            
+
             let element = await channel.next()
             XCTAssertEqual(element, 1)
         }
@@ -863,7 +863,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var source = consume channelAndSource.source
 
             let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-            
+
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
@@ -901,7 +901,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var source = consume channelAndSource.source
 
             let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-            
+
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
@@ -961,7 +961,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             )
             let channel = channelAndSource.channel
             var source: MultiProducerSingleConsumerChannel.Source! = consume channelAndSource.source
-            
+
             group.addTask {
                 var source = source.take()!
                 for i in 0...10000 {
@@ -969,7 +969,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
                 }
                 source.finish()
             }
-            
+
             let asyncSequence = channel.asyncSequence()
 
             group.addTask {
@@ -1043,7 +1043,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var source = consume channelAndSource.source
 
             let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-            
+
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
