@@ -1,4 +1,4 @@
-# MutliProducerSingleConsumerChannel
+# MultiProducerSingleConsumerChannel
 
 * Proposal: [SAA-0016](0016-multi-producer-single-consumer-channel.md)
 * Authors: [Franz Busch](https://github.com/FranzBusch)
@@ -6,6 +6,7 @@
 * Status: **Implemented**
 
 ## Revision
+- 2025/03/24: Adopt `~Copyable` for better performance.
 - 2023/12/18: Migrate proposal from Swift Evolution to Swift Async Algorithms.
 - 2023/12/19: Add element size dependent strategy
 - 2024/05/19: Rename to multi producer single consumer channel
@@ -16,46 +17,64 @@
 [SE-0314](https://github.com/apple/swift-evolution/blob/main/proposals/0314-async-stream.md)
 introduced new `Async[Throwing]Stream` types which act as root asynchronous
 sequences. These two types allow bridging from synchronous callbacks such as
-delegates to an asynchronous sequence. This proposal adds a new root
-asynchronous sequence with the goal to bridge multi producer systems
-into an asynchronous sequence.
+delegates to an asynchronous sequence. This proposal adds a new root primitive
+with the goal to model asynchronous multi-producer-single-consumer systems.
 
 ## Motivation
 
-After using the `AsyncSequence` protocol and the `Async[Throwing]Stream` types
-extensively over the past years, we learned that there are a few important
-behavioral details that any `AsyncSequence` implementation needs to support.
-These behaviors are:
+After using the `AsyncSequence` protocol, the `Async[Throwing]Stream` types, and
+the `Async[Throwing]Channel` types extensively over the past years, we learned
+that there is a gap in the ecosystem for a type that provides strict
+multi-producer-single-consumer guarantees with backpressure support.
+Additionally, any type stream/channel like type needs to have a clear definition
+about the following behaviors:
 
 1. Backpressure
 2. Multi/single consumer support
 3. Downstream consumer termination
 4. Upstream producer termination
 
-In general, `AsyncSequence` implementations can be divided into two kinds: Root
-asynchronous sequences that are the source of values such as
-`Async[Throwing]Stream` and transformational asynchronous sequences such as
-`AsyncMapSequence`. Most transformational asynchronous sequences implicitly
-fulfill the above behaviors since they forward any demand to a base asynchronous
-sequence that should implement the behaviors. On the other hand, root
-asynchronous sequences need to make sure that all of the above behaviors are
-correctly implemented. Let's look at the current behavior of
-`Async[Throwing]Stream` to see if and how it achieves these behaviors.
+The below sections are providing a detailed explanation of each of those.
 
 ### Backpressure
 
-Root asynchronous sequences need to relay the backpressure to the producing
-system. `Async[Throwing]Stream` aims to support backpressure by providing a
-configurable buffer and returning
-`Async[Throwing]Stream.Continuation.YieldResult` which contains the current
-buffer depth from the `yield()` method. However, only providing the current
-buffer depth on `yield()` is not enough to bridge a backpressured system into
-an asynchronous sequence since this can only be used as a "stop" signal but we
-are missing a signal to indicate resuming the production. The only viable
-backpressure strategy that can be implemented with the current API is a timed
-backoff where we stop producing for some period of time and then speculatively
-produce again. This is a very inefficient pattern that produces high latencies
-and inefficient use of resources.
+In general, backpressure is the mechanism that prevents a fast producer from
+overwhelming a slow consumer. It helps stability of the overall system by
+regulating the flow of data between different components. Additionally, it
+allows to put an upper bound on resource consumption of a system. In reality,
+backpressure is used in almost all networked applications.
+
+In Swift, asynchronous sequence also have the concept of internal backpressure.
+This modeled by the pull-based implementation where a consumer has to call
+`next` on the `AsyncIterator`. In this model, there is no way for a consumer to
+overwhelm a producer since the producer controls the rate of pulling elements.
+
+However, the internal backpressure of an asynchronous isn't the only
+backpressure in play. There is also the source backpressure that is producing
+the actual elements. For a backpressured system it is important that every
+component of such a system is aware of the backpressure of its consumer and its
+producer.
+
+Let's take a quick look how our current root asynchronous sequences are handling
+this.
+
+`Async[Throwing]Stream` aims to support backpressure by providing a configurable
+buffer and returning `Async[Throwing]Stream.Continuation.YieldResult` which
+contains the current buffer depth from the `yield()` method. However, only
+providing the current buffer depth on `yield()` is not enough to bridge a
+backpressured system into an asynchronous sequence since this can only be used
+as a "stop" signal but we are missing a signal to indicate resuming the
+production. The only viable backpressure strategy that can be implemented with
+the current API is a timed backoff where we stop producing for some period of
+time and then speculatively produce again. This is a very inefficient pattern
+that produces high latencies and inefficient use of resources.
+
+`Async[Throwing]Channel` is a multi-producer-multi-consumer channel that only
+supports asynchronous producers. Additionally, the backpressure strategy is
+fixed by a buffer size of 1 element per producer.
+
+We are currently lacking a type that supports a configurable backpressure
+strategy and both asynchronous and synchronous producers.
 
 ### Multi/single consumer support
 
@@ -84,8 +103,7 @@ this by calling the `finish()` or `finish(throwing:)` methods of the
 `Async[Throwing]Stream.Continuation`. However, `Async[Throwing]Stream` does not
 handle the case that the `Continuation` may be `deinit`ed before one of the
 finish methods is called. This currently leads to async streams that never
-terminate. The behavior could be changed but it could result in semantically
-breaking code.
+terminate.
 
 ### Upstream producer termination
 
@@ -108,39 +126,46 @@ asynchronous sequences in general.
 
 ## Proposed solution
 
-The above motivation lays out the expected behaviors from a root asynchronous
-sequence and compares them to the behaviors of `Async[Throwing]Stream`. These
-are the behaviors where `Async[Throwing]Stream` diverges from the expectations.
+The above motivation lays out the expected behaviors for any consumer/producer
+system and compares them to the behaviors of `Async[Throwing]Stream` and
+`Async[Throwing]Channel`.
 
-- Backpressure: Doesn't expose a "resumption" signal to the producer
-- Multi/single consumer:
-  - Divergent implementation between throwing and non-throwing variant
-  - Supports multiple consumers even though proposal positions it as a unicast
-  asynchronous sequence
-- Consumer termination: Doesn't handle the `Continuation` being `deinit`ed
-- Producer termination: Happens on first consumer termination 
+This section proposes a new type called `MultiProducerSingleConsumerChannel`
+that implement all of the above-mentioned behaviors. Importantly, this proposed
+solution is taking advantage of `~Copyable` types to model the
+multi-producer-single-consumer behavior. While the current `AsyncSequence`
+protocols are not supporting `~Copyable` types we provide a way to convert the
+proposed channel to an asynchronous sequence. This leaves us room to support any
+potential future asynchronous streaming protocol that supports `~Copyable`.
 
-This section proposes a new type called `MutliProducerSingleConsumerChannel` that implement all of
-the above-mentioned behaviors.
+### Creating an MultiProducerSingleConsumerChannel
 
-### Creating an MutliProducerSingleConsumerChannel
-
-You can create an `MutliProducerSingleConsumerChannel` instance using the new
+You can create an `MultiProducerSingleConsumerChannel` instance using the new
 `makeChannel(of: backpressureStrategy:)` method. This method returns you the
 channel and the source. The source can be used to send new values to the
 asynchronous channel. The new API specifically provides a
 multi-producer/single-consumer pattern.
 
 ```swift
-let (channel, source) = MutliProducerSingleConsumerChannel.makeChannel(
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
+
+// The channel and source can be extracted from the returned type
+let channel = consume channelAndSource.channel
+let source = consume channelAndSource.source
 ```
 
-The new proposed APIs offer three different ways to bridge a backpressured
-system. The foundation is the multi-step synchronous interface. Below is an
-example of how it can be used:
+The new proposed APIs offer two different backpressure strategies:
+- Watermark: Using a low and high watermark
+- Unbounded: Unbounded buffering of the channel. **Only** use this if the
+  production is limited through some other mean.
+
+The source is used to send values to the channel. It provides different APIs for
+synchronous and asynchronous producers. All of the APIs are relaying the
+backpressure of the channel. The synchronous multi-step APIs are the foundation
+for all other APIs. Below is an example of how it can be used:
 
 ```swift
 do {
@@ -148,32 +173,34 @@ do {
     
     switch sendResult {
     case .produceMore:
-       // Trigger more production
+       // Trigger more production in the underlying system
     
     case .enqueueCallback(let callbackToken):
+        // There are enough values in the channel already. We need to enqueue
+        // a callback to get notified when we should produce more.
         source.enqueueCallback(token: callbackToken, onProduceMore: { result in
             switch result {
             case .success:
-                // Trigger more production
+                // Trigger more production in the underlying system
             case .failure(let error):
                 // Terminate the underlying producer
             }
         })
     }
 } catch {
-    // `send(contentsOf:)` throws if the asynchronous stream already terminated
+    // `send(contentsOf:)` throws if the channel already terminated
 }
 ```
 
 The above API offers the most control and highest performance when bridging a
-synchronous producer to an asynchronous sequence. First, you have to send
-values using the `send(contentsOf:)` which returns a `SendResult`. The result
-either indicates that more values should be produced or that a callback should
-be enqueued by calling the `enqueueCallback(callbackToken: onProduceMore:)`
-method. This callback is invoked once the backpressure strategy decided that
-more values should be produced. This API aims to offer the most flexibility with
-the greatest performance. The callback only has to be allocated in the case
-where the producer needs to be suspended.
+synchronous producer to a `MultiProducerSingleConsumerChannel`. First, you have
+to send values using the `send(contentsOf:)` which returns a `SendResult`. The
+result either indicates that more values should be produced or that a callback
+should be enqueued by calling the `enqueueCallback(callbackToken:
+onProduceMore:)` method. This callback is invoked once the backpressure strategy
+decided that more values should be produced. This API aims to offer the most
+flexibility with the greatest performance. The callback only has to be allocated
+in the case where the producer needs to pause production.
 
 Additionally, the above API is the building block for some higher-level and
 easier-to-use APIs to send values to the channel. Below is an
@@ -194,60 +221,100 @@ try source.send(contentsOf: sequence, onProduceMore: { result in
 try await source.send(contentsOf: sequence)
 ```
 
-With the above APIs, we should be able to effectively bridge any system into an
-asynchronous sequence regardless if the system is callback-based, blocking or
-asynchronous.
+With the above APIs, we should be able to effectively bridge any system into a
+`MultiProducerSingleConsumerChannel` regardless if the system is callback-based,
+blocking, or asynchronous.
+
+### Multi producer
+
+To support multiple producers the source offers a `copy` method to produce a new
+source. The source is returned `sending` so it is in a disconnected isolation
+region than the original source allowing to pass it into a different isolation
+region to concurrently produce elements.
+
+```swift
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+    of: Int.self,
+    backpressureStrategy: .watermark(low: 2, high: 5)
+)
+var channel = consume channelAndSource.channel
+var source1 = consume channelAndSource.source
+var source2 = source1.copy()
+
+group.addTask {
+    try await source1.send(1)
+}
+
+group.addTask() {
+    try await source2.send(2)
+}
+
+print(await channel.next()) // Prints either 1 or 2 depending on which child task runs first
+print(await channel.next()) // Prints either 1 or 2 depending on which child task runs first
+```
 
 ### Downstream consumer termination
 
 > When reading the next two examples around termination behaviour keep in mind
-that the newly proposed APIs are providing a strict unicast asynchronous sequence.
+that the newly proposed APIs are providing a strict a single consumer channel.
 
 Calling `finish()` terminates the downstream consumer. Below is an example of
 this:
 
 ```swift
 // Termination through calling finish
-let (channel, source) = MutliProducerSingleConsumerChannel.makeChannel(
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
 
-_ = try await source.send(1)
+try await source.send(1)
 source.finish()
 
-for try await element in channel {
-    print(element)
-}
-print("Finished")
+print(await channel.next()) // Prints Optional(1)
+print(await channel.next()) // Prints nil
+```
 
-// Prints
-// 1
-// Finished
+If the channel has a failure type it can also be finished with an error.
+
+```swift
+// Termination through calling finish
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+    of: Int.self,
+    throwing: SomeError.self,
+    backpressureStrategy: .watermark(low: 2, high: 4)
+)
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
+
+try await source.send(1)
+source.finish(throwing: SomeError)
+
+print(try await channel.next()) // Prints Optional(1)
+print(try await channel.next()) // Throws SomeError
 ```
 
 The other way to terminate the consumer is by deiniting the source. This has the
-same effect as calling `finish()` and makes sure that no consumer is stuck
-indefinitely. 
+same effect as calling `finish()`. Since the source is a `~Copyable` type this
+will happen automatically when the source is last used or explicitly consumed.
 
 ```swift
 // Termination through deiniting the source
-let (channel, _) = MutliProducerSingleConsumerChannel.makeChannel(
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
 
-for await element in channel {
-    print(element)
-}
-print("Finished")
+try await source.send(1)
+_ = consume source // Explicitly consume the source
 
-// Prints
-// Finished
+print(await channel.next()) // Prints Optional(1)
+print(await channel.next()) // Prints nil
 ```
-
-Trying to send more elements after the source has been finish will result in an
-error thrown from the send methods.
 
 ### Upstream producer termination
 
@@ -256,49 +323,68 @@ callback. Termination of the producer happens in the following scenarios:
 
 ```swift
 // Termination through task cancellation
-let (channel source) = MutliProducerSingleConsumerChannel.makeChannel(
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
+source.onTermination = { print("Terminated") }
 
 let task = Task {
-    for await element in channel {
-
-    }
+    await channel.next()
 }
-task.cancel()
+task.cancel() // Prints Terminated
 ```
 
 ```swift
-// Termination through deiniting the sequence
-let (_, source) = MutliProducerSingleConsumerChannel.makeChannel(
+// Termination through deiniting the channel
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
+source.onTermination = { print("Terminated") }
+_ = consume channel // Prints Terminated
 ```
 
 ```swift
-// Termination through deiniting the iterator
-let (channel, source) = MutliProducerSingleConsumerChannel.makeChannel(
+// Termination through finishing the source and consuming the last element
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
     of: Int.self,
     backpressureStrategy: .watermark(low: 2, high: 4)
 )
-_ = channel.makeAsyncIterator()
-```
+var channel = consume channelAndSource.channel
+var source = consume channelAndSource.source
+source.onTermination = { print("Terminated") }
 
-```swift
-// Termination through calling finish
-let (channel, source) = MutliProducerSingleConsumerChannel.makeChannel(
-    of: Int.self,
-    backpressureStrategy: .watermark(low: 2, high: 4)
-)
-
-_ = try source.send(1)
+_ = try await source.send(1)
 source.finish()
 
-for await element in channel {}
+print(await channel.next()) // Prints Optional(1)
+await channel.next() // Prints Terminated
+```
 
-// onTerminate will be called after all elements have been consumed
+```swift
+// Termination through deiniting the last source and consuming the last element
+let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+    of: Int.self,
+    backpressureStrategy: .watermark(low: 2, high: 4)
+)
+var channel = consume channelAndSource.channel
+var source1 = consume channelAndSource.source
+var source2 = source1.copy()
+source1.onTermination = { print("Terminated") }
+
+_ = try await source1.send(1)
+_ = consume source1
+_ = try await source2.send(2)
+
+print(await channel.next()) // Prints Optional(1)
+print(await channel.next()) // Prints Optional(2)
+_ = consume source2
+await channel.next() // Prints Terminated
 ```
 
 Similar to the downstream consumer termination, trying to send more elements after the
@@ -307,22 +393,20 @@ producer has been terminated will result in an error thrown from the send method
 ## Detailed design
 
 ```swift
+#if compiler(>=6.0)
 /// An error that is thrown from the various `send` methods of the
 /// ``MultiProducerSingleConsumerChannel/Source``.
 ///
 /// This error is thrown when the channel is already finished when
 /// trying to send new elements to the source.
-public struct MultiProducerSingleConsumerChannelAlreadyFinishedError : Error {
-
-    @usableFromInline
-    internal init()
-}
+public struct MultiProducerSingleConsumerChannelAlreadyFinishedError: Error { }
 
 /// A multi producer single consumer channel.
 ///
 /// The ``MultiProducerSingleConsumerChannel`` provides a ``MultiProducerSingleConsumerChannel/Source`` to
-/// send values to the channel. The source exposes the internal backpressure of the asynchronous sequence to the
-/// producer. Additionally, the source can be used from synchronous and asynchronous contexts.
+/// send values to the channel. The channel supports different back pressure strategies to control the
+/// buffering and demand. The channel will buffer values until its backpressure strategy decides that the
+/// producer have to wait.
 ///
 ///
 /// ## Using a MultiProducerSingleConsumerChannel
@@ -361,32 +445,66 @@ public struct MultiProducerSingleConsumerChannelAlreadyFinishedError : Error {
 ///
 /// Values can also be send to the source from synchronous context. Backpressure is also exposed on the synchronous contexts; however,
 /// it is up to the caller to decide how to properly translate the backpressure to underlying producer e.g. by blocking the thread.
-///
-/// ## Finishing the source
-///
-/// To properly notify the consumer if the production of values has been finished the source's ``MultiProducerSingleConsumerChannel/Source/finish(throwing:)`` **must** be called.
-public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: AsyncSequence {
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: ~Copyable {
+    /// A struct containing the initialized channel and source.
+    ///
+    /// This struct can be deconstructed by consuming the individual
+    /// components from it.
+    ///
+    /// ```swift
+    /// let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+    ///     of: Int.self,
+    ///     backpressureStrategy: .watermark(low: 5, high: 10)
+    /// )
+    /// var channel = consume channelAndSource.channel
+    /// var source = consume channelAndSource.source
+    /// ```
+    @frozen
+    public struct ChannelAndStream : ~Copyable {
+        /// The channel.
+        public var channel: MultiProducerSingleConsumerChannel
+        /// The source.
+        public var source: Source
+    }
+
     /// Initializes a new ``MultiProducerSingleConsumerChannel`` and an ``MultiProducerSingleConsumerChannel/Source``.
     ///
     /// - Parameters:
     ///   - elementType: The element type of the channel.
     ///   - failureType: The failure type of the channel.
-    ///   - BackpressureStrategy: The backpressure strategy that the channel should use.
+    ///   - backpressureStrategy: The backpressure strategy that the channel should use.
     /// - Returns: A tuple containing the channel and its source. The source should be passed to the
     ///   producer while the channel should be passed to the consumer.
-    public static func makeChannel(of elementType: Element.Type = Element.self, throwing failureType: Failure.Type = Never.self, backpressureStrategy: Source.BackpressureStrategy) -> (`Self`, Source)
+    public static func makeChannel(
+        of elementType: Element.Type = Element.self,
+        throwing failureType: Failure.Type = Never.self,
+        backpressureStrategy: Source.BackpressureStrategy
+    ) -> ChannelAndStream
+
+    /// Returns the next element.
+    ///
+    /// If this method returns `nil` it indicates that no further values can ever
+    /// be returned. The channel automatically closes when all sources have been deinited.
+    ///
+    /// If there are no elements and the channel has not been finished yet, this method will
+    /// suspend until an element is send to the channel.
+    ///
+    /// If the task calling this method is cancelled this method will return `nil`.
+    ///
+    /// - Parameter isolation: The callers isolation.
+    /// - Returns: The next buffered element.
+    public func next(isolation: isolated (any Actor)? = #isolation) async throws(Failure) -> Element?
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel {
     /// A struct to send values to the channel.
     ///
     /// Use this source to provide elements to the channel by calling one of the `send` methods.
-    ///
-    /// - Important: You must terminate the source by calling ``finish(throwing:)``.
-    public struct Source: Sendable {
-        /// A strategy that handles the backpressure of the channel.
+    public struct Source: ~Copyable, Sendable {
+        /// A struct representing the backpressure of the channel.
         public struct BackpressureStrategy: Sendable {
-
             /// A backpressure strategy using a high and low watermark to suspend and resume production respectively.
             ///
             /// - Parameters:
@@ -402,32 +520,48 @@ extension MultiProducerSingleConsumerChannel {
             ///   - waterLevelForElement: A closure used to compute the contribution of each buffered element to the current water level.
             ///
             /// - Note, `waterLevelForElement` will be called on each element when it is written into the source and when
-            /// it is consumed from the channel, so it is recommended to provide an function that runs in constant time.
-            public static func watermark(low: Int, high: Int, waterLevelForElement: @escaping @Sendable (Element) -> Int) -> BackpressureStrategy
+            /// it is consumed from the channel, so it is recommended to provide a function that runs in constant time.
+            public static func watermark(low: Int, high: Int, waterLevelForElement: @escaping @Sendable (borrowing Element) -> Int) -> BackpressureStrategy
+
+            /// An unbounded backpressure strategy.
+            ///
+            /// - Important: Only use this strategy if the production of elements is limited through some other mean. Otherwise
+            /// an unbounded backpressure strategy can result in infinite memory usage and cause
+            /// your process to run out of memory.
+            public static func unbounded() -> BackpressureStrategy
         }
 
         /// A type that indicates the result of sending elements to the source.
-        public enum SendResult: Sendable {
-            /// A token that is returned when the channel's backpressure strategy indicated that production should
-            /// be suspended. Use this token to enqueue a callback by  calling the ``enqueueCallback(_:)`` method.
-            public struct CallbackToken: Sendable { }
+        public enum SendResult: ~Copyable, Sendable {
+            /// An opaque token that is returned when the channel's backpressure strategy indicated that production should
+            /// be suspended. Use this token to enqueue a callback by  calling the ``MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)`` method.
+            ///
+            /// - Important: This token must only be passed once to ``MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)``
+            ///  and ``MultiProducerSingleConsumerChannel/Source/cancelCallback(callbackToken:)``.
+            public struct CallbackToken: Sendable, Hashable { }
 
-            /// Indicates that more elements should be produced and written to the source.
+            /// Indicates that more elements should be produced and send to the source.
             case produceMore
 
             /// Indicates that a callback should be enqueued.
             ///
-            /// The associated token should be passed to the ``enqueueCallback(_:)`` method.
+            /// The associated token should be passed to the ````MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)```` method.
             case enqueueCallback(CallbackToken)
         }
 
         /// A callback to invoke when the channel finished.
         ///
-        /// The channel finishes and calls this closure in the following cases:
-        /// - No iterator was created and the sequence was deinited
-        /// - An iterator was created and deinited
-        /// - After ``finish(throwing:)`` was called and all elements have been consumed
-        public var onTermination: (@Sendable () -> Void)? { get set }
+        /// This is called after the last element has been consumed by the channel.
+        public func setOnTerminationCallback(_ callback: @escaping @Sendable () -> Void) {
+            self._storage.onTermination = callback
+        }
+
+        /// Creates a new source which can be used to send elements to the channel concurrently.
+        ///
+        /// The channel will only automatically be finished if all existing sources have been deinited.
+        ///
+        /// - Returns: A new source for sending elements to the channel.
+        public mutating func copy() -> Source
 
         /// Sends new elements to the channel.
         ///
@@ -437,7 +571,9 @@ extension MultiProducerSingleConsumerChannel {
         ///
         /// - Parameter sequence: The elements to send to the channel.
         /// - Returns: The result that indicates if more elements should be produced at this time.
-        public func send<S>(contentsOf sequence: S) throws -> SendResult where Element == S.Element, S : Sequence
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S
+        ) throws -> SendResult where Element == S.Element, S: Sequence
 
         /// Send the element to the channel.
         ///
@@ -447,18 +583,21 @@ extension MultiProducerSingleConsumerChannel {
         ///
         /// - Parameter element: The element to send to the channel.
         /// - Returns: The result that indicates if more elements should be produced at this time.
-        public func send(_ element: Element) throws -> SendResult
+        public mutating func send(_ element: sending consuming Element) throws -> SendResult
 
         /// Enqueues a callback that will be invoked once more elements should be produced.
         ///
         /// Call this method after ``send(contentsOf:)-5honm`` or ``send(_:)-3jxzb`` returned ``SendResult/enqueueCallback(_:)``.
         ///
-        /// - Important: Enqueueing the same token multiple times is not allowed.
+        /// - Important: Enqueueing the same token multiple times is **not allowed**.
         ///
         /// - Parameters:
         ///   - callbackToken: The callback token.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
-        public func enqueueCallback(callbackToken: consuming SendResult.CallbackToken, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void)
+        public mutating func enqueueCallback(
+            callbackToken: consuming SendResult.CallbackToken,
+            onProduceMore: sending @escaping (Result<Void, Error>
+        ) -> Void)
 
         /// Cancel an enqueued callback.
         ///
@@ -468,7 +607,9 @@ extension MultiProducerSingleConsumerChannel {
         /// will mark the passed `callbackToken` as cancelled.
         ///
         /// - Parameter callbackToken: The callback token.
-        public func cancelCallback(callbackToken: consuming SendResult.CallbackToken)
+        public mutating func cancelCallback(
+            callbackToken: consuming SendResult.CallbackToken
+        )
 
         /// Send new elements to the channel and provide a callback which will be invoked once more elements should be produced.
         ///
@@ -480,7 +621,10 @@ extension MultiProducerSingleConsumerChannel {
         ///   - sequence: The elements to send to the channel.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced. This callback might be
         ///   invoked during the call to ``send(contentsOf:onProduceMore:)``.
-        public func send<S>(contentsOf sequence: S, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void) where Element == S.Element, S : Sequence
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S,
+            onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
+        ) where Element == S.Element, S: Sequence
 
         /// Sends the element to the channel.
         ///
@@ -492,7 +636,10 @@ extension MultiProducerSingleConsumerChannel {
         ///   - element: The element to send to the channel.
         ///   - onProduceMore: The callback which gets invoked once more elements should be produced. This callback might be
         ///   invoked during the call to ``send(_:onProduceMore:)``.
-        public func send(_ element: Element, onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void)
+        public mutating func send(
+            _ element: consuming sending Element,
+            onProduceMore: @escaping @Sendable (Result<Void, Error>
+        ) -> Void)
 
         /// Send new elements to the channel.
         ///
@@ -504,7 +651,9 @@ extension MultiProducerSingleConsumerChannel {
         ///
         /// - Parameters:
         ///   - sequence: The elements to send to the channel.
-        public func send<S>(contentsOf sequence: S) async throws where Element == S.Element, S : Sequence
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S
+        ) async throws where Element == S.Element, S: Sequence
 
         /// Send new element to the channel.
         ///
@@ -516,57 +665,53 @@ extension MultiProducerSingleConsumerChannel {
         ///
         /// - Parameters:
         ///   - element: The element to send to the channel.
-        public func send(_ element: Element) async throws
+        public mutating func send(_ element: consuming sending Element) async throws
 
         /// Send the elements of the asynchronous sequence to the channel.
         ///
-        /// This method returns once the provided asynchronous sequence or  the channel finished.
+        /// This method returns once the provided asynchronous sequence or the channel finished.
         ///
         /// - Important: This method does not finish the source if consuming the upstream sequence terminated.
         ///
         /// - Parameters:
         ///   - sequence: The elements to send to the channel.
-        public func send<S>(contentsOf sequence: S) async throws where Element == S.Element, S : AsyncSequence
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S
+        ) async throws where Element: Sendable, Element == S.Element, S: Sendable, S: AsyncSequence
 
         /// Indicates that the production terminated.
         ///
-        /// After all buffered elements are consumed the next iteration point will return `nil` or throw an error.
+        /// After all buffered elements are consumed the subsequent call to ``MultiProducerSingleConsumerChannel/next(isolation:)`` will return
+        /// `nil` or throw an error.
         ///
         /// Calling this function more than once has no effect. After calling finish, the channel enters a terminal state and doesn't accept
         /// new elements.
         ///
         /// - Parameters:
         ///   - error: The error to throw, or `nil`, to finish normally.
-        public func finish(throwing error: Failure? = nil)
+        public consuming func finish(throwing error: Failure? = nil)
     }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel {
-    /// The asynchronous iterator for iterating the channel.
+    /// Converts the channel to an asynchronous sequence for consumption.
     ///
-    /// This type is not `Sendable`. Don't use it from multiple
-    /// concurrent contexts. It is a programmer error to invoke `next()` from a
-    /// concurrent context that contends with another such call, which
-    /// results in a call to `fatalError()`.
-    public struct Iterator: AsyncIteratorProtocol {}
-
-    /// Creates the asynchronous iterator that produces elements of this
-    /// asynchronous sequence.
-    public func makeAsyncIterator() -> Iterator
+    /// - Important: The returned asynchronous sequence only supports a single iterator to be created and
+    /// will fatal error at runtime on subsequent calls to `makeAsyncIterator`.
+    public consuming func asyncSequence() -> some (AsyncSequence<Element, Failure> & Sendable)
 }
-
-extension MultiProducerSingleConsumerChannel: Sendable where Element : Sendable {}
 ```
 
-## Comparison to other root asynchronous sequences
+## Comparison to other root asynchronous primitives
 
 ### swift-async-algorithm: AsyncChannel
 
 The `AsyncChannel` is a multi-consumer/multi-producer root asynchronous sequence
 which can be used to communicate between two tasks. It only offers asynchronous
-production APIs and has no internal buffer. This means that any producer will be
-suspended until its value has been consumed. `AsyncChannel` can handle multiple
-consumers and resumes them in FIFO order.
+production APIs and has an effective buffer of one per producer. This means that
+any producer will be suspended until its value has been consumed. `AsyncChannel`
+can handle multiple consumers and resumes them in FIFO order.
 
 ### swift-nio: NIOAsyncSequenceProducer
 

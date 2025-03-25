@@ -14,234 +14,112 @@ import XCTest
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 final class MultiProducerSingleConsumerChannelTests: XCTestCase {
-    // MARK: - sequenceDeinitialized
-
-    // Following tests are disabled since the channel is not getting deinited due to a known bug
-
-//    func testSequenceDeinitialized_whenNoIterator() async throws {
-//        var channelAndStream: MultiProducerSingleConsumerChannel.ChannelAndStream! = MultiProducerSingleConsumerChannel.makeChannel(
-//            of: Int.self,
-//            backpressureStrategy: .watermark(low: 5, high: 10)
-//        )
-//        var channel: MultiProducerSingleConsumerChannel? = channelAndStream.channel
-//        var source = channelAndStream.source
-//        channelAndStream = nil
-//
-//        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-//        source.onTermination = {
-//            onTerminationContinuation.finish()
-//        }
-//
-//        await withThrowingTaskGroup(of: Void.self) { group in
-//            group.addTask {
-//                onTerminationContinuation.yield()
-//                try await Task.sleep(for: .seconds(10))
-//            }
-//
-//            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
-//            _ = await onTerminationIterator.next()
-//
-//            withExtendedLifetime(channel) {}
-//            channel = nil
-//
-//            let terminationResult: Void? = await onTerminationIterator.next()
-//            XCTAssertNil(terminationResult)
-//
-//            do {
-//                _ = try { try source.send(2) }()
-//                XCTFail("Expected an error to be thrown")
-//            } catch {
-//                XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
-//            }
-//
-//            group.cancelAll()
-//        }
-//    }
-//
-//    func testSequenceDeinitialized_whenIterator() async throws {
-//        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-//            of: Int.self,
-//            backpressureStrategy: .watermark(low: 5, high: 10)
-//        )
-//        var channel: MultiProducerSingleConsumerChannel? = channelAndStream.channel
-//        var source = consume channelAndStream.source
-//
-//        var iterator = channel?.makeAsyncIterator()
-//
-//        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-//        source.onTermination = {
-//            onTerminationContinuation.finish()
-//        }
-//
-//        try await withThrowingTaskGroup(of: Void.self) { group in
-//            group.addTask {
-//                while !Task.isCancelled {
-//                    onTerminationContinuation.yield()
-//                    try await Task.sleep(for: .seconds(0.2))
-//                }
-//            }
-//
-//            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
-//            _ = await onTerminationIterator.next()
-//
-//            try withExtendedLifetime(channel) {
-//                let writeResult = try source.send(1)
-//                writeResult.assertIsProducerMore()
-//            }
-//
-//            channel = nil
-//
-//            do {
-//                let writeResult = try { try source.send(2) }()
-//                writeResult.assertIsProducerMore()
-//            } catch {
-//                XCTFail("Expected no error to be thrown")
-//            }
-//
-//            let element1 = await iterator?.next()
-//            XCTAssertEqual(element1, 1)
-//            let element2 = await iterator?.next()
-//            XCTAssertEqual(element2, 2)
-//
-//            group.cancelAll()
-//        }
-//    }
-//
-//    func testSequenceDeinitialized_whenFinished() async throws {
-//        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-//            of: Int.self,
-//            backpressureStrategy: .watermark(low: 5, high: 10)
-//        )
-//        var channel: MultiProducerSingleConsumerChannel? = channelAndStream.channel
-//        var source = consume channelAndStream.source
-//
-//        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-//        source.onTermination = {
-//            onTerminationContinuation.finish()
-//        }
-//
-//        await withThrowingTaskGroup(of: Void.self) { group in
-//            group.addTask {
-//                while !Task.isCancelled {
-//                    onTerminationContinuation.yield()
-//                    try await Task.sleep(for: .seconds(0.2))
-//                }
-//            }
-//
-//            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
-//            _ = await onTerminationIterator.next()
-//
-//            channel = nil
-//
-//            let terminationResult: Void? = await onTerminationIterator.next()
-//            XCTAssertNil(terminationResult)
-//            XCTAssertNil(channel)
-//
-//            group.cancelAll()
-//        }
-//    }
-//
-//    func testSequenceDeinitialized_whenChanneling_andSuspendedProducer() async throws {
-//        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-//            of: Int.self,
-//            backpressureStrategy: .watermark(low: 1, high: 2)
-//        )
-//        var channel: MultiProducerSingleConsumerChannel? = channelAndStream.channel
-//        var source = consume channelAndStream.source
-//
-//        _ = try { try source.send(1) }()
-//
-//        do {
-//            try await withCheckedThrowingContinuation { continuation in
-//                source.send(1) { result in
-//                    continuation.resume(with: result)
-//                }
-//
-//                channel = nil
-//                _ = channel?.makeAsyncIterator()
-//            }
-//        } catch {
-//            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
-//        }
-//    }
-
-    // MARK: - iteratorInitialized
-
-    func testIteratorInitialized_whenInitial() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        let source = consume channelAndStream.source
-
-        _ = channel.makeAsyncIterator()
+    // MARK: - sourceDeinitialized
+    
+    func testSourceDeinitialized_whenChanneling_andNoSuspendedConsumer() async throws {
+        let manualExecutor = ManualTaskExecutor()
+        try await withThrowingTaskGroup { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            var channel = consume channelAndSource.channel
+            let source = consume channelAndSource.source
+            
+            nonisolated(unsafe) var didTerminate = false
+            source.setOnTerminationCallback {
+                didTerminate = true
+            }
+            
+            group.addTask(executorPreference: manualExecutor) {
+                await channel.next()
+            }
+            
+            withExtendedLifetime(source) { }
+            _ = consume source
+            XCTAssertFalse(didTerminate)
+            manualExecutor.run()
+            _ = try await group.next()
+            XCTAssertTrue(didTerminate)
+        }
     }
-
-    func testIteratorInitialized_whenChanneling() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        try await source.send(1)
-
-        var iterator = channel.makeAsyncIterator()
-        let element = await iterator.next()
-        XCTAssertEqual(element, 1)
+    
+    func testSourceDeinitialized_whenChanneling_andSuspendedConsumer() async throws {
+        let manualExecutor = ManualTaskExecutor()
+        try await withThrowingTaskGroup { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            var channel = channelAndSource.channel
+            let source = consume channelAndSource.source
+            nonisolated(unsafe) var didTerminate = false
+            source.setOnTerminationCallback {
+                didTerminate = true
+            }
+            
+            group.addTask(executorPreference: manualExecutor) {
+                await channel.next()
+            }
+            manualExecutor.run()
+            XCTAssertFalse(didTerminate)
+            
+            withExtendedLifetime(source) { }
+            _ = consume source
+            XCTAssertTrue(didTerminate)
+            manualExecutor.run()
+            _ = try await group.next()
+        }
     }
-
-    func testIteratorInitialized_whenSourceFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+    
+    func testSourceDeinitialized_whenMultipleSources() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
+            backpressureStrategy: .watermark(low: 2, high: 4)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        try await source.send(1)
-        source.finish(throwing: nil)
-
-        var iterator = channel.makeAsyncIterator()
-        let element1 = await iterator.next()
-        XCTAssertEqual(element1, 1)
-        let element2 = await iterator.next()
-        XCTAssertNil(element2)
-    }
-
-    func testIteratorInitialized_whenFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        let source = consume channelAndStream.source
-
-        source.finish(throwing: nil)
-
-        var iterator = channel.makeAsyncIterator()
-        let element = await iterator.next()
-        XCTAssertNil(element)
-    }
-
-    // MARK: - iteratorDeinitialized
-
-    func testIteratorDeinitialized_whenInitial() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source.onTermination = {
-            onTerminationContinuation.finish()
+        var channel = consume channelAndSource.channel
+        var source1 = consume channelAndSource.source
+        var source2 = source1.copy()
+        nonisolated(unsafe) var didTerminate = false
+        source1.setOnTerminationCallback {
+            didTerminate = true
         }
 
-        await withThrowingTaskGroup(of: Void.self) { group in
+        _ = try await source1.send(1)
+        XCTAssertFalse(didTerminate)
+        _ = consume source1
+        XCTAssertFalse(didTerminate)
+        _ = try await source2.send(2)
+        XCTAssertFalse(didTerminate)
+
+        _ = await channel.next()
+        XCTAssertFalse(didTerminate)
+        _ = await channel.next()
+        XCTAssertFalse(didTerminate)
+        _ = consume source2
+        _ = await channel.next()
+        XCTAssertTrue(didTerminate)
+    }
+    
+    func testSourceDeinitialized_whenSourceFinished() async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                throwing: Error.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            var source: MultiProducerSingleConsumerChannel.Source? = consume channelAndSource.source
+
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source?.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
+
+            try await source?.send(1)
+            try await source?.send(2)
+            source?.finish(throwing: nil)
+            
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -252,9 +130,221 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: MultiProducerSingleConsumerChannel<Int, Never>.AsyncIterator? = channel.makeAsyncIterator()
+            var iterator = Optional.some(channel.asyncSequence().makeAsyncIterator())
+            _ = try await iterator?.next()
+
+            _ = await onTerminationIterator.next()
+
+            _ = try await iterator?.next()
+            _ = try await iterator?.next()
+
+            let terminationResult: Void? = await onTerminationIterator.next()
+            XCTAssertNil(terminationResult)
+
+            group.cancelAll()
+        }
+    }
+
+    func testSourceDeinitialized_whenFinished() async throws {
+        await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                throwing: Error.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            let source: MultiProducerSingleConsumerChannel.Source? = consume channelAndSource.source
+
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source?.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
+
+            source?.finish(throwing: nil)
+            
+            group.addTask {
+                while !Task.isCancelled {
+                    onTerminationContinuation.yield()
+                    try await Task.sleep(for: .seconds(0.2))
+                }
+            }
+
+            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
+            _ = await onTerminationIterator.next()
+
+            _ = channel.asyncSequence().makeAsyncIterator()
+
+            _ = await onTerminationIterator.next()
+
+            let terminationResult: Void? = await onTerminationIterator.next()
+            XCTAssertNil(terminationResult)
+
+            group.cancelAll()
+        }
+    }
+    
+    // MARK: Channel deinitialized
+    
+    func testChannelDeinitialized() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 5, high: 10)
+        )
+        let channel = channelAndSource.channel
+        let source = consume channelAndSource.source
+        nonisolated(unsafe) var didTerminate = false
+        source.setOnTerminationCallback { didTerminate = true }
+        
+        XCTAssertFalse(didTerminate)
+        _ = consume channel
+        XCTAssertTrue(didTerminate)
+    }
+    
+    // MARK: - sequenceDeinitialized
+    
+    func testSequenceDeinitialized_whenChanneling_andNoSuspendedConsumer() async throws {
+        let manualExecutor = ManualTaskExecutor()
+        try await withThrowingTaskGroup { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            let asyncSequence = channel.asyncSequence()
+            let source = consume channelAndSource.source
+            nonisolated(unsafe) var didTerminate = false
+            source.setOnTerminationCallback { didTerminate = true }
+            
+            group.addTask(executorPreference: manualExecutor) {
+                await asyncSequence.first { _ in true }
+            }
+            
+            withExtendedLifetime(source) { }
+            _ = consume source
+            XCTAssertFalse(didTerminate)
+            manualExecutor.run()
+            _ = try await group.next()
+            XCTAssertTrue(didTerminate)
+        }
+    }
+    
+    func testSequenceDeinitialized_whenChanneling_andSuspendedConsumer() async throws {
+        let manualExecutor = ManualTaskExecutor()
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            let asyncSequence = channel.asyncSequence()
+            let source = consume channelAndSource.source
+            nonisolated(unsafe) var didTerminate = false
+            source.setOnTerminationCallback { didTerminate = true }
+            
+            group.addTask(executorPreference: manualExecutor) {
+                _ = await asyncSequence.first { _ in true }
+            }
+            manualExecutor.run()
+            XCTAssertFalse(didTerminate)
+            
+            withExtendedLifetime(source) { }
+            _ = consume source
+            XCTAssertTrue(didTerminate)
+            manualExecutor.run()
+            _ = try await group.next()
+        }
+    }
+
+    // MARK: - iteratorInitialized
+
+    func testIteratorInitialized_whenInitial() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 5, high: 10)
+        )
+        let channel = channelAndSource.channel
+        _ = consume channelAndSource.source
+
+        _ = channel.asyncSequence().makeAsyncIterator()
+    }
+
+    func testIteratorInitialized_whenChanneling() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 5, high: 10)
+        )
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
+
+        try await source.send(1)
+
+        var iterator = channel.asyncSequence().makeAsyncIterator()
+        let element = await iterator.next(isolation: nil)
+        XCTAssertEqual(element, 1)
+    }
+
+    func testIteratorInitialized_whenSourceFinished() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 5, high: 10)
+        )
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
+
+        try await source.send(1)
+        source.finish(throwing: nil)
+
+        var iterator = channel.asyncSequence().makeAsyncIterator()
+        let element1 = await iterator.next(isolation: nil)
+        XCTAssertEqual(element1, 1)
+        let element2 = await iterator.next(isolation: nil)
+        XCTAssertNil(element2)
+    }
+
+    func testIteratorInitialized_whenFinished() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 5, high: 10)
+        )
+        let channel = channelAndSource.channel
+        let source = consume channelAndSource.source
+
+        source.finish(throwing: nil)
+
+        var iterator = channel.asyncSequence().makeAsyncIterator()
+        let element = await iterator.next(isolation: nil)
+        XCTAssertNil(element)
+    }
+
+    // MARK: - iteratorDeinitialized
+
+    func testIteratorDeinitialized_whenInitial() async throws {
+        await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            let source = consume channelAndSource.source
+
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
+            
+            group.addTask {
+                while !Task.isCancelled {
+                    onTerminationContinuation.yield()
+                    try await Task.sleep(for: .seconds(0.2))
+                }
+            }
+
+            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
+            _ = await onTerminationIterator.next()
+
+            var iterator = Optional.some(channel.asyncSequence().makeAsyncIterator())
             iterator = nil
-            _ = await iterator?.next()
+            _ = await iterator?.next(isolation: nil)
 
             let terminationResult: Void? = await onTerminationIterator.next()
             XCTAssertNil(terminationResult)
@@ -264,21 +354,21 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenChanneling() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            var source = consume channelAndSource.source
 
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source.onTermination = {
-            onTerminationContinuation.finish()
-        }
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
 
-        try await source.send(1)
-
-        await withThrowingTaskGroup(of: Void.self) { group in
+            try await source.send(1)
+            
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -289,7 +379,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: MultiProducerSingleConsumerChannel<Int, Never>.AsyncIterator? = channel.makeAsyncIterator()
+            var iterator = Optional.some(channel.asyncSequence().makeAsyncIterator())
             iterator = nil
             _ = await iterator?.next(isolation: nil)
 
@@ -301,22 +391,22 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenSourceFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            var source = consume channelAndSource.source
 
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source.onTermination = {
-            onTerminationContinuation.finish()
-        }
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
 
-        try await source.send(1)
-        source.finish(throwing: nil)
-
-        await withThrowingTaskGroup(of: Void.self) { group in
+            try await source.send(1)
+            source.finish(throwing: nil)
+            
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -327,9 +417,9 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: MultiProducerSingleConsumerChannel<Int, Never>.AsyncIterator? = channel.makeAsyncIterator()
+            var iterator = Optional.some(channel.asyncSequence().makeAsyncIterator())
             iterator = nil
-            _ = await iterator?.next()
+            _ = await iterator?.next(isolation: nil)
 
             let terminationResult: Void? = await onTerminationIterator.next()
             XCTAssertNil(terminationResult)
@@ -339,22 +429,22 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            throwing: Error.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source.onTermination = {
-            onTerminationContinuation.finish()
-        }
-
-        source.finish(throwing: nil)
-
         try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                throwing: Error.self,
+                backpressureStrategy: .watermark(low: 5, high: 10)
+            )
+            let channel = channelAndSource.channel
+            let source = consume channelAndSource.source
+
+            let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
+            source.setOnTerminationCallback {
+                onTerminationContinuation.finish()
+            }
+
+            source.finish(throwing: nil)
+            
             group.addTask {
                 while !Task.isCancelled {
                     onTerminationContinuation.yield()
@@ -365,7 +455,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             var onTerminationIterator = onTerminationStream.makeAsyncIterator()
             _ = await onTerminationIterator.next()
 
-            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = channel.makeAsyncIterator()
+            var iterator = Optional.some(channel.asyncSequence().makeAsyncIterator())
             iterator = nil
             _ = try await iterator?.next()
 
@@ -377,15 +467,15 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testIteratorDeinitialized_whenChanneling_andSuspendedProducer() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             throwing: Error.self,
             backpressureStrategy: .watermark(low: 5, high: 10)
         )
-        var channel: MultiProducerSingleConsumerChannel? = channelAndStream.channel
-        var source = consume channelAndStream.source
+        var channel: MultiProducerSingleConsumerChannel? = channelAndSource.channel
+        var source = consume channelAndSource.source
 
-        var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = channel?.makeAsyncIterator()
+        var iterator = channel?.asyncSequence().makeAsyncIterator()
         channel = nil
 
         _ = try { try source.send(1) }()
@@ -405,136 +495,52 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         _ = try await iterator?.next()
     }
 
-    // MARK: - sourceDeinitialized
-
-    func testSourceDeinitialized_whenSourceFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            throwing: Error.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source: MultiProducerSingleConsumerChannel.Source? = consume channelAndStream.source
-
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source?.onTermination = {
-            onTerminationContinuation.finish()
-        }
-
-        try await source?.send(1)
-        try await source?.send(2)
-        source?.finish(throwing: nil)
-
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                while !Task.isCancelled {
-                    onTerminationContinuation.yield()
-                    try await Task.sleep(for: .seconds(0.2))
-                }
-            }
-
-            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
-            _ = await onTerminationIterator.next()
-
-            var iterator: MultiProducerSingleConsumerChannel<Int, Error>.AsyncIterator? = channel.makeAsyncIterator()
-            _ = try await iterator?.next()
-
-            _ = await onTerminationIterator.next()
-
-            _ = try await iterator?.next()
-            _ = try await iterator?.next()
-
-            let terminationResult: Void? = await onTerminationIterator.next()
-            XCTAssertNil(terminationResult)
-
-            group.cancelAll()
-        }
-    }
-
-    func testSourceDeinitialized_whenFinished() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            throwing: Error.self,
-            backpressureStrategy: .watermark(low: 5, high: 10)
-        )
-        let channel = channelAndStream.channel
-        var source: MultiProducerSingleConsumerChannel.Source? = consume channelAndStream.source
-
-        let (onTerminationStream, onTerminationContinuation) = AsyncStream<Void>.makeStream()
-        source?.onTermination = {
-            onTerminationContinuation.finish()
-        }
-
-        source?.finish(throwing: nil)
-
-        await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                while !Task.isCancelled {
-                    onTerminationContinuation.yield()
-                    try await Task.sleep(for: .seconds(0.2))
-                }
-            }
-
-            var onTerminationIterator = onTerminationStream.makeAsyncIterator()
-            _ = await onTerminationIterator.next()
-
-            _ = channel.makeAsyncIterator()
-
-            _ = await onTerminationIterator.next()
-
-            let terminationResult: Void? = await onTerminationIterator.next()
-            XCTAssertNil(terminationResult)
-
-            group.cancelAll()
-        }
-    }
-
     // MARK: - write
 
     func testWrite_whenInitial() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 2, high: 5)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         try await source.send(1)
 
-        var iterator = channel.makeAsyncIterator()
-        let element = await iterator.next()
+        var iterator = channel.asyncSequence().makeAsyncIterator()
+        let element = await iterator.next(isolation: nil)
         XCTAssertEqual(element, 1)
     }
 
     func testWrite_whenChanneling_andNoConsumer() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 2, high: 5)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         try await source.send(1)
         try await source.send(2)
 
-        var iterator = channel.makeAsyncIterator()
-        let element1 = await iterator.next()
+        var iterator = channel.asyncSequence().makeAsyncIterator()
+        let element1 = await iterator.next(isolation: nil)
         XCTAssertEqual(element1, 1)
-        let element2 = await iterator.next()
+        let element2 = await iterator.next(isolation: nil)
         XCTAssertEqual(element2, 2)
     }
 
     func testWrite_whenChanneling_andSuspendedConsumer() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 5)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
         try await withThrowingTaskGroup(of: Int?.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 5)
+            )
+            var channel = channelAndSource.channel
+            var source = consume channelAndSource.source
+            
             group.addTask {
-                return await channel.first { _ in true }
+                return await channel.next()
             }
 
             // This is always going to be a bit racy since we need the call to next() suspend
@@ -547,16 +553,15 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testWrite_whenChanneling_andSuspendedConsumer_andEmptySequence() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 5)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
         try await withThrowingTaskGroup(of: Int?.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 5)
+            )
+            var channel = channelAndSource.channel
+            var source = consume channelAndSource.source
             group.addTask {
-                return await channel.first { _ in true }
+                return await channel.next()
             }
 
             // This is always going to be a bit racy since we need the call to next() suspend
@@ -568,16 +573,74 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertEqual(element, 1)
         }
     }
+    
+    func testWrite_whenSourceFinished() async throws {
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 2, high: 5)
+        )
+        var channel = consume channelAndSource.channel
+        var source1 = consume channelAndSource.source
+        var source2 = source1.copy()
+        
+        try await source1.send(1)
+        source1.finish()
+        do {
+            try await source2.send(1)
+            XCTFail("Expected an error to be thrown")
+        } catch {
+            XCTAssertTrue(error is MultiProducerSingleConsumerChannelAlreadyFinishedError)
+        }
+        let element1 = await channel.next()
+        XCTAssertEqual(element1, 1)
+        let element2 = await channel.next()
+        XCTAssertNil(element2)
+    }
+    
+    func testWrite_whenConcurrentProduction() async throws {
+        await withThrowingTaskGroup { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 5)
+            )
+            var channel = consume channelAndSource.channel
+            var source1 = consume channelAndSource.source
+            var source2 = Optional.some(source1.copy())
+            
+            let manualExecutor1 = ManualTaskExecutor()
+            group.addTask(executorPreference: manualExecutor1) {
+                try await source1.send(1)
+            }
+            
+            let manualExecutor2 = ManualTaskExecutor()
+            group.addTask(executorPreference: manualExecutor2) {
+                var source2 = source2.take()!
+                try await source2.send(2)
+                source2.finish()
+            }
+            
+            manualExecutor1.run()
+            let element1 = await channel.next()
+            XCTAssertEqual(element1, 1)
+            
+            manualExecutor2.run()
+            let element2 = await channel.next()
+            XCTAssertEqual(element2, 2)
+            
+            let element3 = await channel.next()
+            XCTAssertNil(element3)
+        }
+    }
 
     // MARK: - enqueueProducer
 
     func testEnqueueProducer_whenChanneling_andAndCancelled() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 1, high: 2)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        var channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         let (producerStream, producerSource) = AsyncThrowingStream<Void, Error>.makeStream()
 
@@ -603,21 +666,21 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertTrue(error is CancellationError)
         }
 
-        let element = await channel.first { _ in true }
+        let element = await channel.next()
         XCTAssertEqual(element, 1)
     }
 
     func testEnqueueProducer_whenChanneling_andAndCancelled_andAsync() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 1, high: 2)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 1, high: 2)
+            )
+            var channel = channelAndSource.channel
+            var source = consume channelAndSource.source
 
-        try await source.send(1)
-
-        await withThrowingTaskGroup(of: Void.self) { group in
+            try await source.send(1)
+            
             group.addTask {
                 try await source.send(2)
             }
@@ -629,20 +692,20 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             } catch {
                 XCTAssertTrue(error is CancellationError)
             }
+            
+            let element = await channel.next()
+            XCTAssertEqual(element, 1)
         }
-
-        let element = await channel.first { _ in true }
-        XCTAssertEqual(element, 1)
     }
 
     func testEnqueueProducer_whenChanneling_andInterleaving() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 1, high: 1)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-        var iterator = channel.makeAsyncIterator()
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
+        var iterator = channel.asyncSequence().makeAsyncIterator()
 
         let (producerStream, producerSource) = AsyncThrowingStream<Void, Error>.makeStream()
 
@@ -652,7 +715,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
         case .produceMore:
             preconditionFailure()
         case .enqueueCallback(let callbackToken):
-            let element = await iterator.next()
+            let element = await iterator.next(isolation: nil)
             XCTAssertEqual(element, 1)
 
             source.enqueueCallback(callbackToken: callbackToken) { result in
@@ -668,13 +731,13 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testEnqueueProducer_whenChanneling_andSuspending() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 1, high: 1)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-        var iterator = channel.makeAsyncIterator()
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
+        var iterator = channel.asyncSequence().makeAsyncIterator()
 
         let (producerStream, producerSource) = AsyncThrowingStream<Void, Error>.makeStream()
 
@@ -689,7 +752,7 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
         }
 
-        let element = await iterator.next()
+        let element = await iterator.next(isolation: nil)
         XCTAssertEqual(element, 1)
 
         do {
@@ -702,12 +765,12 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     // MARK: - cancelProducer
 
     func testCancelProducer_whenChanneling() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 1, high: 2)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        var channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         let (producerStream, producerSource) = AsyncThrowingStream<Void, Error>.makeStream()
 
@@ -733,23 +796,28 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             XCTAssertTrue(error is CancellationError)
         }
 
-        let element = await channel.first { _ in true }
+        let element = await channel.next()
         XCTAssertEqual(element, 1)
     }
 
     // MARK: - finish
 
     func testFinish_whenChanneling_andConsumerSuspended() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 1, high: 1)
-        )
-        let channel = channelAndStream.channel
-        var source: MultiProducerSingleConsumerChannel.Source? = consume channelAndStream.source
-
         try await withThrowingTaskGroup(of: Int?.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 1, high: 1)
+            )
+            var channel = channelAndSource.channel
+            var source: MultiProducerSingleConsumerChannel.Source? = consume channelAndSource.source
+
             group.addTask {
-                return await channel.first { $0 == 2 }
+                while let element = await channel.next() {
+                    if element == 2 {
+                        return element
+                    }
+                }
+                return nil
             }
 
             // This is always going to be a bit racy since we need the call to next() suspend
@@ -764,18 +832,18 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testFinish_whenInitial() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             throwing: Error.self,
             backpressureStrategy: .watermark(low: 1, high: 1)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        let channel = channelAndSource.channel
+        let source = consume channelAndSource.source
 
         source.finish(throwing: CancellationError())
 
         do {
-            for try await _ in channel {}
+            for try await _ in channel.asyncSequence() {}
             XCTFail("Expected an error to be thrown")
         } catch {
             XCTAssertTrue(error is CancellationError)
@@ -786,16 +854,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     // MARK: - Backpressure
 
     func testBackpressure() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 4)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-
         await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 4)
+            )
+            let channel = channelAndSource.channel
+            var source = consume channelAndSource.source
+
+            let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
+            
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
@@ -804,16 +872,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             var backpressureEventIterator = backpressureEventStream.makeAsyncIterator()
-            var iterator = channel.makeAsyncIterator()
+            var iterator = channel.asyncSequence().makeAsyncIterator()
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
 
-            _ = await iterator.next()
-            _ = await iterator.next()
-            _ = await iterator.next()
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
@@ -824,16 +892,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testBackpressureSync() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 4)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-
         await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 4)
+            )
+            let channel = channelAndSource.channel
+            var source = consume channelAndSource.source
+
+            let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
+            
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
@@ -846,16 +914,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             var backpressureEventIterator = backpressureEventStream.makeAsyncIterator()
-            var iterator = channel.makeAsyncIterator()
+            var iterator = channel.asyncSequence().makeAsyncIterator()
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
 
-            _ = await iterator.next()
-            _ = await iterator.next()
-            _ = await iterator.next()
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
@@ -866,33 +934,34 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testWatermarkWithCustomCoount() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: [Int].self,
             backpressureStrategy: .watermark(low: 2, high: 4, waterLevelForElement: { $0.count })
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-        var iterator = channel.makeAsyncIterator()
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
+        var iterator = channel.asyncSequence().makeAsyncIterator()
 
         try await source.send([1, 1, 1])
 
-        _ = await iterator.next()
+        _ = await iterator.next(isolation: nil)
 
         try await source.send([1, 1, 1])
 
-        _ = await iterator.next()
+        _ = await iterator.next(isolation: nil)
     }
 
     func testWatermarWithLotsOfElements() async throws {
-        // This test should in the future use a custom task executor to schedule to avoid sending
-        // 1000 elements.
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 4)
-        )
-        let channel = channelAndStream.channel
-        var source: MultiProducerSingleConsumerChannel.Source! = consume channelAndStream.source
         await withThrowingTaskGroup(of: Void.self) { group in
+            // This test should in the future use a custom task executor to schedule to avoid sending
+            // 1000 elements.
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 4)
+            )
+            let channel = channelAndSource.channel
+            var source: MultiProducerSingleConsumerChannel.Source! = consume channelAndSource.source
+            
             group.addTask {
                 var source = source.take()!
                 for i in 0...10000 {
@@ -900,10 +969,12 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
                 }
                 source.finish()
             }
+            
+            let asyncSequence = channel.asyncSequence()
 
             group.addTask {
                 var sum = 0
-                for try await element in channel {
+                for try await element in asyncSequence {
                     sum += element
                 }
             }
@@ -911,20 +982,20 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 
     func testThrowsError() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             throwing: Error.self,
             backpressureStrategy: .watermark(low: 2, high: 4)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        let channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         try await source.send(1)
         try await source.send(2)
         source.finish(throwing: CancellationError())
 
         var elements = [Int]()
-        var iterator = channel.makeAsyncIterator()
+        var iterator = channel.asyncSequence().makeAsyncIterator()
 
         do {
             while let element = try await iterator.next() {
@@ -942,12 +1013,12 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
 
     func testAsyncSequenceWrite() async throws {
         let (stream, continuation) = AsyncStream<Int>.makeStream()
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
+        let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
             of: Int.self,
             backpressureStrategy: .watermark(low: 2, high: 4)
         )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
+        var channel = channelAndSource.channel
+        var source = consume channelAndSource.source
 
         continuation.yield(1)
         continuation.yield(2)
@@ -963,16 +1034,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     // MARK: NonThrowing
 
     func testNonThrowing() async throws {
-        let channelAndStream = MultiProducerSingleConsumerChannel.makeChannel(
-            of: Int.self,
-            backpressureStrategy: .watermark(low: 2, high: 4)
-        )
-        let channel = channelAndStream.channel
-        var source = consume channelAndStream.source
-
-        let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
-
         await withThrowingTaskGroup(of: Void.self) { group in
+            let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+                of: Int.self,
+                backpressureStrategy: .watermark(low: 2, high: 4)
+            )
+            let channel = channelAndSource.channel
+            var source = consume channelAndSource.source
+
+            let (backpressureEventStream, backpressureEventContinuation) = AsyncStream.makeStream(of: Void.self)
+            
             group.addTask {
                 while true {
                     backpressureEventContinuation.yield(())
@@ -981,16 +1052,16 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
             }
 
             var backpressureEventIterator = backpressureEventStream.makeAsyncIterator()
-            var iterator = channel.makeAsyncIterator()
+            var iterator = channel.asyncSequence().makeAsyncIterator()
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
 
-            _ = await iterator.next()
-            _ = await iterator.next()
-            _ = await iterator.next()
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
+            _ = await iterator.next(isolation: nil)
 
             await backpressureEventIterator.next()
             await backpressureEventIterator.next()
@@ -1001,15 +1072,19 @@ final class MultiProducerSingleConsumerChannelTests: XCTestCase {
     }
 }
 
-extension AsyncSequence {
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel {
     /// Collect all elements in the sequence into an array.
-    fileprivate func collect() async rethrows -> [Element] {
-        try await self.reduce(into: []) { accumulated, next in
-            accumulated.append(next)
+    fileprivate mutating func collect() async throws(Failure) -> [Element] {
+        var elements = [Element]()
+        while let element = try await self.next() {
+            elements.append(element)
         }
+        return elements
     }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel.Source.SendResult {
     func assertIsProducerMore() {
         switch self {

@@ -23,8 +23,9 @@ public struct MultiProducerSingleConsumerChannelAlreadyFinishedError: Error {
 /// A multi producer single consumer channel.
 ///
 /// The ``MultiProducerSingleConsumerChannel`` provides a ``MultiProducerSingleConsumerChannel/Source`` to
-/// send values to the channel. The source exposes the internal backpressure of the asynchronous sequence to the
-/// producer. Additionally, the source can be used from synchronous and asynchronous contexts.
+/// send values to the channel. The channel supports different back pressure strategies to control the
+/// buffering and demand. The channel will buffer values until its backpressure strategy decides that the
+/// producer have to wait.
 ///
 ///
 /// ## Using a MultiProducerSingleConsumerChannel
@@ -63,36 +64,34 @@ public struct MultiProducerSingleConsumerChannelAlreadyFinishedError: Error {
 ///
 /// Values can also be send to the source from synchronous context. Backpressure is also exposed on the synchronous contexts; however,
 /// it is up to the caller to decide how to properly translate the backpressure to underlying producer e.g. by blocking the thread.
-///
-/// ## Finishing the source
-///
-/// To properly notify the consumer if the production of values has been finished the source's ``MultiProducerSingleConsumerChannel/Source/finish(throwing:)`` **must** be called.
-public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: AsyncSequence {
-    /// A private class to give the ``MultiProducerSingleConsumerChannel`` a deinit so we
-    /// can tell the producer when any potential consumer went away.
-    private final class _Backing: Sendable {
-        /// The underlying storage.
-        fileprivate let storage: _Storage
-
-        init(storage: _Storage) {
-            self.storage = storage
-        }
-
-        deinit {
-            storage.sequenceDeinitialized()
-        }
-    }
-
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: ~Copyable {
     /// The backing storage.
-    private let backing: _Backing
+    @usableFromInline
+    let storage: _Storage
 
+    /// A struct containing the initialized channel and source.
+    ///
+    /// This struct can be deconstructed by consuming the individual
+    /// components from it.
+    ///
+    /// ```swift
+    /// let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+    ///     of: Int.self,
+    ///     backpressureStrategy: .watermark(low: 5, high: 10)
+    /// )
+    /// var channel = consume channelAndSource.channel
+    /// var source = consume channelAndSource.source
+    /// ```
     @frozen
     public struct ChannelAndStream: ~Copyable {
+        /// The channel.
         public var channel: MultiProducerSingleConsumerChannel
+        /// The source.
         public var source: Source
 
-        public init(
-            channel: MultiProducerSingleConsumerChannel,
+        init(
+            channel: consuming MultiProducerSingleConsumerChannel,
             source: consuming Source
         ) {
             self.channel = channel
@@ -105,8 +104,8 @@ public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: Async
     /// - Parameters:
     ///   - elementType: The element type of the channel.
     ///   - failureType: The failure type of the channel.
-    ///   - BackpressureStrategy: The backpressure strategy that the channel should use.
-    /// - Returns: A tuple containing the channel and its source. The source should be passed to the
+    ///   - backpressureStrategy: The backpressure strategy that the channel should use.
+    /// - Returns: A struct containing the channel and its source. The source should be passed to the
     ///   producer while the channel should be passed to the consumer.
     public static func makeChannel(
         of elementType: Element.Type = Element.self,
@@ -122,18 +121,46 @@ public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: Async
     }
 
     init(storage: _Storage) {
-        self.backing = .init(storage: storage)
+        self.storage = storage
+    }
+    
+    deinit {
+        self.storage.channelDeinitialized()
+    }
+    
+    /// Returns the next element.
+    ///
+    /// If this method returns `nil` it indicates that no further values can ever
+    /// be returned. The channel automatically closes when all sources have been deinited.
+    ///
+    /// If there are no elements and the channel has not been finished yet, this method will
+    /// suspend until an element is send to the channel.
+    ///
+    /// If the task calling this method is cancelled this method will return `nil`.
+    ///
+    /// - Parameter isolation: The callers isolation.
+    /// - Returns: The next buffered element.
+    @inlinable
+    public mutating func next(
+        isolation: isolated (any Actor)? = #isolation
+    ) async throws(Failure) -> Element? {
+        do {
+            return try await self.storage.next()
+        } catch {
+            // This force-cast is safe since we only allow closing the source with this failure
+            // We only need this force cast since continuations don't support typed throws yet.
+            throw error as! Failure
+        }
     }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel {
     /// A struct to send values to the channel.
     ///
     /// Use this source to provide elements to the channel by calling one of the `send` methods.
-    ///
-    /// - Important: You must terminate the source by calling ``finish(throwing:)``.
     public struct Source: ~Copyable, Sendable {
-        /// A strategy that handles the backpressure of the channel.
+        /// A struct representing the backpressure of the channel.
         public struct BackpressureStrategy: Sendable {
             var internalBackpressureStrategy: _InternalBackpressureStrategy
 
@@ -158,11 +185,11 @@ extension MultiProducerSingleConsumerChannel {
             ///   - waterLevelForElement: A closure used to compute the contribution of each buffered element to the current water level.
             ///
             /// - Note, `waterLevelForElement` will be called on each element when it is written into the source and when
-            /// it is consumed from the channel, so it is recommended to provide an function that runs in constant time.
+            /// it is consumed from the channel, so it is recommended to provide a function that runs in constant time.
             public static func watermark(
                 low: Int,
                 high: Int,
-                waterLevelForElement: @escaping @Sendable (Element) -> Int // TODO: In the future this should become sending
+                waterLevelForElement: @escaping @Sendable (borrowing Element) -> Int
             ) -> BackpressureStrategy {
                 .init(
                     internalBackpressureStrategy: .watermark(
@@ -174,8 +201,8 @@ extension MultiProducerSingleConsumerChannel {
             /// An unbounded backpressure strategy.
             ///
             /// - Important: Only use this strategy if the production of elements is limited through some other mean. Otherwise
-            /// an unbounded backpressure strategy can result in infinite memory usage and open your application to denial of service
-            /// attacks.
+            /// an unbounded backpressure strategy can result in infinite memory usage and cause
+            /// your process to run out of memory.
             public static func unbounded() -> BackpressureStrategy {
                 .init(
                     internalBackpressureStrategy: .unbounded(.init())
@@ -185,9 +212,12 @@ extension MultiProducerSingleConsumerChannel {
 
         /// A type that indicates the result of sending elements to the source.
         public enum SendResult: ~Copyable, Sendable {
-            /// A token that is returned when the channel's backpressure strategy indicated that production should
-            /// be suspended. Use this token to enqueue a callback by  calling the ``enqueueCallback(_:)`` method.
-            public struct CallbackToken: Sendable {
+            /// An opaque token that is returned when the channel's backpressure strategy indicated that production should
+            /// be suspended. Use this token to enqueue a callback by  calling the ``MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)`` method.
+            ///
+            /// - Important: This token must only be passed once to ``MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)``
+            ///  and ``MultiProducerSingleConsumerChannel/Source/cancelCallback(callbackToken:)``.
+            public struct CallbackToken: Sendable, Hashable {
                 @usableFromInline
                 let _id: UInt64
 
@@ -197,29 +227,13 @@ extension MultiProducerSingleConsumerChannel {
                 }
             }
 
-            /// Indicates that more elements should be produced and written to the source.
+            /// Indicates that more elements should be produced and send to the source.
             case produceMore
 
             /// Indicates that a callback should be enqueued.
             ///
-            /// The associated token should be passed to the ``enqueueCallback(_:)`` method.
+            /// The associated token should be passed to the ````MultiProducerSingleConsumerChannel/Source/enqueueCallback(callbackToken:onProduceMore:)```` method.
             case enqueueCallback(CallbackToken)
-        }
-
-
-        /// A callback to invoke when the channel finished.
-        ///
-        /// The channel finishes and calls this closure in the following cases:
-        /// - No iterator was created and the sequence was deinited
-        /// - An iterator was created and deinited
-        /// - After ``finish(throwing:)`` was called and all elements have been consumed
-        public var onTermination: (@Sendable () -> Void)? {
-            set {
-                self._storage.onTermination = newValue
-            }
-            get {
-                self._storage.onTermination
-            }
         }
 
         @usableFromInline
@@ -227,19 +241,26 @@ extension MultiProducerSingleConsumerChannel {
 
         internal init(storage: _Storage) {
             self._storage = storage
+            self._storage.sourceInitialized()
         }
 
         deinit {
             self._storage.sourceDeinitialized()
         }
 
+        /// Sets a callback to invoke when the channel terminated.
+        ///
+        /// This is called after the last element has been consumed by the channel.
+        public func setOnTerminationCallback(_ callback: @escaping @Sendable () -> Void) {
+            self._storage.onTermination = callback
+        }
 
         /// Creates a new source which can be used to send elements to the channel concurrently.
         ///
         /// The channel will only automatically be finished if all existing sources have been deinited.
         ///
         /// - Returns: A new source for sending elements to the channel.
-        public mutating func copy() -> Self {
+        public mutating func copy() -> sending Self {
             .init(storage: self._storage)
         }
 
@@ -252,7 +273,9 @@ extension MultiProducerSingleConsumerChannel {
         /// - Parameter sequence: The elements to send to the channel.
         /// - Returns: The result that indicates if more elements should be produced at this time.
         @inlinable
-        public mutating func send<S>(contentsOf sequence: sending S) throws -> SendResult where Element == S.Element, S: Sequence {
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S
+        ) throws -> SendResult where Element == S.Element, S: Sequence, Element: Copyable {
             try self._storage.send(contentsOf: sequence)
         }
 
@@ -265,15 +288,15 @@ extension MultiProducerSingleConsumerChannel {
         /// - Parameter element: The element to send to the channel.
         /// - Returns: The result that indicates if more elements should be produced at this time.
         @inlinable
-        public mutating func send(_ element: sending Element) throws -> SendResult {
+        public mutating func send(_ element: consuming sending Element) throws -> SendResult {
             try self._storage.send(contentsOf: CollectionOfOne(element))
         }
 
         /// Enqueues a callback that will be invoked once more elements should be produced.
         ///
-        /// Call this method after ``send(contentsOf:)-5honm`` or ``send(_:)-3jxzb`` returned ``SendResult/enqueueCallback(_:)``.
+        /// Call this method after ``send(contentsOf:)-65yju`` or ``send(_:)`` returned ``SendResult/enqueueCallback(_:)``.
         ///
-        /// - Important: Enqueueing the same token multiple times is not allowed.
+        /// - Important: Enqueueing the same token multiple times is **not allowed**.
         ///
         /// - Parameters:
         ///   - callbackToken: The callback token.
@@ -311,9 +334,9 @@ extension MultiProducerSingleConsumerChannel {
         ///   invoked during the call to ``send(contentsOf:onProduceMore:)``.
         @inlinable
         public mutating func send<S>(
-            contentsOf sequence: sending S,
+            contentsOf sequence: consuming sending S,
             onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
-        ) where Element == S.Element, S: Sequence {
+        ) where Element == S.Element, S: Sequence, Element: Copyable {
             do {
                 let sendResult = try self.send(contentsOf: sequence)
 
@@ -341,10 +364,22 @@ extension MultiProducerSingleConsumerChannel {
         ///   invoked during the call to ``send(_:onProduceMore:)``.
         @inlinable
         public mutating func send(
-            _ element: sending Element,
+            _ element: consuming sending Element,
             onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
         ) {
-            self.send(contentsOf: CollectionOfOne(element), onProduceMore: onProduceMore)
+            do {
+                let sendResult = try self.send(element)
+
+                switch consume sendResult {
+                case .produceMore:
+                    onProduceMore(Result<Void, Error>.success(()))
+
+                case .enqueueCallback(let callbackToken):
+                    self.enqueueCallback(callbackToken: callbackToken, onProduceMore: onProduceMore)
+                }
+            } catch {
+                onProduceMore(.failure(error))
+            }
         }
 
         /// Send new elements to the channel.
@@ -358,8 +393,11 @@ extension MultiProducerSingleConsumerChannel {
         /// - Parameters:
         ///   - sequence: The elements to send to the channel.
         @inlinable
-        public mutating func send<S>(contentsOf sequence: sending S) async throws where Element == S.Element, S: Sequence {
-            let sendResult = try { try self.send(contentsOf: sequence) }()
+        public mutating func send<S>(
+            contentsOf sequence: consuming sending S
+        ) async throws where Element == S.Element, S: Sequence, Element: Copyable {
+            let syncSend: (sending S, inout sending Self) throws -> SendResult = { try $1.send(contentsOf: $0) }
+            let sendResult = try syncSend(sequence, &self)
 
             switch consume sendResult {
             case .produceMore:
@@ -392,28 +430,49 @@ extension MultiProducerSingleConsumerChannel {
         /// - Parameters:
         ///   - element: The element to send to the channel.
         @inlinable
-        public mutating func send(_ element: sending Element) async throws {
-            try await self.send(contentsOf: CollectionOfOne(element))
+        public mutating func send(_ element: consuming sending Element) async throws {
+            let syncSend: (consuming sending Element, inout sending Self) throws -> SendResult = { try $1.send($0) }
+            let sendResult = try syncSend(element, &self)
+
+            switch consume sendResult {
+            case .produceMore:
+                return ()
+
+            case .enqueueCallback(let callbackToken):
+                let id = callbackToken._id
+                let storage = self._storage
+                try await withTaskCancellationHandler {
+                    try await withUnsafeThrowingContinuation { continuation in
+                        self._storage.enqueueProducer(
+                            callbackToken: id,
+                            continuation: continuation
+                        )
+                    }
+                } onCancel: {
+                    storage.cancelProducer(callbackToken: id)
+                }
+            }
         }
 
         /// Send the elements of the asynchronous sequence to the channel.
         ///
-        /// This method returns once the provided asynchronous sequence or  the channel finished.
+        /// This method returns once the provided asynchronous sequence or the channel finished.
         ///
         /// - Important: This method does not finish the source if consuming the upstream sequence terminated.
         ///
         /// - Parameters:
         ///   - sequence: The elements to send to the channel.
         @inlinable
-        public mutating func send<S>(contentsOf sequence: sending S) async throws where Element == S.Element, S: AsyncSequence {
-            for try await element in sequence {
+        public mutating func send<S>(contentsOf sequence: consuming sending S) async throws where Element == S.Element, S: AsyncSequence, Element: Copyable, S: Sendable, Element: Sendable {
+            for try await  element in sequence {
                 try await self.send(contentsOf: CollectionOfOne(element))
             }
         }
 
         /// Indicates that the production terminated.
         ///
-        /// After all buffered elements are consumed the next iteration point will return `nil` or throw an error.
+        /// After all buffered elements are consumed the subsequent call to ``MultiProducerSingleConsumerChannel/next(isolation:)`` will return
+        /// `nil` or throw an error.
         ///
         /// Calling this function more than once has no effect. After calling finish, the channel enters a terminal state and doesn't accept
         /// new elements.
@@ -427,20 +486,51 @@ extension MultiProducerSingleConsumerChannel {
     }
 }
 
-extension MultiProducerSingleConsumerChannel {
-    /// The asynchronous iterator for iterating the channel.
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel where Element: Copyable {
+    struct ChannelAsyncSequence: AsyncSequence {
+        @usableFromInline
+        final class _Backing: Sendable {
+            @usableFromInline
+            let storage: MultiProducerSingleConsumerChannel._Storage
+
+            init(storage: MultiProducerSingleConsumerChannel._Storage) {
+                self.storage = storage
+                self.storage.sequenceInitialized()
+            }
+
+            deinit {
+                self.storage.sequenceDeinitialized()
+            }
+        }
+        
+        @usableFromInline
+        let _backing: _Backing
+        
+        public func makeAsyncIterator() -> Self.Iterator {
+            .init(storage: self._backing.storage)
+        }
+    }
+    
+    /// Converts the channel to an asynchronous sequence for consumption.
     ///
-    /// This type is not `Sendable`. Don't use it from multiple
-    /// concurrent contexts. It is a programmer error to invoke `next()` from a
-    /// concurrent context that contends with another such call, which
-    /// results in a call to `fatalError()`.
-    public struct Iterator: AsyncIteratorProtocol {
+    /// - Important: The returned asynchronous sequence only supports a single iterator to be created and
+    /// will fatal error at runtime on subsequent calls to `makeAsyncIterator`.
+    public consuming func asyncSequence() -> some (AsyncSequence<Element, Failure> & Sendable) {
+        ChannelAsyncSequence(_backing: .init(storage: self.storage))
+    }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel.ChannelAsyncSequence where Element: Copyable {
+    struct Iterator: AsyncIteratorProtocol {
         @usableFromInline
         final class _Backing {
             @usableFromInline
-            let storage: _Storage
+            let storage: MultiProducerSingleConsumerChannel._Storage
 
-            init(storage: _Storage) {
+            init(storage: MultiProducerSingleConsumerChannel._Storage) {
                 self.storage = storage
                 self.storage.iteratorInitialized()
             }
@@ -453,18 +543,12 @@ extension MultiProducerSingleConsumerChannel {
         @usableFromInline
         let _backing: _Backing
 
-        init(storage: _Storage) {
+        init(storage: MultiProducerSingleConsumerChannel._Storage) {
             self._backing = .init(storage: storage)
         }
 
-        @_disfavoredOverload
         @inlinable
-        public mutating func next() async throws -> Element? {
-            try await self._backing.storage.next(isolation: nil)
-        }
-
-        @inlinable
-        public mutating func next(
+        mutating func next(
             isolation actor: isolated (any Actor)? = #isolation
         ) async throws(Failure) -> Element? {
             do {
@@ -474,16 +558,8 @@ extension MultiProducerSingleConsumerChannel {
             }
         }
     }
-
-    /// Creates the asynchronous iterator that produces elements of this
-    /// asynchronous sequence.
-    public func makeAsyncIterator() -> Iterator {
-        Iterator(storage: self.backing.storage)
-    }
 }
-
-extension MultiProducerSingleConsumerChannel: Sendable where Element: Sendable {}
-
-@available(*, unavailable)
-extension MultiProducerSingleConsumerChannel.Iterator: Sendable {}
+//
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel.ChannelAsyncSequence: Sendable {}
 #endif
