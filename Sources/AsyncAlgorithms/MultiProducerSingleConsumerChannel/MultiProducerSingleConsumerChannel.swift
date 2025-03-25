@@ -546,6 +546,15 @@ extension MultiProducerSingleConsumerChannel.ChannelAsyncSequence where Element:
         init(storage: MultiProducerSingleConsumerChannel._Storage) {
             self._backing = .init(storage: storage)
         }
+        
+        @inlinable
+        mutating func next() async throws -> Element? {
+            do {
+                return try await self._backing.storage.next(isolation: nil)
+            } catch {
+                throw error as! Failure
+            }
+        }
 
         @inlinable
         mutating func next(

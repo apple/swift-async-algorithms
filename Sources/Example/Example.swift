@@ -22,7 +22,7 @@ struct Example {
         count: Int,
         backpressureStrategy: MultiProducerSingleConsumerChannel<Int, Never>.Source.BackpressureStrategy
     ) async {
-        await withTaskGroup { group in
+        await withTaskGroup(of: Void.self) { group in
             let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
                 of: Int.self,
                 backpressureStrategy: backpressureStrategy
@@ -47,7 +47,7 @@ struct Example {
     }
     
     static func testAsyncStream(count: Int) async {
-        await withTaskGroup { group in
+        await withTaskGroup(of: Void.self) { group in
             let (stream, continuation) = AsyncStream.makeStream(of: Int.self, bufferingPolicy: .unbounded)
             
             group.addTask {
