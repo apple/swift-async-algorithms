@@ -732,6 +732,14 @@ An adaptive strategy regulates the backpressure based on the rate of
 consumption and production. With the proposed new APIs we can easily add further
 strategies.
 
+### Support `~Copyable` elements
+
+In the future, we can extend the channel to support `~Copyable` elements. We
+only need an underlying buffer primitive that can hold `~Copyable` types and the
+continuations need to support `~Copyable` elements as well. By making the
+channel not directly conform to `AsyncSequence` we can support this down the
+road.
+
 ## Alternatives considered
 
 ### Provide an `onTermination` callback to the factory method
