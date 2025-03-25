@@ -123,11 +123,11 @@ public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: ~Copy
     init(storage: _Storage) {
         self.storage = storage
     }
-    
+
     deinit {
         self.storage.channelDeinitialized()
     }
-    
+
     /// Returns the next element.
     ///
     /// If this method returns `nil` it indicates that no further values can ever
@@ -463,8 +463,9 @@ extension MultiProducerSingleConsumerChannel {
         /// - Parameters:
         ///   - sequence: The elements to send to the channel.
         @inlinable
-        public mutating func send<S>(contentsOf sequence: consuming sending S) async throws where Element == S.Element, S: AsyncSequence, Element: Copyable, S: Sendable, Element: Sendable {
-            for try await  element in sequence {
+        public mutating func send<S>(contentsOf sequence: consuming sending S) async throws
+        where Element == S.Element, S: AsyncSequence, Element: Copyable, S: Sendable, Element: Sendable {
+            for try await element in sequence {
                 try await self.send(contentsOf: CollectionOfOne(element))
             }
         }
@@ -486,7 +487,6 @@ extension MultiProducerSingleConsumerChannel {
     }
 }
 
-
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel where Element: Copyable {
     struct ChannelAsyncSequence: AsyncSequence {
@@ -504,15 +504,15 @@ extension MultiProducerSingleConsumerChannel where Element: Copyable {
                 self.storage.sequenceDeinitialized()
             }
         }
-        
+
         @usableFromInline
         let _backing: _Backing
-        
+
         public func makeAsyncIterator() -> Self.Iterator {
             .init(storage: self._backing.storage)
         }
     }
-    
+
     /// Converts the channel to an asynchronous sequence for consumption.
     ///
     /// - Important: The returned asynchronous sequence only supports a single iterator to be created and
