@@ -734,10 +734,10 @@ strategies.
 
 ## Alternatives considered
 
-### Provide the `onTermination` callback to the factory method
+### Provide an `onTermination` callback to the factory method
 
 During development of the new APIs, I first tried to provide the `onTermination`
-callback in the `makeStream` method. However, that showed significant usability
+callback in the `makeChannel` method. However, that showed significant usability
 problems in scenarios where one wants to store the source in a type and
 reference `self` in the `onTermination` closure at the same time; hence, I kept
 the current pattern of setting the `onTermination` closure on the source.
@@ -746,12 +746,12 @@ the current pattern of setting the `onTermination` closure on the source.
 
 During the pitch phase, it was raised that we should provide a
 `onConsumerCancellation` callback which gets invoked once the asynchronous
-stream notices that the consuming task got cancelled. This callback could be
-used to customize how cancellation is handled by the stream e.g. one could
-imagine writing a few more elements to the stream before finishing it. Right now
-the stream immediately returns `nil` or throws a `CancellationError` when it
+channel notices that the consuming task got cancelled. This callback could be
+used to customize how cancellation is handled by the channel e.g. one could
+imagine writing a few more elements to the channel before finishing it. Right now
+the channel immediately returns `nil` or throws a `CancellationError` when it
 notices cancellation. This proposal decided to not provide this customization
-because it opens up the possiblity that asynchronous streams are not terminating
+because it opens up the possiblity that asynchronous channels are not terminating
 when implemented incorrectly. Additionally, asynchronous sequences are not the
 only place where task cancellation leads to an immediate error being thrown i.e.
 `Task.sleep()` does the same. Hence, the value of the asynchronous not
@@ -762,29 +762,18 @@ the future and we can just default it to the current behaviour.
 ### Create a custom type for the `Result` of the `onProduceMore` callback
 
 The `onProducerMore` callback takes a `Result<Void, Error>` which is used to
-indicate if the producer should produce more or if the asynchronous stream
+indicate if the producer should produce more or if the asynchronous channel
 finished. We could introduce a new type for this but the proposal decided
 against it since it effectively is a result type.
 
 ### Use an initializer instead of factory methods
 
-Instead of providing a `makeStream` factory method we could use an initializer
+Instead of providing a `makeChannel` factory method we could use an initializer
 approach that takes a closure which gets the `Source` passed into. A similar API
 has been offered with the `Continuation` based approach and
 [SE-0388](https://github.com/apple/swift-evolution/blob/main/proposals/0388-async-stream-factory.md)
 introduced new factory methods to solve some of the usability ergonomics with
 the initializer based APIs.
-
-### Follow the `AsyncStream` & `AsyncThrowingStream` naming
-
-All other types that offer throwing and non-throwing variants are currently
-following the naming scheme where the throwing variant gets an extra `Throwing`
-in its name. Now that Swift is gaining typed throws support this would make the
-type with the `Failure` parameter capable to express both throwing and
-non-throwing variants. However, the less flexible type has the better name.
-Hence, this proposal uses the good name for the throwing variant with the
-potential in the future to deprecate the `AsyncNonThrowingBackpressuredStream`
-in favour of adopting typed throws.
 
 ## Acknowledgements
 
