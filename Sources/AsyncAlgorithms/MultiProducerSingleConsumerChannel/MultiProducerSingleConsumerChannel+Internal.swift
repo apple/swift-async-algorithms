@@ -11,8 +11,10 @@
 
 #if compiler(>=6.0)
 import DequeModule
+import Synchronization
 
-extension MultiProducerSingleConsumerChannel {
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel  {
     @usableFromInline
     enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
         @usableFromInline
@@ -31,14 +33,14 @@ extension MultiProducerSingleConsumerChannel {
 
             /// A closure that can be used to calculate the watermark impact of a single element
             @usableFromInline
-            let _waterLevelForElement: (@Sendable (Element) -> Int)?
+            let _waterLevelForElement: (@Sendable (borrowing Element) -> Int)?
 
             @usableFromInline
             var description: String {
                 "watermark(\(self._currentWatermark))"
             }
 
-            init(low: Int, high: Int, waterLevelForElement: (@Sendable (Element) -> Int)?) {
+            init(low: Int, high: Int, waterLevelForElement: (@Sendable (borrowing Element) -> Int)?) {
                 precondition(low <= high)
                 self._low = low
                 self._high = high
@@ -48,7 +50,9 @@ extension MultiProducerSingleConsumerChannel {
             @inlinable
             mutating func didSend(elements: Deque<Element>.SubSequence) -> Bool {
                 if let waterLevelForElement = self._waterLevelForElement {
-                    self._currentWatermark += elements.reduce(0) { $0 + waterLevelForElement($1) }
+                    for element in elements {
+                        self._currentWatermark += waterLevelForElement(element)
+                    }
                 } else {
                     self._currentWatermark += elements.count
                 }
@@ -135,24 +139,22 @@ extension MultiProducerSingleConsumerChannel {
     }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel {
     @usableFromInline
-    final class _Storage {
+    final class _Storage: Sendable {
         @usableFromInline
-        let _lock = Lock.allocate()
-        /// The state machine
-        @usableFromInline
-        var _stateMachine: _StateMachine
+        let _stateMachine: Mutex<_StateMachine>
 
         var onTermination: (@Sendable () -> Void)? {
             set {
-                self._lock.withLockVoid {
-                    self._stateMachine._onTermination = newValue
+                self._stateMachine.withLock {
+                    $0._onTermination = newValue
                 }
             }
             get {
-                self._lock.withLock {
-                    self._stateMachine._onTermination
+                self._stateMachine.withLock {
+                    $0._onTermination
                 }
             }
         }
@@ -160,12 +162,44 @@ extension MultiProducerSingleConsumerChannel {
         init(
             backpressureStrategy: _InternalBackpressureStrategy
         ) {
-            self._stateMachine = .init(backpressureStrategy: backpressureStrategy)
+            self._stateMachine = .init(.init(backpressureStrategy: backpressureStrategy))
         }
 
+        func channelDeinitialized() {
+            let action = self._stateMachine.withLock {
+                $0.channelDeinitialized()
+            }
+
+            switch action {
+            case .callOnTermination(let onTermination):
+                onTermination?()
+
+            case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
+                for producerContinuation in producerContinuations {
+                    switch producerContinuation {
+                    case .closure(let onProduceMore):
+                        onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+                    case .continuation(let continuation):
+                        continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+                    }
+                }
+                onTermination?()
+
+            case .none:
+                break
+            }
+        }
+        
+        func sequenceInitialized() {
+            self._stateMachine.withLock {
+                $0.sequenceInitialized()
+            }
+        }
+        
+
         func sequenceDeinitialized() {
-            let action = self._lock.withLock {
-                self._stateMachine.sequenceDeinitialized()
+            let action = self._stateMachine.withLock {
+                $0.sequenceDeinitialized()
             }
 
             switch action {
@@ -189,14 +223,14 @@ extension MultiProducerSingleConsumerChannel {
         }
 
         func iteratorInitialized() {
-            self._lock.withLockVoid {
-                self._stateMachine.iteratorInitialized()
+            self._stateMachine.withLock {
+                $0.iteratorInitialized()
             }
         }
 
         func iteratorDeinitialized() {
-            let action = self._lock.withLock {
-                self._stateMachine.iteratorDeinitialized()
+            let action = self._stateMachine.withLock {
+                $0.iteratorDeinitialized()
             }
 
             switch action {
@@ -218,25 +252,27 @@ extension MultiProducerSingleConsumerChannel {
                 break
             }
         }
+        
+        func sourceInitialized() {
+            self._stateMachine.withLock {
+                $0.sourceInitialized()
+            }
+        }
 
         func sourceDeinitialized() {
-            let action = self._lock.withLock {
-                self._stateMachine.sourceDeinitialized()
+            let action = self._stateMachine.withLock {
+                $0.sourceDeinitialized()
             }
 
             switch action {
-            case .callOnTermination(let onTermination):
-                onTermination?()
-
-            case .failProducersAndCallOnTermination(let producerContinuations, let onTermination):
-                for producerContinuation in producerContinuations {
-                    switch producerContinuation {
-                    case .closure(let onProduceMore):
-                        onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
-                    case .continuation(let continuation):
-                        continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
-                    }
+            case .resumeConsumerAndCallOnTermination(let consumerContinuation, let failure, let onTermination):
+                switch failure {
+                case .some(let error):
+                    consumerContinuation.resume(throwing: error)
+                case .none:
+                    consumerContinuation.resume(returning: nil)
                 }
+
                 onTermination?()
 
             case .none:
@@ -246,10 +282,10 @@ extension MultiProducerSingleConsumerChannel {
 
         @inlinable
         func send(
-            contentsOf sequence: some Sequence<Element>
+            contentsOf sequence: sending some Sequence<Element>
         ) throws -> MultiProducerSingleConsumerChannel<Element, Failure>.Source.SendResult {
-            let action = self._lock.withLock {
-                return self._stateMachine.send(sequence)
+            let action = self._stateMachine.withLock {
+                $0.send(sequence)
             }
 
             switch action {
@@ -277,8 +313,8 @@ extension MultiProducerSingleConsumerChannel {
             callbackToken: UInt64,
             continuation: UnsafeContinuation<Void, any Error>
         ) {
-            let action = self._lock.withLock {
-                self._stateMachine.enqueueContinuation(callbackToken: callbackToken, continuation: continuation)
+            let action = self._stateMachine.withLock {
+                $0.enqueueContinuation(callbackToken: callbackToken, continuation: continuation)
             }
 
             switch action {
@@ -298,8 +334,8 @@ extension MultiProducerSingleConsumerChannel {
             callbackToken: UInt64,
             onProduceMore: sending @escaping (Result<Void, Error>) -> Void
         ) {
-            let action = self._lock.withLock {
-                self._stateMachine.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
+            let action = self._stateMachine.withLock {
+                $0.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
             }
 
             switch action {
@@ -318,8 +354,8 @@ extension MultiProducerSingleConsumerChannel {
         func cancelProducer(
             callbackToken: UInt64
         ) {
-            let action = self._lock.withLock {
-                self._stateMachine.cancelProducer(callbackToken: callbackToken)
+            let action = self._stateMachine.withLock {
+                $0.cancelProducer(callbackToken: callbackToken)
             }
 
             switch action {
@@ -338,8 +374,8 @@ extension MultiProducerSingleConsumerChannel {
 
         @inlinable
         func finish(_ failure: Failure?) {
-            let action = self._lock.withLock {
-                self._stateMachine.finish(failure)
+            let action = self._stateMachine.withLock {
+                $0.finish(failure)
             }
 
             switch action {
@@ -372,9 +408,9 @@ extension MultiProducerSingleConsumerChannel {
         }
 
         @inlinable
-        func next(isolation actor: isolated (any Actor)?) async throws -> Element? {
-            let action = self._lock.withLock {
-                self._stateMachine.next()
+        func next(isolation: isolated (any Actor)? = #isolation) async throws -> Element? {
+            let action = self._stateMachine.withLock {
+                $0.next()
             }
 
             switch action {
@@ -407,16 +443,16 @@ extension MultiProducerSingleConsumerChannel {
                 return nil
 
             case .suspendTask:
-                return try await self.suspendNext(isolation: actor)
+                return try await self.suspendNext()
             }
         }
 
         @inlinable
-        func suspendNext(isolation actor: isolated (any Actor)?) async throws -> Element? {
+        func suspendNext(isolation: isolated (any Actor)? = #isolation) async throws -> Element? {
             return try await withTaskCancellationHandler {
-                return try await withUnsafeThrowingContinuation { continuation in
-                    let action = self._lock.withLock {
-                        self._stateMachine.suspendNext(continuation: continuation)
+                return try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Element?, Error>) in
+                    let action = self._stateMachine.withLock {
+                        $0.suspendNext(continuation: continuation)
                     }
 
                     switch action {
@@ -428,7 +464,7 @@ extension MultiProducerSingleConsumerChannel {
                         for producerContinuation in producerContinuations {
                             switch producerContinuation {
                             case .closure(let onProduceMore):
-                                onProduceMore(.failure(CancellationError()))
+                                onProduceMore(.success(()))
                             case .continuation(let continuation):
                                 continuation.resume()
                             }
@@ -452,8 +488,8 @@ extension MultiProducerSingleConsumerChannel {
                     }
                 }
             } onCancel: {
-                let action = self._lock.withLock {
-                    self._stateMachine.cancelNext()
+                let action = self._stateMachine.withLock {
+                    $0.cancelNext()
                 }
 
                 switch action {
@@ -480,7 +516,8 @@ extension MultiProducerSingleConsumerChannel {
     }
 }
 
-extension MultiProducerSingleConsumerChannel._Storage {
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension MultiProducerSingleConsumerChannel._Storage  {
     /// The state machine of the channel.
     @usableFromInline
     struct _StateMachine: ~Copyable {
@@ -525,11 +562,12 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 .init(
                     backpressureStrategy: backpressureStrategy,
                     iteratorInitialized: false,
+                    sequenceInitialized: false,
                     buffer: .init(),
                     producerContinuations: .init(),
                     cancelledAsyncProducers: .init(),
                     hasOutstandingDemand: true,
-                    activeProducers: 1,
+                    activeProducers: 0,
                     nextCallbackTokenID: 0
                 )
             )
@@ -539,21 +577,36 @@ extension MultiProducerSingleConsumerChannel._Storage {
         init(state: consuming _State) {
                 self._state = state
         }
-
+        
+        @inlinable
+        mutating func sourceInitialized() {
+            switch consume self._state {
+            case .channeling(var channeling):
+                channeling.activeProducers += 1
+                self = .init(state: .channeling(channeling))
+                
+            case .sourceFinished(let sourceFinished):
+                self = .init(state: .sourceFinished(sourceFinished))
+                
+            case .finished(let finished):
+                self = .init(state: .finished(finished))
+            }
+        }
+        
         /// Actions returned by `sourceDeinitialized()`.
         @usableFromInline
-        enum SourceDeinitializedAction {
-            /// Indicates that `onTermination` should be called.
-            case callOnTermination((@Sendable () -> Void)?)
-            /// Indicates that all producers should be failed and `onTermination` should be called.
-            case failProducersAndCallOnTermination(
-                _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>,
-                (@Sendable () -> Void)?
+        enum SourceDeinitialized {
+            /// Indicates that the consumer  should be resumed with the failure, the producers
+            /// should be resumed with an error and `onTermination` should be called.
+            case resumeConsumerAndCallOnTermination(
+                consumerContinuation: UnsafeContinuation<Element?, Error>,
+                failure: Failure?,
+                onTermination: (() -> Void)?
             )
         }
 
         @inlinable
-        mutating func sourceDeinitialized() -> SourceDeinitializedAction? {
+        mutating func sourceDeinitialized() -> SourceDeinitialized? {
             switch consume self._state {
             case .channeling(var channeling):
                 channeling.activeProducers -= 1
@@ -561,41 +614,77 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 if channeling.activeProducers == 0 {
                     // This was the last producer so we can transition to source finished now
 
-                    self = .init(state: .sourceFinished(.init(
+                    guard let consumerContinuation = channeling.consumerContinuation else {
+                        // We don't have a suspended consumer so we are just going to mark
+                        // the source as finished.
+                        self = .init(state: .sourceFinished(
+                            .init(
+                                iteratorInitialized: channeling.iteratorInitialized,
+                                sequenceInitialized: channeling.sequenceInitialized,
+                                buffer: channeling.buffer,
+                                failure: nil,
+                                onTermination: channeling.onTermination
+                            ))
+                        )
+
+                        return nil
+                    }
+                    // We have a continuation, this means our buffer must be empty
+                    // Furthermore, we can now transition to finished
+                    // and resume the continuation with the failure
+                    precondition(channeling.buffer.isEmpty, "Expected an empty buffer")
+
+                    self = .init(state: .finished(.init(
                         iteratorInitialized: channeling.iteratorInitialized,
-                        buffer: channeling.buffer
+                        sequenceInitialized: channeling.sequenceInitialized,
+                        sourceFinished: true
                     )))
 
-                    if channeling.suspendedProducers.isEmpty {
-                        return .callOnTermination(channeling.onTermination)
-                    } else {
-                        return .failProducersAndCallOnTermination(
-                            .init(channeling.suspendedProducers.lazy.map { $0.1 }),
-                            channeling.onTermination
-                        )
-                    }
+                    return .resumeConsumerAndCallOnTermination(
+                        consumerContinuation: consumerContinuation,
+                        failure: nil,
+                        onTermination: channeling.onTermination
+                    )
                 } else {
                     // We still have more producers
                     self = .init(state: .channeling(channeling))
 
                     return nil
                 }
+
             case .sourceFinished(let sourceFinished):
-                // This can happen if one producer calls finish and another deinits afterwards
+                // If the source has finished, finishing again has no effect.
                 self = .init(state: .sourceFinished(sourceFinished))
 
-                return nil
-            case .finished(let finished):
-                // This can happen if the consumer finishes and the producers deinit
-                self = .init(state: .finished(finished))
+                return .none
 
-                return nil
+            case .finished(var finished):
+                finished.sourceFinished = true
+                self = .init(state: .finished(finished))
+                return .none
+            }
+        }
+        
+        @inlinable
+        mutating func sequenceInitialized() {
+            switch consume self._state {
+            case .channeling(var channeling):
+                channeling.sequenceInitialized = true
+                self = .init(state: .channeling(channeling))
+                
+            case .sourceFinished(var sourceFinished):
+                sourceFinished.sequenceInitialized = true
+                self = .init(state: .sourceFinished(sourceFinished))
+                
+            case .finished(var finished):
+                finished.sequenceInitialized = true
+                self = .init(state: .finished(finished))
             }
         }
 
         /// Actions returned by `sequenceDeinitialized()`.
         @usableFromInline
-        enum SequenceDeinitializedAction {
+        enum ChannelOrSequenceDeinitializedAction {
             /// Indicates that `onTermination` should be called.
             case callOnTermination((@Sendable () -> Void)?)
             /// Indicates that all producers should be failed and `onTermination` should be called.
@@ -606,12 +695,17 @@ extension MultiProducerSingleConsumerChannel._Storage {
         }
 
         @inlinable
-        mutating func sequenceDeinitialized() -> SequenceDeinitializedAction? {
+        mutating func sequenceDeinitialized() -> ChannelOrSequenceDeinitializedAction? {
             switch consume self._state {
             case .channeling(let channeling):
                 guard channeling.iteratorInitialized else {
+                    precondition(channeling.sequenceInitialized, "Sequence was not initialized")
                     // No iterator was created so we can transition to finished right away.
-                    self = .init(state: .finished(.init(iteratorInitialized: false, sourceFinished: false)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: false,
+                        sequenceInitialized: true,
+                        sourceFinished: false
+                    )))
 
                     return .failProducersAndCallOnTermination(
                         .init(channeling.suspendedProducers.lazy.map { $0.1 }),
@@ -626,8 +720,14 @@ extension MultiProducerSingleConsumerChannel._Storage {
 
             case .sourceFinished(let sourceFinished):
                 guard sourceFinished.iteratorInitialized else {
+                    precondition(sourceFinished.sequenceInitialized, "Sequence was not initialized")
                     // No iterator was created so we can transition to finished right away.
-                    self = .init(state: .finished(.init(iteratorInitialized: false, sourceFinished: true)))
+                    self = .init(state: .finished(
+                        .init(
+                            iteratorInitialized: false,
+                            sequenceInitialized: true,
+                            sourceFinished: true
+                        )))
 
                     return .callOnTermination(sourceFinished.onTermination)
                 }
@@ -636,6 +736,55 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 self = .init(state: .sourceFinished(sourceFinished))
 
                 return .none
+
+            case .finished(let finished):
+                // We are already finished so there is nothing left to clean up.
+                // This is just the references dropping afterwards.
+                self = .init(state: .finished(finished))
+
+                return .none
+            }
+        }
+        
+        @inlinable
+        mutating func channelDeinitialized() -> ChannelOrSequenceDeinitializedAction? {
+            switch consume self._state {
+            case .channeling(let channeling):
+                if channeling.sequenceInitialized {
+                    // An async sequence was created so we need to ignore this deinit
+                    self = .init(state: .channeling(channeling))
+                    return nil
+                } else {
+                    // No async sequence was created so we can transition to finished
+                    self = .init(state: .finished(
+                        .init(
+                            iteratorInitialized: channeling.iteratorInitialized,
+                            sequenceInitialized: channeling.sequenceInitialized,
+                            sourceFinished: true
+                        )))
+
+                    return .failProducersAndCallOnTermination(
+                        .init(channeling.suspendedProducers.lazy.map { $0.1 }),
+                        channeling.onTermination
+                    )
+                }
+
+            case .sourceFinished(let sourceFinished):
+                if sourceFinished.sequenceInitialized {
+                    // An async sequence was created so we need to ignore this deinit
+                    self = .init(state: .sourceFinished(sourceFinished))
+                    return nil
+                } else {
+                    // No async sequence was created so we can transition to finished
+                    self = .init(state: .finished(
+                        .init(
+                            iteratorInitialized: sourceFinished.iteratorInitialized,
+                            sequenceInitialized: sourceFinished.sequenceInitialized,
+                            sourceFinished: true
+                        )))
+
+                    return .callOnTermination(sourceFinished.onTermination)
+                }
 
             case .finished(let finished):
                 // We are already finished so there is nothing left to clean up.
@@ -674,7 +823,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                     // Our sequence is a unicast sequence and does not support multiple AsyncIterator's
                     fatalError("Only a single AsyncIterator can be created")
                 } else {
-                    self = .init(state: .finished(.init(iteratorInitialized: true, sourceFinished: finished.sourceFinished)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: true,
+                        sequenceInitialized: true,
+                        sourceFinished: finished.sourceFinished
+                    )))
                 }
             }
         }
@@ -698,7 +851,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 if channeling.iteratorInitialized {
                     // An iterator was created and deinited. Since we only support
                     // a single iterator we can now transition to finish.
-                    self = .init(state: .finished(.init(iteratorInitialized: true, sourceFinished: false)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: true,
+                        sequenceInitialized: true,
+                        sourceFinished: false
+                    )))
 
                     return .failProducersAndCallOnTermination(
                         .init(channeling.suspendedProducers.lazy.map { $0.1 }),
@@ -713,7 +870,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 if sourceFinished.iteratorInitialized {
                     // An iterator was created and deinited. Since we only support
                     // a single iterator we can now transition to finish.
-                    self = .init(state: .finished(.init(iteratorInitialized: true, sourceFinished: true)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: true,
+                        sequenceInitialized: true,
+                        sourceFinished: true
+                    )))
 
                     return .callOnTermination(sourceFinished.onTermination)
                 } else {
@@ -782,7 +943,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
         }
 
         @inlinable
-        mutating func send(_ sequence: some Sequence<Element>) -> SendAction {
+        mutating func send(_ sequence: sending some Sequence<Element>) -> SendAction {
             switch consume self._state {
             case .channeling(var channeling):
                 // We have an element and can resume the continuation
@@ -1008,6 +1169,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
                     self = .init(state: .sourceFinished(
                         .init(
                             iteratorInitialized: channeling.iteratorInitialized,
+                            sequenceInitialized: channeling.sequenceInitialized,
                             buffer: channeling.buffer,
                             failure: failure,
                             onTermination: channeling.onTermination
@@ -1021,7 +1183,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 // and resume the continuation with the failure
                 precondition(channeling.buffer.isEmpty, "Expected an empty buffer")
 
-                self = .init(state: .finished(.init(iteratorInitialized: channeling.iteratorInitialized, sourceFinished: true)))
+                self = .init(state: .finished(.init(
+                    iteratorInitialized: channeling.iteratorInitialized,
+                    sequenceInitialized: channeling.sequenceInitialized,
+                    sourceFinished: true
+                )))
 
                 return .resumeConsumerAndCallOnTermination(
                     consumerContinuation: consumerContinuation,
@@ -1095,7 +1261,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 // Check if we have an element left in the buffer and return it
                 guard let element = sourceFinished.buffer.popFirst() else {
                     // We are returning the queued failure now and can transition to finished
-                    self = .init(state: .finished(.init(iteratorInitialized: sourceFinished.iteratorInitialized, sourceFinished: true)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: sourceFinished.iteratorInitialized,
+                        sequenceInitialized: sourceFinished.sequenceInitialized,
+                        sourceFinished: true
+                    )))
 
                     return .returnFailureAndCallOnTermination(sourceFinished.failure, sourceFinished.onTermination)
                 }
@@ -1170,7 +1340,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
                 // Check if we have an element left in the buffer and return it
                 guard let element = sourceFinished.buffer.popFirst() else {
                     // We are returning the queued failure now and can transition to finished
-                    self = .init(state: .finished(.init(iteratorInitialized: sourceFinished.iteratorInitialized, sourceFinished: true)))
+                    self = .init(state: .finished(.init(
+                        iteratorInitialized: sourceFinished.iteratorInitialized,
+                        sequenceInitialized: sourceFinished.sequenceInitialized,
+                        sourceFinished: true
+                    )))
 
                     return .resumeConsumerWithFailureAndCallOnTermination(
                         continuation,
@@ -1202,7 +1376,11 @@ extension MultiProducerSingleConsumerChannel._Storage {
         mutating func cancelNext() -> CancelNextAction? {
             switch consume self._state {
             case .channeling(let channeling):
-                self = .init(state: .finished(.init(iteratorInitialized: channeling.iteratorInitialized, sourceFinished: false)))
+                self = .init(state: .finished(.init(
+                    iteratorInitialized: channeling.iteratorInitialized,
+                    sequenceInitialized: channeling.sequenceInitialized,
+                    sourceFinished: false
+                )))
 
                 guard let consumerContinuation = channeling.consumerContinuation else {
                     return .failProducersAndCallOnTermination(
@@ -1233,6 +1411,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
     }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
     @usableFromInline
     enum _State: ~Copyable {
@@ -1245,6 +1424,10 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             /// Indicates if the iterator was initialized.
             @usableFromInline
             var iteratorInitialized: Bool
+            
+            /// Indicates if an async sequence was initialized.
+            @usableFromInline
+            var sequenceInitialized: Bool
 
             /// The onTermination callback.
             @usableFromInline
@@ -1286,6 +1469,7 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             init(
                 backpressureStrategy: MultiProducerSingleConsumerChannel._InternalBackpressureStrategy,
                 iteratorInitialized: Bool,
+                sequenceInitialized: Bool,
                 onTermination: (@Sendable () -> Void)? = nil,
                 buffer: Deque<Element>,
                 consumerContinuation: UnsafeContinuation<Element?, Error>? = nil,
@@ -1297,6 +1481,7 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             ) {
                 self.backpressureStrategy = backpressureStrategy
                 self.iteratorInitialized = iteratorInitialized
+                self.sequenceInitialized = sequenceInitialized
                 self.onTermination = onTermination
                 self.buffer = buffer
                 self.consumerContinuation = consumerContinuation
@@ -1321,6 +1506,10 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             /// Indicates if the iterator was initialized.
             @usableFromInline
             var iteratorInitialized: Bool
+            
+            /// Indicates if an async sequence was initialized.
+            @usableFromInline
+            var sequenceInitialized: Bool
 
             /// The buffer of elements.
             @usableFromInline
@@ -1341,11 +1530,13 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             @inlinable
             init(
                 iteratorInitialized: Bool,
+                sequenceInitialized: Bool,
                 buffer: Deque<Element>,
                 failure: Failure? = nil,
                 onTermination: (@Sendable () -> Void)? = nil
             ) {
                 self.iteratorInitialized = iteratorInitialized
+                self.sequenceInitialized = sequenceInitialized
                 self.buffer = buffer
                 self.failure = failure
                 self.onTermination = onTermination
@@ -1357,6 +1548,10 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             /// Indicates if the iterator was initialized.
             @usableFromInline
             var iteratorInitialized: Bool
+            
+            /// Indicates if an async sequence was initialized.
+            @usableFromInline
+            var sequenceInitialized: Bool
 
             /// Indicates if the source was finished.
             @usableFromInline
@@ -1369,9 +1564,11 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
             @inlinable
             init(
                 iteratorInitialized: Bool,
+                sequenceInitialized: Bool,
                 sourceFinished: Bool
             ) {
                 self.iteratorInitialized = iteratorInitialized
+                self.sequenceInitialized = sequenceInitialized
                 self.sourceFinished = sourceFinished
             }
         }
