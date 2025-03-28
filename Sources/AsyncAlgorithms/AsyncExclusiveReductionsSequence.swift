@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given closure.
@@ -51,6 +52,7 @@ extension AsyncSequence {
 /// An asynchronous sequence of applying a transform to the element of an asynchronous sequence and the
 /// previously transformed result.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   @usableFromInline
   let base: Base
@@ -69,6 +71,7 @@ public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncExclusiveReductionsSequence: AsyncSequence {
   /// The iterator for an `AsyncExclusiveReductionsSequence` instance.
   @frozen
@@ -111,6 +114,7 @@ extension AsyncExclusiveReductionsSequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable { }
 
 @available(*, unavailable)

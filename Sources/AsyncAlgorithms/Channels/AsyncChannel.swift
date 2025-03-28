@@ -19,6 +19,7 @@
 /// on the `Iterator` is made, or when `finish()` is called from another Task.
 /// As `finish()` induces a terminal state, there is no more need for a back pressure management.
 /// This function does not suspend and will finish all the pending iterations.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   public typealias Element = Element
   public typealias AsyncIterator = Iterator

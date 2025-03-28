@@ -24,6 +24,7 @@ extension Dictionary {
   ///   `keysAndValues`.
   /// - Precondition: The sequence must not have duplicate keys.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public init<S: AsyncSequence>(uniqueKeysWithValues keysAndValues: S) async rethrows where S.Element == (Key, Value)  {
     self.init(uniqueKeysWithValues: try await Array(keysAndValues))
   }
@@ -47,6 +48,7 @@ extension Dictionary {
   ///     the final dictionary, or throws an error if building the dictionary
   ///     can't proceed.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public init<S: AsyncSequence>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) async throws -> Value) async rethrows where S.Element == (Key, Value) {
     self.init()
     for try await (key, value) in keysAndValues {
@@ -71,6 +73,7 @@ extension Dictionary {
   ///   - keyForValue: A closure that returns a key for each element in
   ///     `values`.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public init<S: AsyncSequence>(grouping values: S, by keyForValue: (S.Element) async throws -> Key) async rethrows where Value == [S.Element] {
     self.init()
     for try await value in values {

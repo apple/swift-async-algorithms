@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection`
   /// type by testing if elements belong in the same group.
@@ -46,6 +47,7 @@ extension AsyncSequence {
 ///      // [10, 20, 30]
 ///      // [10, 40, 40]
 ///      // [10, 20]
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
   public typealias Element = Collected
 
@@ -116,6 +118,7 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChunkedByGroupSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
 
 @available(*, unavailable)

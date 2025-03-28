@@ -18,12 +18,14 @@
 /// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`.
 @inlinable
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence>(_ s1: Base1, _ s2: Base2) -> AsyncChain2Sequence<Base1, Base2> where Base1.Element == Base2.Element {
   AsyncChain2Sequence(s1, s2)
 }
 
 /// A concatenation of two asynchronous sequences with the same element type.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncChain2Sequence<Base1: AsyncSequence, Base2: AsyncSequence> where Base1.Element == Base2.Element {
   @usableFromInline
   let base1: Base1
@@ -38,6 +40,7 @@ public struct AsyncChain2Sequence<Base1: AsyncSequence, Base2: AsyncSequence> wh
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChain2Sequence: AsyncSequence {
   public typealias Element = Base1.Element
   
@@ -79,6 +82,7 @@ extension AsyncChain2Sequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChain2Sequence: Sendable where Base1: Sendable, Base2: Sendable { }
 
 @available(*, unavailable)
