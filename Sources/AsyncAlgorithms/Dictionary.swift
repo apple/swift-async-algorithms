@@ -20,8 +20,6 @@ extension Dictionary {
   ///
   /// - Parameter keysAndValues: An asynchronous sequence of key-value pairs to use for
   ///   the new dictionary. Every key in `keysAndValues` must be unique.
-  /// - Returns: A new dictionary initialized with the elements of
-  ///   `keysAndValues`.
   /// - Precondition: The sequence must not have duplicate keys.
   @inlinable
   public init<S: AsyncSequence>(uniqueKeysWithValues keysAndValues: S) async rethrows

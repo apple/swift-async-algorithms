@@ -1,9 +1,9 @@
 # AsyncBufferedByteIterator
 
+Provides a highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
+
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncBufferedByteIterator.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestBufferedByteIterator.swift)]
-
-Provides a highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
 
 This type provides infrastructure for creating `AsyncSequence` types with an `Element` of `UInt8` backed by file descriptors or similar read sources.
 

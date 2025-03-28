@@ -28,7 +28,7 @@ where
   return AsyncMerge3Sequence(base1, base2, base3)
 }
 
-/// An ``Swift/AsyncSequence`` that takes three upstream ``Swift/AsyncSequence``s and combines their elements.
+/// An `AsyncSequence` that takes three upstream `AsyncSequence`s and combines their elements.
 public struct AsyncMerge3Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

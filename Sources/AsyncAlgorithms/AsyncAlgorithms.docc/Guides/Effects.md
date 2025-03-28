@@ -1,3 +1,7 @@
+# Effects
+
+Lists the effects of all async algorithms.
+
 | Type                                                | Throws       | Sendability |
 |-----------------------------------------------------|--------------|-------------|
 | `AsyncAdjacentPairsSequence`                        | rethrows     | Conditional |
