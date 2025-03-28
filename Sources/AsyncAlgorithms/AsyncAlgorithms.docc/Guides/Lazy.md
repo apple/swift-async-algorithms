@@ -1,11 +1,9 @@
 # AsyncSyncSequence
 
-v
+This operation is available for all `Sequence` types. 
 
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncSyncSequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestLazy.swift)]
-
-This operation is available for all `Sequence` types. 
 
 ```swift
 let numbers = [1, 2, 3, 4].async
