@@ -14,6 +14,7 @@ extension RangeReplaceableCollection {
   ///
   /// - Parameter source: The asynchronous sequence of elements for the new collection.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public init<Source: AsyncSequence>(_ source: Source) async rethrows where Source.Element == Element {
     self.init()
     for try await item in source {

@@ -14,11 +14,13 @@ import AsyncAlgorithms
 
 @_silgen_name("swift_job_run")
 @usableFromInline
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 internal func _swiftJobRun(
   _ job: UnownedJob,
   _ executor: UnownedSerialExecutor
 ) -> ()
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public protocol AsyncSequenceValidationTest: Sendable {
   var inputs: [AsyncSequenceValidationDiagram.Specification] { get }
   var output: AsyncSequenceValidationDiagram.Specification { get }
@@ -26,6 +28,7 @@ public protocol AsyncSequenceValidationTest: Sendable {
   func test<C: TestClock>(with clock: C, activeTicks: [C.Instant], output: AsyncSequenceValidationDiagram.Specification, _ event: (String) -> Void) async throws
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequenceValidationDiagram {
   struct Test<Operation: AsyncSequence>: AsyncSequenceValidationTest, @unchecked Sendable where Operation.Element == String {
     let inputs: [Specification]

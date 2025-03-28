@@ -11,6 +11,7 @@
 
 /// Creates an asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
 /// and emits a tuple of the values.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(
   _ base1: Base1,
   _ base2: Base2,
@@ -21,6 +22,7 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence
 
 /// An asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
 /// and emits a tuple of the values.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: AsyncSequence, Sendable
   where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable, Base3: Sendable, Base3.Element: Sendable {
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)

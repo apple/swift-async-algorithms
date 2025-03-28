@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
   where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable, Base3: Sendable, Base3.Element: Sendable {
   typealias StateMachine = ZipStateMachine<Base1, Base2, Base3>
