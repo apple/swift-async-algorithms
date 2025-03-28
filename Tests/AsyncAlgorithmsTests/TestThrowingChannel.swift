@@ -52,7 +52,9 @@ final class TestThrowingChannel: XCTestCase {
     XCTAssertEqual(collected, expected)
   }
 
-  func test_asyncThrowingChannel_resumes_producers_and_discards_additional_elements_when_finish_is_called() async throws {
+  func test_asyncThrowingChannel_resumes_producers_and_discards_additional_elements_when_finish_is_called()
+    async throws
+  {
     // Given: an AsyncThrowingChannel
     let sut = AsyncThrowingChannel<Int, Error>()
 
@@ -138,7 +140,6 @@ final class TestThrowingChannel: XCTestCase {
       var iterator = sut.makeAsyncIterator()
       return try await iterator.next()
     }
-
 
     // When: finishing the channel
     sut.finish()

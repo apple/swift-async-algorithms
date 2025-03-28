@@ -13,11 +13,11 @@ import _CAsyncSequenceValidationSupport
 
 struct Job: Hashable, @unchecked Sendable {
   let job: JobRef
-  
+
   init(_ job: JobRef) {
     self.job = job
   }
-  
+
   func execute() {
     _swiftJobRun(unsafeBitCast(job, to: UnownedJob.self), AsyncSequenceValidationDiagram.Context.unownedExecutor)
   }

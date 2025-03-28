@@ -86,9 +86,9 @@ final class TestAdjacentPairs: XCTestCase {
       }
       finished.fulfill()
     }
-    
+
     // ensure the other task actually starts
-    
+
     await fulfillment(of: [iterated], timeout: 1.0)
     // cancellation should ensure the loop finishes
     // without regards to the remaining underlying sequence

@@ -10,7 +10,14 @@
 //===----------------------------------------------------------------------===//
 
 final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
-  where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable, Base3: Sendable, Base3.Element: Sendable {
+where
+  Base1: Sendable,
+  Base1.Element: Sendable,
+  Base2: Sendable,
+  Base2.Element: Sendable,
+  Base3: Sendable,
+  Base3.Element: Sendable
+{
   typealias StateMachine = ZipStateMachine<Base1, Base2, Base3>
 
   private let stateMachine: ManagedCriticalState<StateMachine>
@@ -63,9 +70,9 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
 
         switch action {
         case .startTask:
-            // We are handling the startTask in the lock already because we want to avoid
-            // other inputs interleaving while starting the task
-            fatalError("Internal inconsistency")
+          // We are handling the startTask in the lock already because we want to avoid
+          // other inputs interleaving while starting the task
+          fatalError("Internal inconsistency")
 
         case .resumeUpstreamContinuations(let upstreamContinuations):
           // bases can be iterated over for 1 iteration so their next value can be retrieved
@@ -76,7 +83,7 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
           continuation.resume(returning: .success(nil))
 
         case .none:
-            break
+          break
         }
       }
 
@@ -304,30 +311,30 @@ final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncS
         }
 
         while !group.isEmpty {
-            do {
-                try await group.next()
-            } catch {
+          do {
+            try await group.next()
+          } catch {
             // One of the upstream sequences threw an error
-              let action = self.stateMachine.withCriticalRegion { stateMachine in
-                stateMachine.upstreamThrew(error)
-              }
-              switch action {
-              case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
-                let downstreamContinuation,
-                let error,
-                let task,
-                let upstreamContinuations
-              ):
-                upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-                task.cancel()
-
-                downstreamContinuation.resume(returning: .failure(error))
-              case .none:
-                  break
-              }
-
-              group.cancelAll()
+            let action = self.stateMachine.withCriticalRegion { stateMachine in
+              stateMachine.upstreamThrew(error)
             }
+            switch action {
+            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+              let downstreamContinuation,
+              let error,
+              let task,
+              let upstreamContinuations
+            ):
+              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
+              task.cancel()
+
+              downstreamContinuation.resume(returning: .failure(error))
+            case .none:
+              break
+            }
+
+            group.cancelAll()
+          }
         }
       }
     }

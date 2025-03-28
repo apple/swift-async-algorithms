@@ -13,7 +13,7 @@ extension SetAlgebra {
   /// Creates a new set from an asynchronous sequence of items.
   ///
   /// Use this initializer to create a new set from an asynchronous sequence
-  /// 
+  ///
   /// - Parameter source: The elements to use as members of the new set.
   @inlinable
   public init<Source: AsyncSequence>(_ source: Source) async rethrows where Source.Element == Element {

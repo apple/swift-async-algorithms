@@ -11,7 +11,7 @@
 
 import XCTest
 
-fileprivate enum _XCTAssertion {
+private enum _XCTAssertion {
   case equal
   case equalWithAccuracy
   case identical
@@ -30,9 +30,9 @@ fileprivate enum _XCTAssertion {
   case fail
   case throwsError
   case noThrow
-  
+
   var name: String? {
-    switch(self) {
+    switch self {
     case .equal: return "XCTAssertEqual"
     case .equalWithAccuracy: return "XCTAssertEqual"
     case .identical: return "XCTAssertIdentical"
@@ -55,18 +55,18 @@ fileprivate enum _XCTAssertion {
   }
 }
 
-fileprivate enum _XCTAssertionResult {
+private enum _XCTAssertionResult {
   case success
   case expectedFailure(String?)
   case unexpectedFailure(Swift.Error)
-  
+
   var isExpected: Bool {
     switch self {
     case .unexpectedFailure(_): return false
     default: return true
     }
   }
-  
+
   func failureDescription(_ assertion: _XCTAssertion) -> String {
     let explanation: String
     switch self {
@@ -75,23 +75,28 @@ fileprivate enum _XCTAssertionResult {
     case .expectedFailure(_): explanation = "failed"
     case .unexpectedFailure(let error): explanation = "threw error \"\(error)\""
     }
-    
-    if let name = assertion.name {
-      return "\(name) \(explanation)"
-    } else {
+
+    guard let name = assertion.name else {
       return explanation
     }
+    return "\(name) \(explanation)"
   }
 }
 
-private func _XCTEvaluateAssertion(_ assertion: _XCTAssertion, message: () -> String, file: StaticString, line: UInt, expression: () throws -> _XCTAssertionResult) {
+private func _XCTEvaluateAssertion(
+  _ assertion: _XCTAssertion,
+  message: () -> String,
+  file: StaticString,
+  line: UInt,
+  expression: () throws -> _XCTAssertionResult
+) {
   let result: _XCTAssertionResult
   do {
     result = try expression()
   } catch {
     result = .unexpectedFailure(error)
   }
-  
+
   switch result {
   case .success:
     return
@@ -100,22 +105,34 @@ private func _XCTEvaluateAssertion(_ assertion: _XCTAssertion, message: () -> St
   }
 }
 
-fileprivate func _XCTAssertEqual<T>(_ expression1: () throws -> T, _ expression2: () throws -> T, _ equal: (T, T) -> Bool, _ message: () -> String, file: StaticString = #filePath, line: UInt = #line) {
+private func _XCTAssertEqual<T>(
+  _ expression1: () throws -> T,
+  _ expression2: () throws -> T,
+  _ equal: (T, T) -> Bool,
+  _ message: () -> String,
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
   _XCTEvaluateAssertion(.equal, message: message, file: file, line: line) {
     let (value1, value2) = (try expression1(), try expression2())
-    if equal(value1, value2) {
-      return .success
-    } else {
+    guard equal(value1, value2) else {
       return .expectedFailure("(\"\(value1)\") is not equal to (\"\(value2)\")")
     }
+    return .success
   }
 }
 
-public func XCTAssertEqual<A: Equatable, B: Equatable>(_ expression1: @autoclosure () throws -> (A, B), _ expression2: @autoclosure () throws -> (A, B), _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+public func XCTAssertEqual<A: Equatable, B: Equatable>(
+  _ expression1: @autoclosure () throws -> (A, B),
+  _ expression2: @autoclosure () throws -> (A, B),
+  _ message: @autoclosure () -> String = "",
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
 
-fileprivate func ==<A: Equatable, B: Equatable>(_ lhs: [(A, B)], _ rhs: [(A, B)]) -> Bool {
+private func == <A: Equatable, B: Equatable>(_ lhs: [(A, B)], _ rhs: [(A, B)]) -> Bool {
   guard lhs.count == rhs.count else {
     return false
   }
@@ -127,15 +144,27 @@ fileprivate func ==<A: Equatable, B: Equatable>(_ lhs: [(A, B)], _ rhs: [(A, B)]
   return true
 }
 
-public func XCTAssertEqual<A: Equatable, B: Equatable>(_ expression1: @autoclosure () throws -> [(A, B)], _ expression2: @autoclosure () throws -> [(A, B)], _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+public func XCTAssertEqual<A: Equatable, B: Equatable>(
+  _ expression1: @autoclosure () throws -> [(A, B)],
+  _ expression2: @autoclosure () throws -> [(A, B)],
+  _ message: @autoclosure () -> String = "",
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
 
-public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(_ expression1: @autoclosure () throws -> (A, B, C), _ expression2: @autoclosure () throws -> (A, B, C), _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(
+  _ expression1: @autoclosure () throws -> (A, B, C),
+  _ expression2: @autoclosure () throws -> (A, B, C),
+  _ message: @autoclosure () -> String = "",
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
 
-fileprivate func ==<A: Equatable, B: Equatable, C: Equatable>(_ lhs: [(A, B, C)], _ rhs: [(A, B, C)]) -> Bool {
+private func == <A: Equatable, B: Equatable, C: Equatable>(_ lhs: [(A, B, C)], _ rhs: [(A, B, C)]) -> Bool {
   guard lhs.count == rhs.count else {
     return false
   }
@@ -147,48 +176,58 @@ fileprivate func ==<A: Equatable, B: Equatable, C: Equatable>(_ lhs: [(A, B, C)]
   return true
 }
 
-public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(_ expression1: @autoclosure () throws -> [(A, B, C)], _ expression2: @autoclosure () throws -> [(A, B, C)], _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+public func XCTAssertEqual<A: Equatable, B: Equatable, C: Equatable>(
+  _ expression1: @autoclosure () throws -> [(A, B, C)],
+  _ expression2: @autoclosure () throws -> [(A, B, C)],
+  _ message: @autoclosure () -> String = "",
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
   _XCTAssertEqual(expression1, expression2, { $0 == $1 }, message, file: file, line: line)
 }
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 internal func XCTAssertThrowsError<T>(
-    _ expression: @autoclosure () async throws -> T,
-    file: StaticString = #file,
-    line: UInt = #line,
-    verify: (Error) -> Void = { _ in }
+  _ expression: @autoclosure () async throws -> T,
+  file: StaticString = #file,
+  line: UInt = #line,
+  verify: (Error) -> Void = { _ in }
 ) async {
-    do {
-        _ = try await expression()
-        XCTFail("Expression did not throw error", file: file, line: line)
-    } catch {
-        verify(error)
-    }
+  do {
+    _ = try await expression()
+    XCTFail("Expression did not throw error", file: file, line: line)
+  } catch {
+    verify(error)
+  }
 }
 
 class WaiterDelegate: NSObject, XCTWaiterDelegate {
   let state: ManagedCriticalState<UnsafeContinuation<Void, Never>?> = ManagedCriticalState(nil)
-  
+
   init(_ continuation: UnsafeContinuation<Void, Never>) {
     state.withCriticalRegion { $0 = continuation }
   }
-  
+
   func waiter(_ waiter: XCTWaiter, didFulfillInvertedExpectation expectation: XCTestExpectation) {
     resume()
   }
-  
+
   func waiter(_ waiter: XCTWaiter, didTimeoutWithUnfulfilledExpectations unfulfilledExpectations: [XCTestExpectation]) {
     resume()
   }
-  
-  func waiter(_ waiter: XCTWaiter, fulfillmentDidViolateOrderingConstraintsFor expectation: XCTestExpectation, requiredExpectation: XCTestExpectation) {
+
+  func waiter(
+    _ waiter: XCTWaiter,
+    fulfillmentDidViolateOrderingConstraintsFor expectation: XCTestExpectation,
+    requiredExpectation: XCTestExpectation
+  ) {
     resume()
   }
-  
+
   func nestedWaiter(_ waiter: XCTWaiter, wasInterruptedByTimedOutWaiter outerWaiter: XCTWaiter) {
-    
+
   }
-  
+
   func resume() {
     let continuation = state.withCriticalRegion { continuation in
       defer { continuation = nil }
@@ -200,7 +239,13 @@ class WaiterDelegate: NSObject, XCTWaiterDelegate {
 
 extension XCTestCase {
   @_disfavoredOverload
-  func fulfillment(of expectations: [XCTestExpectation], timeout: TimeInterval, enforceOrder: Bool = false, file: StaticString = #file, line: Int = #line) async {
+  func fulfillment(
+    of expectations: [XCTestExpectation],
+    timeout: TimeInterval,
+    enforceOrder: Bool = false,
+    file: StaticString = #file,
+    line: Int = #line
+  ) async {
     return await withUnsafeContinuation { continuation in
       let delegate = WaiterDelegate(continuation)
       let waiter = XCTWaiter(delegate: delegate)

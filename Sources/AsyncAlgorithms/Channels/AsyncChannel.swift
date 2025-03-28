@@ -60,4 +60,4 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
 }
 
 @available(*, unavailable)
-extension AsyncChannel.Iterator: Sendable { }
+extension AsyncChannel.Iterator: Sendable {}

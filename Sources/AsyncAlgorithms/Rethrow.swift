@@ -25,11 +25,10 @@ extension _ErrorMechanism {
     _ = try _rethrowGet()
     fatalError("materialized error without being in a throwing context")
   }
-  
+
   internal func _rethrowGet() rethrows -> Output {
     return try get()
   }
 }
 
-extension Result: _ErrorMechanism { }
-
+extension Result: _ErrorMechanism {}

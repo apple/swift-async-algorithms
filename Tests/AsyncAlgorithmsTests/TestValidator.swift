@@ -27,13 +27,13 @@ final class TestValidator: XCTestCase {
     await fulfillment(of: [entered], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
   }
-  
+
   func test_gatedSequence() async {
     var gated = GatedSequence([1, 2, 3])
     let expectations = [
       expectation(description: "item 1"),
       expectation(description: "item 2"),
-      expectation(description: "item 3")
+      expectation(description: "item 3"),
     ]
     let started = expectation(description: "started")
     let finished = expectation(description: "finished")
@@ -65,7 +65,7 @@ final class TestValidator: XCTestCase {
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1, 2, 3])
     await fulfillment(of: [finished], timeout: 1.0)
   }
-  
+
   func test_gatedSequence_throwing() async {
     var gated = GatedSequence([1, 2, 3])
     let expectations = [
@@ -104,7 +104,7 @@ final class TestValidator: XCTestCase {
     XCTAssertEqual(state.withCriticalRegion { $0 }, [1])
     XCTAssertEqual(failure.withCriticalRegion { $0 as? Failure }, Failure())
   }
-  
+
   func test_validator() async {
     var a = GatedSequence([1, 2, 3])
     let finished = expectation(description: "finished")
@@ -118,19 +118,19 @@ final class TestValidator: XCTestCase {
     var value = await validator.validate()
     XCTAssertEqual(value, [])
     a.advance()
-    
+
     value = await validator.validate()
     XCTAssertEqual(value, [2])
     a.advance()
-    
+
     value = await validator.validate()
     XCTAssertEqual(value, [2, 3])
     a.advance()
-    
+
     value = await validator.validate()
     XCTAssertEqual(value, [2, 3, 4])
     a.advance()
-    
+
     await fulfillment(of: [finished], timeout: 1.0)
     value = validator.current
     XCTAssertEqual(value, [2, 3, 4])

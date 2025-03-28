@@ -10,13 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequenceValidationDiagram {
-  struct Failure: Error, Equatable { }
-  
+  struct Failure: Error, Equatable {}
+
   enum ParseFailure: Error, CustomStringConvertible, SourceFailure {
     case stepInGroup(String, String.Index, SourceLocation)
     case nestedGroup(String, String.Index, SourceLocation)
     case unbalancedNesting(String, String.Index, SourceLocation)
-    
+
     var location: SourceLocation {
       switch self {
       case .stepInGroup(_, _, let location): return location
@@ -24,7 +24,7 @@ extension AsyncSequenceValidationDiagram {
       case .unbalancedNesting(_, _, let location): return location
       }
     }
-    
+
     var description: String {
       switch self {
       case .stepInGroup:
@@ -36,14 +36,14 @@ extension AsyncSequenceValidationDiagram {
       }
     }
   }
-  
+
   enum Event {
     case value(String, String.Index)
     case failure(Error, String.Index)
     case finish(String.Index)
     case delayNext(String.Index)
     case cancel(String.Index)
-    
+
     var results: [Result<String?, Error>] {
       switch self {
       case .value(let value, _): return [.success(value)]
@@ -53,7 +53,7 @@ extension AsyncSequenceValidationDiagram {
       case .cancel: return []
       }
     }
-    
+
     var index: String.Index {
       switch self {
       case .value(_, let index): return index
@@ -63,23 +63,26 @@ extension AsyncSequenceValidationDiagram {
       case .cancel(let index): return index
       }
     }
-    
-    static func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme, location: SourceLocation) throws -> [(Clock.Instant, Event)] {
+
+    static func parse<Theme: AsyncSequenceValidationTheme>(
+      _ dsl: String,
+      theme: Theme,
+      location: SourceLocation
+    ) throws -> [(Clock.Instant, Event)] {
       var emissions = [(Clock.Instant, Event)]()
       var when = Clock.Instant(when: .steps(0))
       var string: String?
       var grouping = 0
-      
+
       for index in dsl.indices {
         let ch = dsl[index]
         switch theme.token(dsl[index], inValue: string != nil) {
         case .step:
           if string == nil {
-            if grouping == 0 {
-              when = when.advanced(by: .steps(1))
-            } else {
+            guard grouping == 0 else {
               throw ParseFailure.stepInGroup(dsl, index, location)
             }
+            when = when.advanced(by: .steps(1))
           } else {
             string?.append(ch)
           }
@@ -130,11 +133,10 @@ extension AsyncSequenceValidationDiagram {
             emissions.append((when, .value(value, index)))
           }
         case .beginGroup:
-          if grouping == 0 {
-            when = when.advanced(by: .steps(1))
-          } else {
+          guard grouping == 0 else {
             throw ParseFailure.nestedGroup(dsl, index, location)
           }
+          when = when.advanced(by: .steps(1))
           grouping += 1
         case .endGroup:
           grouping -= 1

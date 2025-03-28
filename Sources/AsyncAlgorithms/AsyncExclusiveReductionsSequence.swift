@@ -23,12 +23,15 @@ extension AsyncSequence {
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable
-  public func reductions<Result>(_ initial: Result, _ transform: @Sendable @escaping (Result, Element) async -> Result) -> AsyncExclusiveReductionsSequence<Self, Result> {
+  public func reductions<Result>(
+    _ initial: Result,
+    _ transform: @Sendable @escaping (Result, Element) async -> Result
+  ) -> AsyncExclusiveReductionsSequence<Self, Result> {
     reductions(into: initial) { result, element in
       result = await transform(result, element)
     }
   }
-  
+
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given closure.
   ///
@@ -43,7 +46,10 @@ extension AsyncSequence {
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
   @inlinable
-  public func reductions<Result>(into initial: Result, _ transform: @Sendable @escaping (inout Result, Element) async -> Void) -> AsyncExclusiveReductionsSequence<Self, Result> {
+  public func reductions<Result>(
+    into initial: Result,
+    _ transform: @Sendable @escaping (inout Result, Element) async -> Void
+  ) -> AsyncExclusiveReductionsSequence<Self, Result> {
     AsyncExclusiveReductionsSequence(self, initial: initial, transform: transform)
   }
 }
@@ -54,13 +60,13 @@ extension AsyncSequence {
 public struct AsyncExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   @usableFromInline
   let base: Base
-  
+
   @usableFromInline
   let initial: Element
-  
+
   @usableFromInline
   let transform: @Sendable (inout Element, Base.Element) async -> Void
-  
+
   @inlinable
   init(_ base: Base, initial: Element, transform: @Sendable @escaping (inout Element, Base.Element) async -> Void) {
     self.base = base
@@ -75,43 +81,45 @@ extension AsyncExclusiveReductionsSequence: AsyncSequence {
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
     var iterator: Base.AsyncIterator
-    
+
     @usableFromInline
     var current: Element?
-    
+
     @usableFromInline
     let transform: @Sendable (inout Element, Base.Element) async -> Void
-    
+
     @inlinable
-    init(_ iterator: Base.AsyncIterator, initial: Element, transform: @Sendable @escaping (inout Element, Base.Element) async -> Void) {
+    init(
+      _ iterator: Base.AsyncIterator,
+      initial: Element,
+      transform: @Sendable @escaping (inout Element, Base.Element) async -> Void
+    ) {
       self.iterator = iterator
       self.current = initial
       self.transform = transform
     }
-    
+
     @inlinable
     public mutating func next() async rethrows -> Element? {
-      guard let result = current else { return nil }
+      guard var result = current else { return nil }
       let value = try await iterator.next()
-      if let value = value {
-        var result = result
-        await transform(&result, value)
-        current = result
-        return result
-      } else {
+      guard let value = value else {
         current = nil
         return nil
       }
+      await transform(&result, value)
+      current = result
+      return result
     }
   }
-  
+
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base.makeAsyncIterator(), initial: initial, transform: transform)
   }
 }
 
-extension AsyncExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable { }
+extension AsyncExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncExclusiveReductionsSequence.Iterator: Sendable { }
+extension AsyncExclusiveReductionsSequence.Iterator: Sendable {}

@@ -61,7 +61,12 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
     case terminated(Termination)
   }
 
-  private var state: State = .channeling(suspendedProducers: [], cancelledProducers: [], suspendedConsumers: [], cancelledConsumers: [])
+  private var state: State = .channeling(
+    suspendedProducers: [],
+    cancelledProducers: [],
+    suspendedConsumers: [],
+    cancelledConsumers: []
+  )
 
   enum SendAction {
     case resumeConsumer(continuation: UnsafeContinuation<Element?, any Error>?)
@@ -70,23 +75,23 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   mutating func send() -> SendAction {
     switch self.state {
-      case .channeling(_, _, let suspendedConsumers, _) where suspendedConsumers.isEmpty:
-        // we are idle or waiting for consumers, we have to suspend the producer
-        return .suspend
+    case .channeling(_, _, let suspendedConsumers, _) where suspendedConsumers.isEmpty:
+      // we are idle or waiting for consumers, we have to suspend the producer
+      return .suspend
 
-      case .channeling(let suspendedProducers, let cancelledProducers, var suspendedConsumers, let cancelledConsumers):
-        // we are waiting for producers, we can resume the first available consumer
-        let suspendedConsumer = suspendedConsumers.removeFirst()
-        self.state = .channeling(
-          suspendedProducers: suspendedProducers,
-          cancelledProducers: cancelledProducers,
-          suspendedConsumers: suspendedConsumers,
-          cancelledConsumers: cancelledConsumers
-        )
-        return .resumeConsumer(continuation: suspendedConsumer.continuation)
+    case .channeling(let suspendedProducers, let cancelledProducers, var suspendedConsumers, let cancelledConsumers):
+      // we are waiting for producers, we can resume the first available consumer
+      let suspendedConsumer = suspendedConsumers.removeFirst()
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .resumeConsumer(continuation: suspendedConsumer.continuation)
 
-      case .terminated:
-        return .resumeConsumer(continuation: nil)
+    case .terminated:
+      return .resumeConsumer(continuation: nil)
     }
   }
 
@@ -101,45 +106,44 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
     producerID: UInt64
   ) -> SendSuspendedAction? {
     switch self.state {
-      case .channeling(var suspendedProducers, var cancelledProducers, var suspendedConsumers, let cancelledConsumers):
-        let suspendedProducer = SuspendedProducer(id: producerID, continuation: continuation, element: element)
-        if let _ = cancelledProducers.remove(suspendedProducer) {
-          // the producer was already cancelled, we resume it
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeProducer
-        }
-
-        if suspendedConsumers.isEmpty {
-          // we are idle or waiting for consumers
-          // we stack the incoming producer in a suspended state
-          suspendedProducers.append(suspendedProducer)
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .none
-        } else {
-          // we are waiting for producers
-          // we resume the first consumer
-          let suspendedConsumer = suspendedConsumers.removeFirst()
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeProducerAndConsumer(continuation: suspendedConsumer.continuation)
-        }
-
-      case .terminated:
+    case .channeling(var suspendedProducers, var cancelledProducers, var suspendedConsumers, let cancelledConsumers):
+      let suspendedProducer = SuspendedProducer(id: producerID, continuation: continuation, element: element)
+      if let _ = cancelledProducers.remove(suspendedProducer) {
+        // the producer was already cancelled, we resume it
+        self.state = .channeling(
+          suspendedProducers: suspendedProducers,
+          cancelledProducers: cancelledProducers,
+          suspendedConsumers: suspendedConsumers,
+          cancelledConsumers: cancelledConsumers
+        )
         return .resumeProducer
+      }
+
+      guard suspendedConsumers.isEmpty else {
+        // we are waiting for producers
+        // we resume the first consumer
+        let suspendedConsumer = suspendedConsumers.removeFirst()
+        self.state = .channeling(
+          suspendedProducers: suspendedProducers,
+          cancelledProducers: cancelledProducers,
+          suspendedConsumers: suspendedConsumers,
+          cancelledConsumers: cancelledConsumers
+        )
+        return .resumeProducerAndConsumer(continuation: suspendedConsumer.continuation)
+      }
+      // we are idle or waiting for consumers
+      // we stack the incoming producer in a suspended state
+      suspendedProducers.append(suspendedProducer)
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .none
+
+    case .terminated:
+      return .resumeProducer
     }
   }
 
@@ -150,33 +154,33 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   mutating func sendCancelled(producerID: UInt64) -> SendCancelledAction {
     switch self.state {
-      case .channeling(var suspendedProducers, var cancelledProducers, let suspendedConsumers, let cancelledConsumers):
-        // the cancelled producer might be part of the waiting list
-        let placeHolder = SuspendedProducer.placeHolder(id: producerID)
+    case .channeling(var suspendedProducers, var cancelledProducers, let suspendedConsumers, let cancelledConsumers):
+      // the cancelled producer might be part of the waiting list
+      let placeHolder = SuspendedProducer.placeHolder(id: producerID)
 
-        if let removed = suspendedProducers.remove(placeHolder) {
-          // the producer was cancelled after being added to the suspended ones, we resume it
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeProducer(continuation: removed.continuation)
-        }
-
-        // the producer was cancelled before being added to the suspended ones
-        cancelledProducers.update(with: placeHolder)
+      if let removed = suspendedProducers.remove(placeHolder) {
+        // the producer was cancelled after being added to the suspended ones, we resume it
         self.state = .channeling(
           suspendedProducers: suspendedProducers,
           cancelledProducers: cancelledProducers,
           suspendedConsumers: suspendedConsumers,
           cancelledConsumers: cancelledConsumers
         )
-        return .none
+        return .resumeProducer(continuation: removed.continuation)
+      }
 
-      case .terminated:
-        return .none
+      // the producer was cancelled before being added to the suspended ones
+      cancelledProducers.update(with: placeHolder)
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .none
+
+    case .terminated:
+      return .none
     }
   }
 
@@ -190,24 +194,24 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   mutating func finish(error: Failure?) -> FinishAction {
     switch self.state {
-      case .channeling(let suspendedProducers, _, let suspendedConsumers, _):
-        // no matter if we are idle, waiting for producers or waiting for consumers, we resume every thing that is suspended
-        if let error {
-          if suspendedConsumers.isEmpty {
-            self.state = .terminated(.failed(error))
-          } else {
-            self.state = .terminated(.finished)
-          }
+    case .channeling(let suspendedProducers, _, let suspendedConsumers, _):
+      // no matter if we are idle, waiting for producers or waiting for consumers, we resume every thing that is suspended
+      if let error {
+        if suspendedConsumers.isEmpty {
+          self.state = .terminated(.failed(error))
         } else {
           self.state = .terminated(.finished)
         }
-        return .resumeProducersAndConsumers(
-          producerSontinuations: suspendedProducers.map { $0.continuation },
-          consumerContinuations: suspendedConsumers.map { $0.continuation }
-        )
+      } else {
+        self.state = .terminated(.finished)
+      }
+      return .resumeProducersAndConsumers(
+        producerSontinuations: suspendedProducers.map { $0.continuation },
+        consumerContinuations: suspendedConsumers.map { $0.continuation }
+      )
 
-      case .terminated:
-        return .none
+    case .terminated:
+      return .none
     }
   }
 
@@ -218,30 +222,30 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   mutating func next() -> NextAction {
     switch self.state {
-      case .channeling(let suspendedProducers, _, _, _) where suspendedProducers.isEmpty:
-        // we are idle or waiting for producers, we must suspend
-        return .suspend
+    case .channeling(let suspendedProducers, _, _, _) where suspendedProducers.isEmpty:
+      // we are idle or waiting for producers, we must suspend
+      return .suspend
 
-      case .channeling(var suspendedProducers, let cancelledProducers, let suspendedConsumers, let cancelledConsumers):
-        // we are waiting for consumers, we can resume the first awaiting producer
-        let suspendedProducer = suspendedProducers.removeFirst()
-        self.state = .channeling(
-          suspendedProducers: suspendedProducers,
-          cancelledProducers: cancelledProducers,
-          suspendedConsumers: suspendedConsumers,
-          cancelledConsumers: cancelledConsumers
-        )
-        return .resumeProducer(
-          continuation: suspendedProducer.continuation,
-          result: .success(suspendedProducer.element)
-        )
+    case .channeling(var suspendedProducers, let cancelledProducers, let suspendedConsumers, let cancelledConsumers):
+      // we are waiting for consumers, we can resume the first awaiting producer
+      let suspendedProducer = suspendedProducers.removeFirst()
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .resumeProducer(
+        continuation: suspendedProducer.continuation,
+        result: .success(suspendedProducer.element)
+      )
 
-      case .terminated(.failed(let error)):
-        self.state = .terminated(.finished)
-        return .resumeProducer(continuation: nil, result: .failure(error))
+    case .terminated(.failed(let error)):
+      self.state = .terminated(.finished)
+      return .resumeProducer(continuation: nil, result: .failure(error))
 
-      case .terminated:
-        return .resumeProducer(continuation: nil, result: .success(nil))
+    case .terminated:
+      return .resumeProducer(continuation: nil, result: .success(nil))
     }
   }
 
@@ -256,52 +260,51 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
     consumerID: UInt64
   ) -> NextSuspendedAction? {
     switch self.state {
-      case .channeling(var suspendedProducers, let cancelledProducers, var suspendedConsumers, var cancelledConsumers):
-        let suspendedConsumer = SuspendedConsumer(id: consumerID, continuation: continuation)
-        if let _ = cancelledConsumers.remove(suspendedConsumer) {
-          // the consumer was already cancelled, we resume it
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeConsumer(element: nil)
-        }
-
-        if suspendedProducers.isEmpty {
-          // we are idle or waiting for producers
-          // we stack the incoming consumer in a suspended state
-          suspendedConsumers.append(suspendedConsumer)
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .none
-        } else {
-          // we are waiting for consumers
-          // we resume the first producer
-          let suspendedProducer = suspendedProducers.removeFirst()
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeProducerAndConsumer(
-            continuation: suspendedProducer.continuation,
-            element: suspendedProducer.element
-          )
-        }
-
-      case .terminated(.finished):
+    case .channeling(var suspendedProducers, let cancelledProducers, var suspendedConsumers, var cancelledConsumers):
+      let suspendedConsumer = SuspendedConsumer(id: consumerID, continuation: continuation)
+      if let _ = cancelledConsumers.remove(suspendedConsumer) {
+        // the consumer was already cancelled, we resume it
+        self.state = .channeling(
+          suspendedProducers: suspendedProducers,
+          cancelledProducers: cancelledProducers,
+          suspendedConsumers: suspendedConsumers,
+          cancelledConsumers: cancelledConsumers
+        )
         return .resumeConsumer(element: nil)
+      }
 
-      case .terminated(.failed(let error)):
-        self.state = .terminated(.finished)
-        return .resumeConsumerWithError(error: error)
+      guard suspendedProducers.isEmpty else {
+        // we are waiting for consumers
+        // we resume the first producer
+        let suspendedProducer = suspendedProducers.removeFirst()
+        self.state = .channeling(
+          suspendedProducers: suspendedProducers,
+          cancelledProducers: cancelledProducers,
+          suspendedConsumers: suspendedConsumers,
+          cancelledConsumers: cancelledConsumers
+        )
+        return .resumeProducerAndConsumer(
+          continuation: suspendedProducer.continuation,
+          element: suspendedProducer.element
+        )
+      }
+      // we are idle or waiting for producers
+      // we stack the incoming consumer in a suspended state
+      suspendedConsumers.append(suspendedConsumer)
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .none
+
+    case .terminated(.finished):
+      return .resumeConsumer(element: nil)
+
+    case .terminated(.failed(let error)):
+      self.state = .terminated(.finished)
+      return .resumeConsumerWithError(error: error)
     }
   }
 
@@ -312,33 +315,33 @@ struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
 
   mutating func nextCancelled(consumerID: UInt64) -> NextCancelledAction {
     switch self.state {
-      case .channeling(let suspendedProducers, let cancelledProducers, var suspendedConsumers, var cancelledConsumers):
-        // the cancelled consumer might be part of the suspended ones
-        let placeHolder = SuspendedConsumer.placeHolder(id: consumerID)
+    case .channeling(let suspendedProducers, let cancelledProducers, var suspendedConsumers, var cancelledConsumers):
+      // the cancelled consumer might be part of the suspended ones
+      let placeHolder = SuspendedConsumer.placeHolder(id: consumerID)
 
-        if let removed = suspendedConsumers.remove(placeHolder) {
-          // the consumer was cancelled after being added to the suspended ones, we resume it
-          self.state = .channeling(
-            suspendedProducers: suspendedProducers,
-            cancelledProducers: cancelledProducers,
-            suspendedConsumers: suspendedConsumers,
-            cancelledConsumers: cancelledConsumers
-          )
-          return .resumeConsumer(continuation: removed.continuation)
-        }
-
-        // the consumer was cancelled before being added to the suspended ones
-        cancelledConsumers.update(with: placeHolder)
+      if let removed = suspendedConsumers.remove(placeHolder) {
+        // the consumer was cancelled after being added to the suspended ones, we resume it
         self.state = .channeling(
           suspendedProducers: suspendedProducers,
           cancelledProducers: cancelledProducers,
           suspendedConsumers: suspendedConsumers,
           cancelledConsumers: cancelledConsumers
         )
-        return .none
+        return .resumeConsumer(continuation: removed.continuation)
+      }
 
-      case .terminated:
-        return .none
+      // the consumer was cancelled before being added to the suspended ones
+      cancelledConsumers.update(with: placeHolder)
+      self.state = .channeling(
+        suspendedProducers: suspendedProducers,
+        cancelledProducers: cancelledProducers,
+        suspendedConsumers: suspendedConsumers,
+        cancelledConsumers: cancelledConsumers
+      )
+      return .none
+
+    case .terminated:
+      return .none
     }
   }
 }

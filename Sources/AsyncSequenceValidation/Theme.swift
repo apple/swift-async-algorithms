@@ -11,7 +11,7 @@
 
 public protocol AsyncSequenceValidationTheme {
   func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token
-  
+
   func description(for token: AsyncSequenceValidationDiagram.Token) -> String
 }
 
@@ -35,7 +35,7 @@ extension AsyncSequenceValidationDiagram {
     case skip
     case value(String)
   }
-  
+
   public struct ASCIITheme: AsyncSequenceValidationTheme, Sendable {
     public func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token {
       switch character {
@@ -51,7 +51,7 @@ extension AsyncSequenceValidationDiagram {
       default: return .value(String(character))
       }
     }
-    
+
     public func description(for token: AsyncSequenceValidationDiagram.Token) -> String {
       switch token {
       case .step: return "-"

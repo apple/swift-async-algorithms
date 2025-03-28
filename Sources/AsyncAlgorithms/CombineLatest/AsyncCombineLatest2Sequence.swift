@@ -23,11 +23,13 @@
 public func combineLatest<
   Base1: AsyncSequence,
   Base2: AsyncSequence
->(_ base1: Base1, _ base2: Base2) -> AsyncCombineLatest2Sequence<Base1, Base2> where
+>(_ base1: Base1, _ base2: Base2) -> AsyncCombineLatest2Sequence<Base1, Base2>
+where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,
-  Base2.Element: Sendable {
+  Base2.Element: Sendable
+{
   AsyncCombineLatest2Sequence(base1, base2)
 }
 
@@ -35,11 +37,13 @@ public func combineLatest<
 public struct AsyncCombineLatest2Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence
->: AsyncSequence, Sendable where
+>: AsyncSequence, Sendable
+where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,
-  Base2.Element: Sendable {
+  Base2.Element: Sendable
+{
   public typealias Element = (Base1.Element, Base2.Element)
   public typealias AsyncIterator = Iterator
 
@@ -89,4 +93,4 @@ public struct AsyncCombineLatest2Sequence<
 }
 
 @available(*, unavailable)
-extension AsyncCombineLatest2Sequence.Iterator: Sendable { }
+extension AsyncCombineLatest2Sequence.Iterator: Sendable {}

@@ -8,7 +8,7 @@ let package = Package(
     .macOS("10.15"),
     .iOS("13.0"),
     .tvOS("13.0"),
-    .watchOS("6.0")
+    .watchOS("6.0"),
   ],
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
@@ -27,13 +27,16 @@ let package = Package(
     ),
     .target(
       name: "AsyncSequenceValidation",
-      dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]),
+      dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"]
+    ),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms_XCTest",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"]
+    ),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"]),
+      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"]
+    ),
   ]
 )

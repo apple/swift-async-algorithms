@@ -12,10 +12,16 @@
 struct WorkQueue: Sendable {
   enum Item: CustomStringConvertible, Comparable {
     case blocked(Token, AsyncSequenceValidationDiagram.Clock.Instant, UnsafeContinuation<Void, Error>)
-    case emit(Token, AsyncSequenceValidationDiagram.Clock.Instant, UnsafeContinuation<String?, Error>, Result<String?, Error>, Int)
+    case emit(
+      Token,
+      AsyncSequenceValidationDiagram.Clock.Instant,
+      UnsafeContinuation<String?, Error>,
+      Result<String?, Error>,
+      Int
+    )
     case work(Token, @Sendable () -> Void)
     case cancelled(Token)
-    
+
     func run() {
       switch self {
       case .blocked(_, _, let continuation):
@@ -28,7 +34,7 @@ struct WorkQueue: Sendable {
         break
       }
     }
-    
+
     var description: String {
       switch self {
       case .blocked(let token, let when, _):
@@ -41,7 +47,7 @@ struct WorkQueue: Sendable {
         return "cancelled #\(token)"
       }
     }
-    
+
     var token: Token {
       switch self {
       case .blocked(let token, _, _): return token
@@ -50,14 +56,14 @@ struct WorkQueue: Sendable {
       case .cancelled(let token): return token
       }
     }
-    
+
     var isCancelled: Bool {
       switch self {
       case .cancelled: return true
       default: return false
       }
     }
-    
+
     func cancelling() -> Item {
       switch self {
       case .blocked(let token, _, let continuation):
@@ -71,7 +77,7 @@ struct WorkQueue: Sendable {
       default: return self
       }
     }
-    
+
     // the side order is repsected first since that is the logical flow of predictable events
     // then the generation is taken into account
     static func < (_ lhs: Item, _ rhs: Item) -> Bool {
@@ -82,28 +88,28 @@ struct WorkQueue: Sendable {
         return lhs.token.generation < rhs.token.generation
       }
     }
-    
+
     // all tokens are distinct so we know the generation of when it was enqueued
     // always means distinct equality (for ordering)
     static func == (_ lhs: Item, _ rhs: Item) -> Bool {
       return lhs.token == rhs.token
     }
   }
-  
+
   struct State {
     // the nil Job in these two structures represent the root job in the TaskDriver
-    var queues = [Job? : [Item]]()
+    var queues = [Job?: [Item]]()
     var jobs: [Job?] = [nil]
-    var items = [Token : Item]()
-    
+    var items = [Token: Item]()
+
     var now = AsyncSequenceValidationDiagram.Clock.Instant(when: .zero)
     var generation = 0
-    
+
     mutating func drain() -> [Item] {
       var items = [Item]()
       // store off the jobs such that we can only visit the active queues
       var jobs = self.jobs
-      
+
       while true {
         let startingCount = items.count
         var jobsToRemove = Set<Int>()
@@ -160,32 +166,32 @@ struct WorkQueue: Sendable {
           break
         }
       }
-      
+
       return items
     }
   }
-  
+
   let state = ManagedCriticalState(State())
-  
+
   var now: AsyncSequenceValidationDiagram.Clock.Instant {
     state.withCriticalRegion { $0.now }
   }
-  
+
   struct Token: Hashable, CustomStringConvertible {
     var generation: Int
-    
+
     var description: String {
       return generation.description
     }
   }
-  
+
   func prepare() -> Token {
     state.withCriticalRegion { state in
       defer { state.generation += 1 }
       return Token(generation: state.generation)
     }
   }
-  
+
   func cancel(_ token: Token) {
     state.withCriticalRegion { state in
       if let existing = state.items[token] {
@@ -212,16 +218,24 @@ struct WorkQueue: Sendable {
       }
     }
   }
-  
-  func enqueue(_ job: Job?, deadline: AsyncSequenceValidationDiagram.Clock.Instant, continuation: UnsafeContinuation<Void, Error>, token: Token) {
+
+  func enqueue(
+    _ job: Job?,
+    deadline: AsyncSequenceValidationDiagram.Clock.Instant,
+    continuation: UnsafeContinuation<Void, Error>,
+    token: Token
+  ) {
     state.withCriticalRegion { state in
       if state.queues[job] == nil, let job = job {
         state.jobs.append(job)
       }
       if state.items[token]?.isCancelled == true {
-        let item: Item = .work(token, {
-          continuation.resume(throwing: CancellationError())
-        })
+        let item: Item = .work(
+          token,
+          {
+            continuation.resume(throwing: CancellationError())
+          }
+        )
         state.queues[job, default: []].append(item)
         state.items[token] = item
       } else {
@@ -231,16 +245,27 @@ struct WorkQueue: Sendable {
       }
     }
   }
-  
-  func enqueue(_ job: Job?, deadline: AsyncSequenceValidationDiagram.Clock.Instant, continuation: UnsafeContinuation<String?, Error>, _ result: Result<String?, Error>, index: Int, token: Token) {
+
+  func enqueue(
+    _ job: Job?,
+    deadline: AsyncSequenceValidationDiagram.Clock.Instant,
+    continuation: UnsafeContinuation<String?, Error>,
+    _ result: Result<String?, Error>,
+    index: Int,
+    token: Token
+  ) {
     state.withCriticalRegion { state in
       if state.queues[job] == nil, let job = job {
         state.jobs.append(job)
       }
       if state.items[token]?.isCancelled == true {
-        let item: Item = .work(token, {
-          continuation.resume(returning: nil) // the input sequences should not throw cancellation errors
-        })
+        let item: Item = .work(
+          token,
+          {
+            // the input sequences should not throw cancellation errors
+            continuation.resume(returning: nil)
+          }
+        )
         state.queues[job, default: []].append(item)
         state.items[token] = item
       } else {
@@ -250,7 +275,7 @@ struct WorkQueue: Sendable {
       }
     }
   }
-  
+
   func enqueue(_ job: Job?, work: @Sendable @escaping () -> Void) {
     state.withCriticalRegion { state in
       if state.queues[job] == nil, let job = job {
@@ -263,7 +288,7 @@ struct WorkQueue: Sendable {
       state.items[token] = item
     }
   }
-  
+
   func drain() {
     // keep draining until there is no recursive work to do
     while true {
@@ -279,7 +304,7 @@ struct WorkQueue: Sendable {
       }
     }
   }
-  
+
   func advance() {
     // drain off the advancement
     var items: [Item] = state.withCriticalRegion { state in
@@ -292,7 +317,7 @@ struct WorkQueue: Sendable {
     for item in items {
       item.run()
     }
-    
+
     // and cleanup any additional recursive items
     drain()
   }

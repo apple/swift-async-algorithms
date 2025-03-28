@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-struct Failure: Error, Equatable { }
+struct Failure: Error, Equatable {}
 
 func throwOn<T: Equatable>(_ toThrowOn: T, _ value: T) throws -> T {
   if value == toThrowOn {

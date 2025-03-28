@@ -30,7 +30,7 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(Set(collected).sorted(), expected)
   }
-  
+
   func test_merge_makes_sequence_with_elements_from_sources_when_first_is_longer() async {
     let first = [1, 2, 3, 4, 5, 6, 7]
     let second = [8, 9, 10]
@@ -48,7 +48,7 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(Set(collected).sorted(), expected)
   }
-  
+
   func test_merge_makes_sequence_with_elements_from_sources_when_second_is_longer() async {
     let first = [1, 2, 3]
     let second = [4, 5, 6, 7]
@@ -66,8 +66,10 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(Set(collected).sorted(), expected)
   }
-  
-  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements() async throws {
+
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5]
     let second = [6, 7, 8]
 
@@ -89,8 +91,11 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
-  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements() async throws {
+
+  func
+    test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5]
     let second = [6, 7, 8, 9, 10, 11]
 
@@ -112,8 +117,11 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
-  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements() async throws {
+
+  func
+    test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3]
     let second = [4, 5, 6, 7, 8]
 
@@ -135,8 +143,11 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
-  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements() async throws {
+
+  func
+    test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5, 6, 7]
     let second = [7, 8, 9, 10, 11]
 
@@ -158,7 +169,7 @@ final class TestMerge2: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
+
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a-c-e-g-|"
@@ -167,7 +178,7 @@ final class TestMerge2: XCTestCase {
       "abcdefgh|"
     }
   }
-  
+
   func test_merge_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
     let source2 = Indefinite(value: "test2")
@@ -192,15 +203,15 @@ final class TestMerge2: XCTestCase {
     await fulfillment(of: [finished], timeout: 1.0)
   }
 
-    func test_merge_when_cancelled() async {
-        let t = Task {
-          try? await Task.sleep(nanoseconds: 1_000_000_000)
-            let c1 = Indefinite(value: "test1").async
-            let c2 = Indefinite(value: "test1").async
-          for await _ in merge(c1, c2) {}
-        }
-        t.cancel()
+  func test_merge_when_cancelled() async {
+    let t = Task {
+      try? await Task.sleep(nanoseconds: 1_000_000_000)
+      let c1 = Indefinite(value: "test1").async
+      let c2 = Indefinite(value: "test1").async
+      for await _ in merge(c1, c2) {}
     }
+    t.cancel()
+  }
 }
 
 final class TestMerge3: XCTestCase {
@@ -279,7 +290,7 @@ final class TestMerge3: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(Set(collected).sorted(), expected)
   }
-  
+
   func test_merge_makes_sequence_with_elements_from_sources_when_first_and_second_are_longer() async {
     let first = [1, 2, 3, 4, 5]
     let second = [6, 7, 8, 9]
@@ -337,7 +348,9 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(Set(collected).sorted(), expected)
   }
 
-  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements() async throws {
+  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_longer_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5]
     let second = [6, 7, 8]
     let third = [9, 10, 11]
@@ -361,7 +374,10 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
-  func test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements() async throws {
+  func
+    test_merge_produces_three_elements_from_first_and_throws_when_first_is_shorter_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5]
     let second = [6, 7, 8, 9, 10, 11]
     let third = [12, 13, 14]
@@ -385,7 +401,10 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
-  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements() async throws {
+  func
+    test_merge_produces_three_elements_from_second_and_throws_when_second_is_longer_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3]
     let second = [4, 5, 6, 7, 8]
     let third = [9, 10, 11]
@@ -409,7 +428,10 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
-  func test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements() async throws {
+  func
+    test_merge_produces_three_elements_from_second_and_throws_when_second_is_shorter_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5, 6, 7]
     let second = [7, 8, 9, 10, 11]
     let third = [12, 13, 14]
@@ -432,8 +454,10 @@ final class TestMerge3: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
-  func test_merge_produces_three_elements_from_third_and_throws_when_third_is_longer_and_throws_after_three_elements() async throws {
+
+  func test_merge_produces_three_elements_from_third_and_throws_when_third_is_longer_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3]
     let second = [4, 5, 6]
     let third = [7, 8, 9, 10, 11]
@@ -457,7 +481,10 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
-  func test_merge_produces_three_elements_from_third_and_throws_when_third_is_shorter_and_throws_after_three_elements() async throws {
+  func
+    test_merge_produces_three_elements_from_third_and_throws_when_third_is_shorter_and_throws_after_three_elements()
+    async throws
+  {
     let first = [1, 2, 3, 4, 5, 6, 7]
     let second = [7, 8, 9, 10, 11]
     let third = [12, 13, 14, 15]
@@ -480,7 +507,7 @@ final class TestMerge3: XCTestCase {
     XCTAssertNil(pastEnd)
     XCTAssertEqual(collected.intersection(expected), expected)
   }
-  
+
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a---e---|"
@@ -516,43 +543,43 @@ final class TestMerge3: XCTestCase {
     await fulfillment(of: [finished], timeout: 1.0)
   }
 
-    // MARK: - IteratorInitialized
+  // MARK: - IteratorInitialized
 
-    func testIteratorInitialized_whenInitial() async throws {
-        let reportingSequence1 = ReportingAsyncSequence([1])
-        let reportingSequence2 = ReportingAsyncSequence([2])
-        let merge = merge(reportingSequence1, reportingSequence2)
+  func testIteratorInitialized_whenInitial() async throws {
+    let reportingSequence1 = ReportingAsyncSequence([1])
+    let reportingSequence2 = ReportingAsyncSequence([2])
+    let merge = merge(reportingSequence1, reportingSequence2)
 
-        _ = merge.makeAsyncIterator()
+    _ = merge.makeAsyncIterator()
 
-        // We need to give the task that consumes the upstream
-        // a bit of time to make the iterators
-        try await Task.sleep(nanoseconds: 1000000)
+    // We need to give the task that consumes the upstream
+    // a bit of time to make the iterators
+    try await Task.sleep(nanoseconds: 1_000_000)
 
-        XCTAssertEqual(reportingSequence1.events, [])
-        XCTAssertEqual(reportingSequence2.events, [])
-    }
+    XCTAssertEqual(reportingSequence1.events, [])
+    XCTAssertEqual(reportingSequence2.events, [])
+  }
 
-    // MARK: - IteratorDeinitialized
+  // MARK: - IteratorDeinitialized
 
-    func testIteratorDeinitialized_whenMerging() async throws {
-        let merge = merge([1].async, [2].async)
+  func testIteratorDeinitialized_whenMerging() async throws {
+    let merge = merge([1].async, [2].async)
 
-        var iterator: _! = merge.makeAsyncIterator()
+    var iterator: _! = merge.makeAsyncIterator()
 
-        let nextValue = await iterator.next()
-        XCTAssertNotNil(nextValue)
+    let nextValue = await iterator.next()
+    XCTAssertNotNil(nextValue)
 
-        iterator = nil
-    }
+    iterator = nil
+  }
 
-    func testIteratorDeinitialized_whenFinished() async throws {
-        let merge = merge(Array<Int>().async, [].async)
+  func testIteratorDeinitialized_whenFinished() async throws {
+    let merge = merge([Int]().async, [].async)
 
-        var iterator: _? = merge.makeAsyncIterator()
-        let firstValue = await iterator?.next()
-        XCTAssertNil(firstValue)
+    var iterator: _? = merge.makeAsyncIterator()
+    let firstValue = await iterator?.next()
+    XCTAssertNil(firstValue)
 
-        iterator = nil
-    }
+    iterator = nil
+  }
 }

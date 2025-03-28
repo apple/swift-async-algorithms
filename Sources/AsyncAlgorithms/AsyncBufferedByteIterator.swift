@@ -42,7 +42,7 @@
 public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
   public typealias Element = UInt8
   @usableFromInline var buffer: _AsyncBytesBuffer
-  
+
   /// Creates an asynchronous buffered byte iterator with a specified capacity and read function.
   ///
   /// - Parameters:
@@ -55,7 +55,7 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
   ) {
     buffer = _AsyncBytesBuffer(capacity: capacity, readFunction: readFunction)
   }
-  
+
   /// Reads a byte out of the buffer if available. When no bytes are available, this will trigger
   /// the read function to reload the buffer and then return the next byte from that buffer.
   @inlinable @inline(__always)
@@ -65,14 +65,14 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
 }
 
 @available(*, unavailable)
-extension AsyncBufferedByteIterator: Sendable { }
+extension AsyncBufferedByteIterator: Sendable {}
 
 @frozen @usableFromInline
 internal struct _AsyncBytesBuffer {
   @usableFromInline
   final class Storage {
     fileprivate let buffer: UnsafeMutableRawBufferPointer
-    
+
     init(
       capacity: Int
     ) {
@@ -82,19 +82,19 @@ internal struct _AsyncBytesBuffer {
         alignment: MemoryLayout<AnyObject>.alignment
       )
     }
-    
+
     deinit {
       buffer.deallocate()
     }
   }
-  
+
   @usableFromInline internal let storage: Storage
   @usableFromInline internal var nextPointer: UnsafeRawPointer
   @usableFromInline internal var endPointer: UnsafeRawPointer
-  
+
   internal let readFunction: @Sendable (UnsafeMutableRawBufferPointer) async throws -> Int
   internal var finished = false
-  
+
   @usableFromInline init(
     capacity: Int,
     readFunction: @Sendable @escaping (UnsafeMutableRawBufferPointer) async throws -> Int
@@ -105,7 +105,7 @@ internal struct _AsyncBytesBuffer {
     nextPointer = UnsafeRawPointer(s.buffer.baseAddress!)
     endPointer = nextPointer
   }
-  
+
   @inline(never) @usableFromInline
   internal mutating func reloadBufferAndNext() async throws -> UInt8? {
     if finished {
@@ -128,7 +128,7 @@ internal struct _AsyncBytesBuffer {
     }
     return try await next()
   }
-  
+
   @inlinable @inline(__always)
   internal mutating func next() async throws -> UInt8? {
     if _fastPath(nextPointer != endPointer) {

@@ -13,7 +13,7 @@ public struct GatedSequence<Element> {
   let elements: [Element]
   let gates: [Gate]
   var index = 0
-  
+
   public mutating func advance() {
     defer { index += 1 }
     guard index < gates.count else {
@@ -21,7 +21,7 @@ public struct GatedSequence<Element> {
     }
     gates[index].open()
   }
-  
+
   public init(_ elements: [Element]) {
     self.elements = elements
     self.gates = elements.map { _ in Gate() }
@@ -31,11 +31,11 @@ public struct GatedSequence<Element> {
 extension GatedSequence: AsyncSequence {
   public struct Iterator: AsyncIteratorProtocol {
     var gatedElements: [(Element, Gate)]
-    
+
     init(elements: [Element], gates: [Gate]) {
       gatedElements = Array(zip(elements, gates))
     }
-    
+
     public mutating func next() async -> Element? {
       guard gatedElements.count > 0 else {
         return nil
@@ -45,10 +45,10 @@ extension GatedSequence: AsyncSequence {
       return element
     }
   }
-  
+
   public func makeAsyncIterator() -> Iterator {
     Iterator(elements: elements, gates: gates)
   }
 }
 
-extension GatedSequence: Sendable where Element: Sendable { }
+extension GatedSequence: Sendable where Element: Sendable {}

@@ -19,21 +19,21 @@ final class TestSetAlgebra: XCTestCase {
     let actual = await Set(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_Set_duplicate() async {
     let source = [1, 2, 3, 3]
     let expected = Set(source)
     let actual = await Set(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_IndexSet() async {
     let source = [1, 2, 3]
     let expected = IndexSet(source)
     let actual = await IndexSet(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_throwing() async {
     let source = Array([1, 2, 3, 4, 5, 6])
     let input = source.async.map { (value: Int) async throws -> Int in

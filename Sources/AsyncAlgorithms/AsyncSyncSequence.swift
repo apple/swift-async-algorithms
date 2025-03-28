@@ -30,43 +30,42 @@ extension Sequence {
 @frozen
 public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   public typealias Element = Base.Element
-  
+
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
     var iterator: Base.Iterator?
-    
+
     @usableFromInline
     init(_ iterator: Base.Iterator) {
       self.iterator = iterator
     }
-    
+
     @inlinable
     public mutating func next() async -> Base.Element? {
-      if !Task.isCancelled, let value = iterator?.next() {
-        return value
-      } else {
+      guard !Task.isCancelled, let value = iterator?.next() else {
         iterator = nil
         return nil
       }
+      return value
     }
   }
-  
+
   @usableFromInline
   let base: Base
-  
+
   @usableFromInline
   init(_ base: Base) {
     self.base = base
   }
-  
+
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base.makeIterator())
   }
 }
 
-extension AsyncSyncSequence: Sendable where Base: Sendable { }
+extension AsyncSyncSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)
-extension AsyncSyncSequence.Iterator: Sendable { }
+extension AsyncSyncSequence.Iterator: Sendable {}

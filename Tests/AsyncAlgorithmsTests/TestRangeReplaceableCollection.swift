@@ -19,28 +19,28 @@ final class TestRangeReplaceableCollection: XCTestCase {
     let actual = await String(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_Data() async {
     let source = Data([1, 2, 3])
     let expected = source
     let actual = await Data(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_ContiguousArray() async {
     let source = ContiguousArray([1, 2, 3])
     let expected = source
     let actual = await ContiguousArray(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_Array() async {
     let source = Array([1, 2, 3])
     let expected = source
     let actual = await Array(source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_throwing() async {
     let source = Array([1, 2, 3, 4, 5, 6])
     let input = source.async.map { (value: Int) async throws -> Int in

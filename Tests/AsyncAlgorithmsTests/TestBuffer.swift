@@ -172,7 +172,10 @@ final class TestBuffer: XCTestCase {
     }
   }
 
-  func test_given_a_buffered_with_unbounded_sequence_when_cancelling_consumer_then_the_iteration_finishes_and_the_base_is_cancelled() async {
+  func
+    test_given_a_buffered_with_unbounded_sequence_when_cancelling_consumer_then_the_iteration_finishes_and_the_base_is_cancelled()
+    async
+  {
     // Given
     let buffered = Indefinite(value: 1).async.buffer(policy: .unbounded)
 
@@ -292,7 +295,10 @@ final class TestBuffer: XCTestCase {
     XCTAssertNil(pastFailure)
   }
 
-  func test_given_a_buffered_bounded_sequence_when_cancelling_consumer_then_the_iteration_finishes_and_the_base_is_cancelled() async {
+  func
+    test_given_a_buffered_bounded_sequence_when_cancelling_consumer_then_the_iteration_finishes_and_the_base_is_cancelled()
+    async
+  {
     // Given
     let buffered = Indefinite(value: 1).async.buffer(policy: .bounded(3))
 

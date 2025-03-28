@@ -11,17 +11,27 @@
 
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when a signal `AsyncSequence` produces an element.
-  public func chunks<Signal, Collected: RangeReplaceableCollection>(ofCount count: Int, or signal: Signal, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunks<Signal, Collected: RangeReplaceableCollection>(
+    ofCount count: Int,
+    or signal: Signal,
+    into: Collected.Type
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: count, signal: signal)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when a signal `AsyncSequence` produces an element.
-  public func chunks<Signal>(ofCount count: Int, or signal: Signal) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
+  public func chunks<Signal>(
+    ofCount count: Int,
+    or signal: Signal
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
     chunks(ofCount: count, or: signal, into: [Element].self)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when a signal `AsyncSequence` produces an element.
-  public func chunked<Signal, Collected: RangeReplaceableCollection>(by signal: Signal, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
+  public func chunked<Signal, Collected: RangeReplaceableCollection>(
+    by signal: Signal,
+    into: Collected.Type
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, Signal> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: nil, signal: signal)
   }
 
@@ -32,31 +42,54 @@ extension AsyncSequence {
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(ofCount count: Int, or timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunks<C: Clock, Collected: RangeReplaceableCollection>(
+    ofCount count: Int,
+    or timer: AsyncTimerSequence<C>,
+    into: Collected.Type
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: count, signal: timer)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunks<C: Clock>(ofCount count: Int, or timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+  public func chunks<C: Clock>(
+    ofCount count: Int,
+    or timer: AsyncTimerSequence<C>
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunks(ofCount: count, or: timer, into: [Element].self)
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(by timer: AsyncTimerSequence<C>, into: Collected.Type) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
+  public func chunked<C: Clock, Collected: RangeReplaceableCollection>(
+    by timer: AsyncTimerSequence<C>,
+    into: Collected.Type
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, Collected, AsyncTimerSequence<C>> where Collected.Element == Element {
     AsyncChunksOfCountOrSignalSequence(self, count: nil, signal: timer)
   }
 
   /// Creates an asynchronous sequence that creates chunks when an `AsyncTimerSequence` fires.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-  public func chunked<C: Clock>(by timer: AsyncTimerSequence<C>) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
+  public func chunked<C: Clock>(
+    by timer: AsyncTimerSequence<C>
+  ) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], AsyncTimerSequence<C>> {
     chunked(by: timer, into: [Element].self)
   }
 }
 
 /// An `AsyncSequence` that chunks elements into collected `RangeReplaceableCollection` instances by either count or a signal from another `AsyncSequence`.
-public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection, Signal: AsyncSequence>: AsyncSequence, Sendable where Collected.Element == Base.Element, Base: Sendable, Signal: Sendable, Base.Element: Sendable, Signal.Element: Sendable {
+public struct AsyncChunksOfCountOrSignalSequence<
+  Base: AsyncSequence,
+  Collected: RangeReplaceableCollection,
+  Signal: AsyncSequence
+>: AsyncSequence, Sendable
+where
+  Collected.Element == Base.Element,
+  Base: Sendable,
+  Signal: Sendable,
+  Base.Element: Sendable,
+  Signal.Element: Sendable
+{
 
   public typealias Element = Collected
 
@@ -65,23 +98,23 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
     case terminal
     case signal
   }
-  
+
   /// The iterator for a `AsyncChunksOfCountOrSignalSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
     typealias EitherMappedBase = AsyncMapSequence<Base, Either>
     typealias EitherMappedSignal = AsyncMapSequence<Signal, Either>
     typealias ChainedBase = AsyncChain2Sequence<EitherMappedBase, AsyncSyncSequence<[Either]>>
     typealias Merged = AsyncMerge2Sequence<ChainedBase, EitherMappedSignal>
-    
+
     let count: Int?
     var iterator: Merged.AsyncIterator
     var terminated = false
-    
+
     init(iterator: Merged.AsyncIterator, count: Int?) {
       self.count = count
       self.iterator = iterator
     }
-    
+
     public mutating func next() async rethrows -> Collected? {
       guard !terminated else {
         return nil
@@ -124,10 +157,16 @@ public struct AsyncChunksOfCountOrSignalSequence<Base: AsyncSequence, Collected:
   }
 
   public func makeAsyncIterator() -> Iterator {
-    
-    return Iterator(iterator: merge(chain(base.map { Either.element($0) }, [.terminal].async), signal.map { _ in Either.signal }).makeAsyncIterator(), count: count)
+
+    return Iterator(
+      iterator: merge(
+        chain(base.map { Either.element($0) }, [.terminal].async),
+        signal.map { _ in Either.signal }
+      ).makeAsyncIterator(),
+      count: count
+    )
   }
 }
 
 @available(*, unavailable)
-extension AsyncChunksOfCountOrSignalSequence.Iterator: Sendable { }
+extension AsyncChunksOfCountOrSignalSequence.Iterator: Sendable {}
