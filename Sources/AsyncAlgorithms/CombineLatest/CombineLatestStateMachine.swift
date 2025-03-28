@@ -12,6 +12,7 @@
 import DequeModule
 
 /// State machine for combine latest
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct CombineLatestStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

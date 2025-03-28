@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Create a rate-limited `AsyncSequence` by emitting values at most every specified interval.
   @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)

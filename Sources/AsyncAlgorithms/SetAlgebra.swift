@@ -16,6 +16,7 @@ extension SetAlgebra {
   ///
   /// - Parameter source: The elements to use as members of the new set.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public init<Source: AsyncSequence>(_ source: Source) async rethrows where Source.Element == Element {
     self.init()
     for try await item in source {

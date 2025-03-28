@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 /// State machine for zip
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct ZipStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

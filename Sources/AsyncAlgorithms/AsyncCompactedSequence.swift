@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Returns a new `AsyncSequence` that iterates over every non-nil element from the
   /// original `AsyncSequence`.
@@ -28,6 +29,7 @@ extension AsyncSequence {
 /// An `AsyncSequence` that iterates over every non-nil element from the original
 /// `AsyncSequence`.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequence
 where Base.Element == Element? {
 
@@ -66,6 +68,7 @@ where Base.Element == Element? {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncCompactedSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

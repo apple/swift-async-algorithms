@@ -12,6 +12,7 @@
 import DequeModule
 
 /// Creates an asynchronous sequence of elements from two underlying asynchronous sequences
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public func merge<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
@@ -29,6 +30,7 @@ where
 }
 
 /// An `AsyncSequence` that takes three upstream `AsyncSequence`s and combines their elements.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncMerge3Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
@@ -65,6 +67,7 @@ where
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncMerge3Sequence: AsyncSequence {
   public func makeAsyncIterator() -> Iterator {
     let storage = MergeStorage(
@@ -76,6 +79,7 @@ extension AsyncMerge3Sequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncMerge3Sequence {
   public struct Iterator: AsyncIteratorProtocol {
     /// This class is needed to hook the deinit to observe once all references to the ``AsyncIterator`` are dropped.

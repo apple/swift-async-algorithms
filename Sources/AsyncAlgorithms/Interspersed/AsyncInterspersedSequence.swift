@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Returns a new asynchronous sequence containing the elements of this asynchronous sequence, inserting
   /// the given separator between each element.
@@ -150,6 +151,7 @@ extension AsyncSequence {
 
 /// An asynchronous sequence that presents the elements of a base asynchronous sequence of
 /// elements with a separator between each of those elements.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncInterspersedSequence<Base: AsyncSequence> {
   @usableFromInline
   internal enum Separator {
@@ -192,6 +194,7 @@ public struct AsyncInterspersedSequence<Base: AsyncSequence> {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncInterspersedSequence: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -301,6 +304,7 @@ extension AsyncInterspersedSequence: AsyncSequence {
 
 /// An asynchronous sequence that presents the elements of a base asynchronous sequence of
 /// elements with a separator between each of those elements.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncThrowingInterspersedSequence<Base: AsyncSequence> {
   @usableFromInline
   internal enum Separator {
@@ -334,6 +338,7 @@ public struct AsyncThrowingInterspersedSequence<Base: AsyncSequence> {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingInterspersedSequence: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -438,10 +443,14 @@ extension AsyncThrowingInterspersedSequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncInterspersedSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncInterspersedSequence.Separator: Sendable where Base: Sendable, Base.Element: Sendable {}
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingInterspersedSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingInterspersedSequence.Separator: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// An `AsyncSequence` that iterates over the adjacent pairs of the original
   /// original `AsyncSequence`.
@@ -35,6 +36,7 @@ extension AsyncSequence {
 /// An `AsyncSequence` that iterates over the adjacent pairs of the original
 /// `AsyncSequence`.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = (Base.Element, Base.Element)
 
@@ -83,6 +85,7 @@ public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncAdjacentPairsSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

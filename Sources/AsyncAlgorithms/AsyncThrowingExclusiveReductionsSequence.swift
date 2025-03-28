@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given error-throwing closure.
@@ -59,6 +60,7 @@ extension AsyncSequence {
 /// An asynchronous sequence of applying an error-throwing transform to the element of
 /// an asynchronous sequence and the previously transformed result.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   @usableFromInline
   let base: Base
@@ -81,6 +83,7 @@ public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Elem
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
   /// The iterator for an `AsyncThrowingExclusiveReductionsSequence` instance.
   @frozen
@@ -130,6 +133,7 @@ extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable {}
 
 @available(*, unavailable)

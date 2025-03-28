@@ -26,16 +26,19 @@ import Bionic
 #endif
 
 #if canImport(Darwin)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return nil
 }
 #elseif (canImport(Glibc) && !os(Android)) || canImport(Musl)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
   return nil
 }
 #elseif os(Android)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return UnsafeMutableRawPointer(bitPattern: 0xdeadbee)!
@@ -44,6 +47,7 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
 #error("TODO: Port TaskDriver threading to windows")
 #endif
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 final class TaskDriver {
   let work: (TaskDriver) -> Void
   let queue: WorkQueue

@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
 where
   Base1: Sendable,

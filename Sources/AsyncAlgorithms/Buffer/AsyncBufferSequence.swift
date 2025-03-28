@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence where Self: Sendable {
   /// Creates an asynchronous sequence that buffers elements.
   ///
@@ -69,6 +70,7 @@ public struct AsyncBufferSequencePolicy: Sendable {
 }
 
 /// An `AsyncSequence` that buffers elements in regard to a policy.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence {
   enum StorageType {
     case transparent(Base.AsyncIterator)
@@ -125,6 +127,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncBufferSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)

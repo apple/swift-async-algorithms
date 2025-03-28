@@ -14,6 +14,7 @@ extension Sequence {
   /// but on which operations, such as `map` and `filter`, are
   /// implemented asynchronously.
   @inlinable
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public var async: AsyncSyncSequence<Self> {
     AsyncSyncSequence(self)
   }
@@ -28,6 +29,7 @@ extension Sequence {
 /// This functions similarly to `LazySequence` by accessing elements sequentially
 /// in the iterator's `next()` method.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -65,6 +67,7 @@ public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSyncSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)

@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequenceValidationDiagram {
   public struct ExpectationResult: Sendable {
     public struct Event: Sendable {
