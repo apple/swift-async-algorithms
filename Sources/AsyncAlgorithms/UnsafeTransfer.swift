@@ -11,9 +11,9 @@
 
 /// A wrapper struct to unconditionally to transfer an non-Sendable value.
 struct UnsafeTransfer<Element>: @unchecked Sendable {
-    let wrapped: Element
+  let wrapped: Element
 
-    init(_ wrapped: Element) {
-        self.wrapped = wrapped
-    }
+  init(_ wrapped: Element) {
+    self.wrapped = wrapped
+  }
 }

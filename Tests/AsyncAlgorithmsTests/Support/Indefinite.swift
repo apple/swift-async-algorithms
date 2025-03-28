@@ -11,11 +11,11 @@
 
 struct Indefinite<Element: Sendable>: Sequence, IteratorProtocol, Sendable {
   let value: Element
-  
+
   func next() -> Element? {
     return value
   }
-  
+
   func makeIterator() -> Indefinite<Element> {
     self
   }

@@ -18,7 +18,7 @@ extension AsyncSequenceValidationDiagram {
     }
     public var expected: [Event]
     public var actual: [(Clock.Instant, Result<String?, Error>)]
-    
+
     func reconstitute<Theme: AsyncSequenceValidationTheme>(_ result: Result<String?, Error>, theme: Theme) -> String {
       var reconstituted = ""
       switch result {
@@ -39,9 +39,13 @@ extension AsyncSequenceValidationDiagram {
       }
       return reconstituted
     }
-    
-    func reconstitute<Theme: AsyncSequenceValidationTheme>(_ events: [Clock.Instant : [Result<String?, Error>]], theme: Theme, end: Clock.Instant) -> String {
-      var now = Clock.Instant(when: .steps(1)) // adjust for the offset index
+
+    func reconstitute<Theme: AsyncSequenceValidationTheme>(
+      _ events: [Clock.Instant: [Result<String?, Error>]],
+      theme: Theme,
+      end: Clock.Instant
+    ) -> String {
+      var now = Clock.Instant(when: .steps(1))  // adjust for the offset index
       var reconstituted = ""
       while now <= end {
         if let results = events[now] {
@@ -61,11 +65,11 @@ extension AsyncSequenceValidationDiagram {
       }
       return reconstituted
     }
-    
+
     public func reconstituteExpected<Theme: AsyncSequenceValidationTheme>(theme: Theme) -> String {
-      var events = [Clock.Instant : [Result<String?, Error>]]()
+      var events = [Clock.Instant: [Result<String?, Error>]]()
       var end: Clock.Instant = Clock.Instant(when: .zero)
-      
+
       for expectation in expected {
         let when = expectation.when
         let result = expectation.result
@@ -74,25 +78,25 @@ extension AsyncSequenceValidationDiagram {
           end = when
         }
       }
-      
+
       return reconstitute(events, theme: theme, end: end)
     }
-    
+
     public func reconstituteActual<Theme: AsyncSequenceValidationTheme>(theme: Theme) -> String {
-      var events = [Clock.Instant : [Result<String?, Error>]]()
+      var events = [Clock.Instant: [Result<String?, Error>]]()
       var end: Clock.Instant = Clock.Instant(when: .zero)
-      
+
       for (when, result) in actual {
         events[when, default: []].append(result)
         if when > end {
           end = when
         }
       }
-      
+
       return reconstitute(events, theme: theme, end: end)
     }
   }
-  
+
   public struct ExpectationFailure: Sendable, CustomStringConvertible {
     public enum Kind: Sendable {
       case expectedFinishButGotValue(String)
@@ -108,23 +112,23 @@ extension AsyncSequenceValidationDiagram {
       case unexpectedValue(String)
       case unexpectedFinish
       case unexpectedFailure(Error)
-      
+
       case specificationViolationGotValueAfterIteration(String)
       case specificationViolationGotFailureAfterIteration(Error)
     }
     public var when: Clock.Instant
     public var kind: Kind
-    
+
     public var specification: Specification?
     public var index: String.Index?
-    
+
     init(when: Clock.Instant, kind: Kind, specification: Specification? = nil, index: String.Index? = nil) {
       self.when = when
       self.kind = kind
       self.specification = specification
       self.index = index
     }
-    
+
     var reason: String {
       switch kind {
       case .expectedFinishButGotValue(let actual):
@@ -159,7 +163,7 @@ extension AsyncSequenceValidationDiagram {
         return "specification violation got failure after iteration terminated"
       }
     }
-    
+
     public var description: String {
       return reason + " at tick \(when.when.rawValue - 1)"
     }

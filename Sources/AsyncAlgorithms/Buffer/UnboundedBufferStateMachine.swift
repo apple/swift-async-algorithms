@@ -45,26 +45,26 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   var task: Task<Void, Never>? {
     switch self.state {
-      case .buffering(let task, _, _):
-        return task
-      default:
-        return nil
+    case .buffering(let task, _, _):
+      return task
+    default:
+      return nil
     }
   }
 
   mutating func taskStarted(task: Task<Void, Never>) {
     switch self.state {
-      case .initial:
-        self.state = .buffering(task: task, buffer: [], suspendedConsumer: nil)
+    case .initial:
+      self.state = .buffering(task: task, buffer: [], suspendedConsumer: nil)
 
-      case .buffering:
-        preconditionFailure("Invalid state.")
+    case .buffering:
+      preconditionFailure("Invalid state.")
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .modifying:
+      preconditionFailure("Invalid state.")
 
-      case .finished:
-        preconditionFailure("Invalid state.")
+    case .finished:
+      preconditionFailure("Invalid state.")
     }
   }
 
@@ -78,43 +78,43 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   mutating func elementProduced(element: Element) -> ElementProducedAction {
     switch self.state {
-      case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+    case .initial:
+      preconditionFailure("Invalid state. The task should already by started.")
 
-      case .buffering(let task, var buffer, .none):
-        // we are either idle or the buffer is already in use (no awaiting consumer)
-        // we have to apply the policy when stacking the new element
-        self.state = .modifying
-        switch self.policy {
-          case .unlimited:
-            buffer.append(.success(.init(element)))
-          case .bufferingNewest(let limit):
-            if buffer.count >= limit {
-              _ = buffer.popFirst()
-            }
-            buffer.append(.success(.init(element)))
-          case .bufferingOldest(let limit):
-            if buffer.count < limit {
-              buffer.append(.success(.init(element)))
-            }
+    case .buffering(let task, var buffer, .none):
+      // we are either idle or the buffer is already in use (no awaiting consumer)
+      // we have to apply the policy when stacking the new element
+      self.state = .modifying
+      switch self.policy {
+      case .unlimited:
+        buffer.append(.success(.init(element)))
+      case .bufferingNewest(let limit):
+        if buffer.count >= limit {
+          _ = buffer.popFirst()
         }
-        self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .none
+        buffer.append(.success(.init(element)))
+      case .bufferingOldest(let limit):
+        if buffer.count < limit {
+          buffer.append(.success(.init(element)))
+        }
+      }
+      self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
+      return .none
 
-      case .buffering(let task, let buffer, .some(let suspendedConsumer)):
-        // we have an awaiting consumer, we can resume it with the element
-        precondition(buffer.isEmpty, "Invalid state. The buffer should be empty.")
-        self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .resumeConsumer(
-          continuation: suspendedConsumer,
-          result: .success(element)
-        )
+    case .buffering(let task, let buffer, .some(let suspendedConsumer)):
+      // we have an awaiting consumer, we can resume it with the element
+      precondition(buffer.isEmpty, "Invalid state. The buffer should be empty.")
+      self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
+      return .resumeConsumer(
+        continuation: suspendedConsumer,
+        result: .success(element)
+      )
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .modifying:
+      preconditionFailure("Invalid state.")
 
-      case .finished:
-        return .none
+    case .finished:
+      return .none
     }
   }
 
@@ -125,29 +125,29 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   mutating func finish(error: Error?) -> FinishAction {
     switch self.state {
-      case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
-        
-      case .buffering(_, var buffer, .none):
-        // we are either idle or the buffer is already in use (no awaiting consumer)
-        // if we have an error we stack it in the buffer so it can be consumed later
-        if let error {
-          buffer.append(.failure(error))
-        }
-        self.state = .finished(buffer: buffer)
-        return .none
+    case .initial:
+      preconditionFailure("Invalid state. The task should already by started.")
 
-      case .buffering(_, let buffer, let suspendedConsumer):
-        // we have an awaiting consumer, we can resume it with nil or the error
-        precondition(buffer.isEmpty, "Invalid state. The buffer should be empty.")
-        self.state = .finished(buffer: [])
-        return .resumeConsumer(continuation: suspendedConsumer)
+    case .buffering(_, var buffer, .none):
+      // we are either idle or the buffer is already in use (no awaiting consumer)
+      // if we have an error we stack it in the buffer so it can be consumed later
+      if let error {
+        buffer.append(.failure(error))
+      }
+      self.state = .finished(buffer: buffer)
+      return .none
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .buffering(_, let buffer, let suspendedConsumer):
+      // we have an awaiting consumer, we can resume it with nil or the error
+      precondition(buffer.isEmpty, "Invalid state. The buffer should be empty.")
+      self.state = .finished(buffer: [])
+      return .resumeConsumer(continuation: suspendedConsumer)
 
-      case .finished:
-        return .none
+    case .modifying:
+      preconditionFailure("Invalid state.")
+
+    case .finished:
+      return .none
     }
   }
 
@@ -159,33 +159,33 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   mutating func next() -> NextAction {
     switch self.state {
-      case .initial(let base):
-        return .startTask(base: base)
-        
-      case .buffering(_, let buffer, let suspendedConsumer) where buffer.isEmpty:
-        // we are idle, we have to suspend the consumer
-        precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
-        return .suspend
+    case .initial(let base):
+      return .startTask(base: base)
 
-      case .buffering(let task, var buffer, let suspendedConsumer):
-        // the buffer is already in use, we can unstack a value and directly resume the consumer
-        precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
-        self.state = .modifying
-        let result = buffer.popFirst()!
-        self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .returnResult(result.map { $0.wrapped })
+    case .buffering(_, let buffer, let suspendedConsumer) where buffer.isEmpty:
+      // we are idle, we have to suspend the consumer
+      precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
+      return .suspend
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .buffering(let task, var buffer, let suspendedConsumer):
+      // the buffer is already in use, we can unstack a value and directly resume the consumer
+      precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
+      self.state = .modifying
+      let result = buffer.popFirst()!
+      self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
+      return .returnResult(result.map { $0.wrapped })
 
-      case .finished(let buffer) where buffer.isEmpty:
-        return .returnResult(nil)
+    case .modifying:
+      preconditionFailure("Invalid state.")
 
-      case .finished(var buffer):
-        self.state = .modifying
-        let result = buffer.popFirst()!
-        self.state = .finished(buffer: buffer)
-        return .returnResult(result.map { $0.wrapped })
+    case .finished(let buffer) where buffer.isEmpty:
+      return .returnResult(nil)
+
+    case .finished(var buffer):
+      self.state = .modifying
+      let result = buffer.popFirst()!
+      self.state = .finished(buffer: buffer)
+      return .returnResult(result.map { $0.wrapped })
     }
   }
 
@@ -196,34 +196,34 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   mutating func nextSuspended(continuation: SuspendedConsumer) -> NextSuspendedAction {
     switch self.state {
-      case .initial:
-        preconditionFailure("Invalid state. The task should already by started.")
+    case .initial:
+      preconditionFailure("Invalid state. The task should already by started.")
 
-      case .buffering(let task, let buffer, let suspendedConsumer) where buffer.isEmpty:
-        // we are idle, we confirm the suspension of the consumer
-        precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
-        self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: continuation)
-        return .none
+    case .buffering(let task, let buffer, let suspendedConsumer) where buffer.isEmpty:
+      // we are idle, we confirm the suspension of the consumer
+      precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
+      self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: continuation)
+      return .none
 
-      case .buffering(let task, var buffer, let suspendedConsumer):
-        // the buffer is already in use, we can unstack a value and directly resume the consumer
-        precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
-        self.state = .modifying
-        let result = buffer.popFirst()!
-        self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
-        return .resumeConsumer(result.map { $0.wrapped })
+    case .buffering(let task, var buffer, let suspendedConsumer):
+      // the buffer is already in use, we can unstack a value and directly resume the consumer
+      precondition(suspendedConsumer == nil, "Invalid states. There is already a suspended consumer.")
+      self.state = .modifying
+      let result = buffer.popFirst()!
+      self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
+      return .resumeConsumer(result.map { $0.wrapped })
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .modifying:
+      preconditionFailure("Invalid state.")
 
-      case .finished(let buffer) where buffer.isEmpty:
-        return .resumeConsumer(nil)
+    case .finished(let buffer) where buffer.isEmpty:
+      return .resumeConsumer(nil)
 
-      case .finished(var buffer):
-        self.state = .modifying
-        let result = buffer.popFirst()!
-        self.state = .finished(buffer: buffer)
-        return .resumeConsumer(result.map { $0.wrapped })
+    case .finished(var buffer):
+      self.state = .modifying
+      let result = buffer.popFirst()!
+      self.state = .finished(buffer: buffer)
+      return .resumeConsumer(result.map { $0.wrapped })
     }
   }
 
@@ -234,25 +234,23 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
 
   mutating func interrupted() -> InterruptedAction {
     switch self.state {
-      case .initial:
-        state = .finished(buffer: [])
-        return .none
-        
-      case .buffering(let task, _, let suspendedConsumer):
-        self.state = .finished(buffer: [])
-        return .resumeConsumer(task: task, continuation: suspendedConsumer)
+    case .initial:
+      state = .finished(buffer: [])
+      return .none
 
-      case .modifying:
-        preconditionFailure("Invalid state.")
+    case .buffering(let task, _, let suspendedConsumer):
+      self.state = .finished(buffer: [])
+      return .resumeConsumer(task: task, continuation: suspendedConsumer)
 
-      case .finished:
-        self.state = .finished(buffer: [])
-        return .none
+    case .modifying:
+      preconditionFailure("Invalid state.")
+
+    case .finished:
+      self.state = .finished(buffer: [])
+      return .none
     }
   }
 }
 
-extension UnboundedBufferStateMachine: Sendable where Base: Sendable { }
-extension UnboundedBufferStateMachine.State: Sendable where Base: Sendable { }
-
-
+extension UnboundedBufferStateMachine: Sendable where Base: Sendable {}
+extension UnboundedBufferStateMachine.State: Sendable where Base: Sendable {}

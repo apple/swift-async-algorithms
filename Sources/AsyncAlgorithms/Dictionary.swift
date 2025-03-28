@@ -24,10 +24,11 @@ extension Dictionary {
   ///   `keysAndValues`.
   /// - Precondition: The sequence must not have duplicate keys.
   @inlinable
-  public init<S: AsyncSequence>(uniqueKeysWithValues keysAndValues: S) async rethrows where S.Element == (Key, Value)  {
+  public init<S: AsyncSequence>(uniqueKeysWithValues keysAndValues: S) async rethrows
+  where S.Element == (Key, Value) {
     self.init(uniqueKeysWithValues: try await Array(keysAndValues))
   }
-  
+
   /// Creates a new dictionary from the key-value pairs in the given asynchronous sequence,
   /// using a combining closure to determine the value for any duplicate keys.
   ///
@@ -47,7 +48,10 @@ extension Dictionary {
   ///     the final dictionary, or throws an error if building the dictionary
   ///     can't proceed.
   @inlinable
-  public init<S: AsyncSequence>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) async throws -> Value) async rethrows where S.Element == (Key, Value) {
+  public init<S: AsyncSequence>(
+    _ keysAndValues: S,
+    uniquingKeysWith combine: (Value, Value) async throws -> Value
+  ) async rethrows where S.Element == (Key, Value) {
     self.init()
     for try await (key, value) in keysAndValues {
       if let existing = self[key] {
@@ -57,7 +61,7 @@ extension Dictionary {
       }
     }
   }
-  
+
   /// Creates a new dictionary whose keys are the groupings returned by the
   /// given closure and whose values are arrays of the elements that returned
   /// each key.
@@ -71,7 +75,8 @@ extension Dictionary {
   ///   - keyForValue: A closure that returns a key for each element in
   ///     `values`.
   @inlinable
-  public init<S: AsyncSequence>(grouping values: S, by keyForValue: (S.Element) async throws -> Key) async rethrows where Value == [S.Element] {
+  public init<S: AsyncSequence>(grouping values: S, by keyForValue: (S.Element) async throws -> Key) async rethrows
+  where Value == [S.Element] {
     self.init()
     for try await value in values {
       let key = try await keyForValue(value)

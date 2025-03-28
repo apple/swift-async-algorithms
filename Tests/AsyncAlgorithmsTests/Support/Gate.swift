@@ -17,9 +17,9 @@ public struct Gate: Sendable {
     case open
     case pending(UnsafeContinuation<Void, Never>)
   }
-  
+
   let state = ManagedCriticalState(State.closed)
-  
+
   public func `open`() {
     state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
       switch state {
@@ -34,7 +34,7 @@ public struct Gate: Sendable {
       }
     }?.resume()
   }
-  
+
   public func enter() async {
     var other: UnsafeContinuation<Void, Never>?
     await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
@@ -45,7 +45,7 @@ public struct Gate: Sendable {
           return nil
         case .open:
           state = .closed
-          return  continuation
+          return continuation
         case .pending(let existing):
           other = existing
           state = .pending(continuation)

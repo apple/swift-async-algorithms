@@ -83,7 +83,7 @@ public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   }
 }
 
-extension AsyncAdjacentPairsSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
+extension AsyncAdjacentPairsSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncAdjacentPairsSequence.Iterator: Sendable { }
+extension AsyncAdjacentPairsSequence.Iterator: Sendable {}

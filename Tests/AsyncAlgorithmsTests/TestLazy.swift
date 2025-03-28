@@ -21,34 +21,34 @@ final class TestLazy: XCTestCase {
     for await item in sequence {
       collected.append(item)
     }
-    
+
     XCTAssertEqual(expected, collected)
   }
-  
+
   func test_lazy_outputs_elements_and_finishes_when_source_is_set() async {
     let expected: Set = [1, 2, 3, 4]
     let sequence = expected.async
-    
+
     var collected = Set<Int>()
     for await item in sequence {
       collected.insert(item)
     }
-    
+
     XCTAssertEqual(expected, collected)
   }
-  
+
   func test_lazy_finishes_without_elements_when_source_is_empty() async {
     let expected = [Int]()
     let sequence = expected.async
-    
+
     var collected = [Int]()
     for await item in sequence {
       collected.append(item)
     }
-    
+
     XCTAssertEqual(expected, collected)
   }
-  
+
   func test_lazy_triggers_expected_iterator_events_when_source_is_iterated() async {
     let expected = [1, 2, 3]
     let expectedEvents = [
@@ -56,7 +56,7 @@ final class TestLazy: XCTestCase {
       .next,
       .next,
       .next,
-      .next
+      .next,
     ]
     let source = ReportingSequence(expected)
     let sequence = source.async
@@ -71,7 +71,7 @@ final class TestLazy: XCTestCase {
     XCTAssertEqual(expected, collected)
     XCTAssertEqual(expectedEvents, source.events)
   }
-  
+
   func test_lazy_stops_triggering_iterator_events_when_source_is_pastEnd() async {
     let expected = [1, 2, 3]
     let expectedEvents = [
@@ -79,7 +79,7 @@ final class TestLazy: XCTestCase {
       .next,
       .next,
       .next,
-      .next
+      .next,
     ]
     let source = ReportingSequence(expected)
     let sequence = source.async
@@ -101,7 +101,7 @@ final class TestLazy: XCTestCase {
     // ensure that iterating past the end does not invoke next again
     XCTAssertEqual(expectedEvents, source.events)
   }
-  
+
   func test_lazy_finishes_when_task_is_cancelled() async {
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")

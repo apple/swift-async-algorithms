@@ -19,7 +19,7 @@ final class TestDictionary: XCTestCase {
     let actual = await Dictionary(uniqueKeysWithValues: source.async)
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_throwing_uniqueKeysAndValues() async {
     let source = Array([1, 2, 3, 4, 5, 6])
     let input = source.async.map { (value: Int) async throws -> (Int, Int) in
@@ -33,14 +33,14 @@ final class TestDictionary: XCTestCase {
       XCTAssertEqual((error as NSError).code, -1)
     }
   }
-  
+
   func test_uniquingWith() async {
     let source = [("a", 1), ("b", 2), ("a", 3), ("b", 4)]
     let expected = Dictionary(source) { first, _ in first }
     let actual = await Dictionary(source.async) { first, _ in first }
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_throwing_uniquingWith() async {
     let source = Array([1, 2, 3, 4, 5, 6])
     let input = source.async.map { (value: Int) async throws -> (Int, Int) in
@@ -54,16 +54,16 @@ final class TestDictionary: XCTestCase {
       XCTAssertEqual((error as NSError).code, -1)
     }
   }
-  
+
   func test_grouping() async {
     let source = ["Kofi", "Abena", "Efua", "Kweku", "Akosua"]
     let expected = Dictionary(grouping: source, by: { $0.first! })
     let actual = await Dictionary(grouping: source.async, by: { $0.first! })
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_throwing_grouping() async {
-    let source =  ["Kofi", "Abena", "Efua", "Kweku", "Akosua"]
+    let source = ["Kofi", "Abena", "Efua", "Kweku", "Akosua"]
     let input = source.async.map { (value: String) async throws -> String in
       if value == "Kweku" { throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil) }
       return value

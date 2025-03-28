@@ -17,17 +17,17 @@ public struct Validator<Element: Sendable>: Sendable {
     case ready
     case pending(UnsafeContinuation<Void, Never>)
   }
-  
+
   private struct State: Sendable {
     var collected = [Element]()
     var failure: Error?
     var ready: Ready = .idle
   }
-  
+
   private struct Envelope<Contents>: @unchecked Sendable {
     var contents: Contents
   }
-  
+
   private let state = ManagedCriticalState(State())
 
   private func ready(_ apply: (inout State) -> Void) {
@@ -45,7 +45,7 @@ public struct Validator<Element: Sendable>: Sendable {
       }
     }?.resume()
   }
-  
+
   internal func step() async {
     await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
       state.withCriticalRegion { state -> UnsafeContinuation<Void, Never>? in
@@ -64,17 +64,20 @@ public struct Validator<Element: Sendable>: Sendable {
   }
 
   let onEvent: (@Sendable (Result<Element?, Error>) async -> Void)?
-  
+
   init(onEvent: @Sendable @escaping (Result<Element?, Error>) async -> Void) {
 
     self.onEvent = onEvent
   }
-  
+
   public init() {
     self.onEvent = nil
   }
-  
-  public func test<S: AsyncSequence>(_ sequence: S, onFinish: @Sendable @escaping (inout S.AsyncIterator) async -> Void) where S.Element == Element {
+
+  public func test<S: AsyncSequence>(
+    _ sequence: S,
+    onFinish: @Sendable @escaping (inout S.AsyncIterator) async -> Void
+  ) where S.Element == Element {
     let envelope = Envelope(contents: sequence)
     Task {
       var iterator = envelope.contents.makeAsyncIterator()
@@ -97,18 +100,18 @@ public struct Validator<Element: Sendable>: Sendable {
       await onFinish(&iterator)
     }
   }
-  
+
   public func validate() async -> [Element] {
     await step()
     return current
   }
-  
+
   public var current: [Element] {
     return state.withCriticalRegion { state in
       return state.collected
     }
   }
-  
+
   public var failure: Error? {
     return state.withCriticalRegion { state in
       return state.failure

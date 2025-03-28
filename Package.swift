@@ -8,27 +8,27 @@ let package = Package(
     .macOS("10.15"),
     .iOS("13.0"),
     .tvOS("13.0"),
-    .watchOS("6.0")
+    .watchOS("6.0"),
   ],
   products: [
-    .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
+    .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"])
   ],
   targets: [
     .target(
       name: "AsyncAlgorithms",
       dependencies: [
-          .product(name: "OrderedCollections", package: "swift-collections"),
-          .product(name: "DequeModule", package: "swift-collections"),
+        .product(name: "OrderedCollections", package: "swift-collections"),
+        .product(name: "DequeModule", package: "swift-collections"),
       ],
       swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .target(
       name: "AsyncSequenceValidation",
       dependencies: ["_CAsyncSequenceValidationSupport", "AsyncAlgorithms"],
       swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
@@ -36,14 +36,14 @@ let package = Package(
       name: "AsyncAlgorithms_XCTest",
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
       swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .testTarget(
       name: "AsyncAlgorithmsTests",
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
       swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
   ]
@@ -56,6 +56,6 @@ if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   ]
 } else {
   package.dependencies += [
-    .package(path: "../swift-collections"),
+    .package(path: "../swift-collections")
   ]
 }

@@ -23,7 +23,7 @@ final class TestCompacted: XCTestCase {
     }
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_compacted_produces_nil_next_element_when_iteration_is_finished() async {
     let source = [1, 2, nil, 3, 4, nil, 5]
     let expected = source.compactMap { $0 }
@@ -37,7 +37,7 @@ final class TestCompacted: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_compacted_is_equivalent_to_compactMap_when_input_as_no_nil_elements() async {
     let source: [Int?] = [1, 2, 3, 4, 5]
     let expected = source.compactMap { $0 }
@@ -48,7 +48,7 @@ final class TestCompacted: XCTestCase {
     }
     XCTAssertEqual(expected, actual)
   }
-  
+
   func test_compacted_throws_when_root_sequence_throws() async throws {
     let sequence = [1, nil, 3, 4, 5, nil, 7].async.map { try throwOn(4, $0) }.compacted()
     var iterator = sequence.makeAsyncIterator()
@@ -65,7 +65,7 @@ final class TestCompacted: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_compacted_finishes_when_iteration_task_is_cancelled() async {
     let value: String? = "test"
     let source = Indefinite(value: value)

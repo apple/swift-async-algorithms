@@ -30,12 +30,12 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     }
 
     switch action {
-      case .suspend:
+    case .suspend:
       break
 
-      case .resumeConsumer(let continuation):
-        continuation?.resume(returning: element)
-        return
+    case .resumeConsumer(let continuation):
+      continuation?.resume(returning: element)
+      return
     }
 
     let producerID = self.generateId()
@@ -48,13 +48,13 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
         }
 
         switch action {
-          case .none:
-            break
-          case .resumeProducer:
-            continuation.resume()
-          case .resumeProducerAndConsumer(let consumerContinuation):
-            continuation.resume()
-            consumerContinuation?.resume(returning: element)
+        case .none:
+          break
+        case .resumeProducer:
+          continuation.resume()
+        case .resumeProducerAndConsumer(let consumerContinuation):
+          continuation.resume()
+          consumerContinuation?.resume(returning: element)
         }
       }
     } onCancel: {
@@ -63,10 +63,10 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
       }
 
       switch action {
-        case .none:
-          break
-        case .resumeProducer(let continuation):
-          continuation?.resume()
+      case .none:
+        break
+      case .resumeProducer(let continuation):
+        continuation?.resume()
       }
     }
   }
@@ -77,15 +77,15 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     }
 
     switch action {
-      case .none:
-        break
-      case .resumeProducersAndConsumers(let producerContinuations, let consumerContinuations):
-        producerContinuations.forEach { $0?.resume() }
-        if let error {
-          consumerContinuations.forEach { $0?.resume(throwing: error) }
-        } else {
-          consumerContinuations.forEach { $0?.resume(returning: nil) }
-        }
+    case .none:
+      break
+    case .resumeProducersAndConsumers(let producerContinuations, let consumerContinuations):
+      producerContinuations.forEach { $0?.resume() }
+      if let error {
+        consumerContinuations.forEach { $0?.resume(throwing: error) }
+      } else {
+        consumerContinuations.forEach { $0?.resume(returning: nil) }
+      }
     }
   }
 
@@ -95,12 +95,12 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     }
 
     switch action {
-      case .suspend:
-        break
+    case .suspend:
+      break
 
-      case .resumeProducer(let producerContinuation, let result):
-        producerContinuation?.resume()
-        return try result._rethrowGet()
+    case .resumeProducer(let producerContinuation, let result):
+      producerContinuation?.resume()
+      return try result._rethrowGet()
     }
 
     let consumerID = self.generateId()
@@ -115,15 +115,15 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
         }
 
         switch action {
-          case .none:
-            break
-          case .resumeConsumer(let element):
-            continuation.resume(returning: element)
-          case .resumeConsumerWithError(let error):
-            continuation.resume(throwing: error)
-          case .resumeProducerAndConsumer(let producerContinuation, let element):
-            producerContinuation?.resume()
-            continuation.resume(returning: element)
+        case .none:
+          break
+        case .resumeConsumer(let element):
+          continuation.resume(returning: element)
+        case .resumeConsumerWithError(let error):
+          continuation.resume(throwing: error)
+        case .resumeProducerAndConsumer(let producerContinuation, let element):
+          producerContinuation?.resume()
+          continuation.resume(returning: element)
         }
       }
     } onCancel: {
@@ -132,10 +132,10 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
       }
 
       switch action {
-        case .none:
-          break
-        case .resumeConsumer(let continuation):
-          continuation?.resume(returning: nil)
+      case .none:
+        break
+      case .resumeConsumer(let continuation):
+        continuation?.resume(returning: nil)
       }
     }
   }

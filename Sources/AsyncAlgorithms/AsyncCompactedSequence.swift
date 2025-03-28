@@ -20,7 +20,7 @@ extension AsyncSequence {
   ///   `AsyncSequence`.
   @inlinable
   public func compacted<Unwrapped>() -> AsyncCompactedSequence<Self, Unwrapped>
-    where Element == Unwrapped? {
+  where Element == Unwrapped? {
     AsyncCompactedSequence(self)
   }
 }
@@ -29,11 +29,11 @@ extension AsyncSequence {
 /// `AsyncSequence`.
 @frozen
 public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequence
-  where Base.Element == Element? {
+where Base.Element == Element? {
 
   @usableFromInline
   let base: Base
-  
+
   @inlinable
   init(_ base: Base) {
     self.base = base
@@ -44,12 +44,12 @@ public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequenc
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
     var base: Base.AsyncIterator
-    
+
     @inlinable
     init(_ base: Base.AsyncIterator) {
       self.base = base
     }
-    
+
     @inlinable
     public mutating func next() async rethrows -> Element? {
       while let wrapped = try await base.next() {
@@ -66,7 +66,7 @@ public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequenc
   }
 }
 
-extension AsyncCompactedSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
+extension AsyncCompactedSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncCompactedSequence.Iterator: Sendable { }
+extension AsyncCompactedSequence.Iterator: Sendable {}

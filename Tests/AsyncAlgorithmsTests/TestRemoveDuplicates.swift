@@ -27,7 +27,7 @@ final class TestRemoveDuplicates: XCTestCase {
   func test_removeDuplicates_with_closure() async {
     let source = [1, 2.001, 2.005, 2.011, 3, 4, 5, 6, 5, 5]
     let expected = [1, 2.001, 2.011, 3, 4, 5, 6, 5]
-    let sequence = source.async.removeDuplicates() { abs($0 - $1) < 0.01 }
+    let sequence = source.async.removeDuplicates { abs($0 - $1) < 0.01 }
     var actual = [Double]()
     for await item in sequence {
       actual.append(item)
@@ -39,7 +39,7 @@ final class TestRemoveDuplicates: XCTestCase {
     let source = [1, 2, 2, 2, 3, -1, 5, 6, 5, 5]
     let expected = [1, 2, 3]
     var actual = [Int]()
-    let sequence = source.async.removeDuplicates() { prev, next in
+    let sequence = source.async.removeDuplicates { prev, next in
       let next = try throwOn(-1, next)
       return prev == next
     }
@@ -59,12 +59,14 @@ final class TestRemoveDuplicates: XCTestCase {
     let source = [1, 2, 2, 2, 3, -1, 5, 6, 5, 5]
     let expected = [1, 2, 3]
     var actual = [Int]()
-    let throwingSequence = source.async.map ({
-      if $0 < 0 {
-        throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
-      }
-      return $0
-    } as @Sendable (Int) throws -> Int)
+    let throwingSequence = source.async.map(
+      {
+        if $0 < 0 {
+          throw NSError(domain: NSCocoaErrorDomain, code: -1, userInfo: nil)
+        }
+        return $0
+      } as @Sendable (Int) throws -> Int
+    )
 
     do {
       for try await item in throwingSequence.removeDuplicates() {

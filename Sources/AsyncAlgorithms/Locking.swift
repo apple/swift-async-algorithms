@@ -24,67 +24,67 @@ import Bionic
 #endif
 
 internal struct Lock {
-#if canImport(Darwin)
+  #if canImport(Darwin)
   typealias Primitive = os_unfair_lock
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+  #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   typealias Primitive = pthread_mutex_t
-#elseif canImport(WinSDK)
+  #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
-#else
+  #else
   #error("Unsupported platform")
-#endif
-  
+  #endif
+
   typealias PlatformLock = UnsafeMutablePointer<Primitive>
   let platformLock: PlatformLock
 
   private init(_ platformLock: PlatformLock) {
     self.platformLock = platformLock
   }
-  
+
   fileprivate static func initialize(_ platformLock: PlatformLock) {
-#if canImport(Darwin)
+    #if canImport(Darwin)
     platformLock.initialize(to: os_unfair_lock())
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     let result = pthread_mutex_init(platformLock, nil)
     precondition(result == 0, "pthread_mutex_init failed")
-#elseif canImport(WinSDK)
+    #elseif canImport(WinSDK)
     InitializeSRWLock(platformLock)
-#else
+    #else
     #error("Unsupported platform")
-#endif
+    #endif
   }
-  
+
   fileprivate static func deinitialize(_ platformLock: PlatformLock) {
-#if canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #if canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     let result = pthread_mutex_destroy(platformLock)
     precondition(result == 0, "pthread_mutex_destroy failed")
-#endif
+    #endif
     platformLock.deinitialize(count: 1)
   }
-  
+
   fileprivate static func lock(_ platformLock: PlatformLock) {
-#if canImport(Darwin)
+    #if canImport(Darwin)
     os_unfair_lock_lock(platformLock)
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     pthread_mutex_lock(platformLock)
-#elseif canImport(WinSDK)
+    #elseif canImport(WinSDK)
     AcquireSRWLockExclusive(platformLock)
-#else
+    #else
     #error("Unsupported platform")
-#endif
+    #endif
   }
-  
+
   fileprivate static func unlock(_ platformLock: PlatformLock) {
-#if canImport(Darwin)
+    #if canImport(Darwin)
     os_unfair_lock_unlock(platformLock)
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     let result = pthread_mutex_unlock(platformLock)
     precondition(result == 0, "pthread_mutex_unlock failed")
-#elseif canImport(WinSDK)
+    #elseif canImport(WinSDK)
     ReleaseSRWLockExclusive(platformLock)
-#else
+    #else
     #error("Unsupported platform")
-#endif
+    #endif
   }
 
   static func allocate() -> Lock {
@@ -106,26 +106,26 @@ internal struct Lock {
     Lock.unlock(platformLock)
   }
 
-    /// Acquire the lock for the duration of the given block.
-    ///
-    /// This convenience method should be preferred to `lock` and `unlock` in
-    /// most situations, as it ensures that the lock will be released regardless
-    /// of how `body` exits.
-    ///
-    /// - Parameter body: The block to execute while holding the lock.
-    /// - Returns: The value returned by the block.
-    func withLock<T>(_ body: () throws -> T) rethrows -> T {
-        self.lock()
-        defer {
-            self.unlock()
-        }
-        return try body()
+  /// Acquire the lock for the duration of the given block.
+  ///
+  /// This convenience method should be preferred to `lock` and `unlock` in
+  /// most situations, as it ensures that the lock will be released regardless
+  /// of how `body` exits.
+  ///
+  /// - Parameter body: The block to execute while holding the lock.
+  /// - Returns: The value returned by the block.
+  func withLock<T>(_ body: () throws -> T) rethrows -> T {
+    self.lock()
+    defer {
+      self.unlock()
     }
+    return try body()
+  }
 
-    // specialise Void return (for performance)
-    func withLockVoid(_ body: () throws -> Void) rethrows -> Void {
-        try self.withLock(body)
-    }
+  // specialise Void return (for performance)
+  func withLockVoid(_ body: () throws -> Void) rethrows {
+    try self.withLock(body)
+  }
 }
 
 struct ManagedCriticalState<State> {
@@ -134,16 +134,16 @@ struct ManagedCriticalState<State> {
       withUnsafeMutablePointerToElements { Lock.deinitialize($0) }
     }
   }
-  
+
   private let buffer: ManagedBuffer<State, Lock.Primitive>
-  
+
   init(_ initial: State) {
     buffer = LockedBuffer.create(minimumCapacity: 1) { buffer in
       buffer.withUnsafeMutablePointerToElements { Lock.initialize($0) }
       return initial
     }
   }
-  
+
   func withCriticalRegion<R>(_ critical: (inout State) throws -> R) rethrows -> R {
     try buffer.withUnsafeMutablePointers { header, lock in
       Lock.lock(lock)
@@ -153,4 +153,4 @@ struct ManagedCriticalState<State> {
   }
 }
 
-extension ManagedCriticalState: @unchecked Sendable where State: Sendable { }
+extension ManagedCriticalState: @unchecked Sendable where State: Sendable {}

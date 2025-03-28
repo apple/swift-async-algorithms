@@ -13,31 +13,31 @@ extension AsyncSequenceValidationDiagram {
   public struct Specification: Sendable {
     public let specification: String
     public let location: SourceLocation
-    
+
     init(specification: String, location: SourceLocation) {
       self.specification = specification
       self.location = location
     }
   }
-  
+
   public struct Input: AsyncSequence, Sendable {
     public typealias Element = String
-    
+
     struct State {
       var emissions = [(Clock.Instant, Event)]()
     }
-    
+
     let state = ManagedCriticalState(State())
     let queue: WorkQueue
     let index: Int
-    
+
     public struct Iterator: AsyncIteratorProtocol, Sendable {
       let state: ManagedCriticalState<State>
       let queue: WorkQueue
       let index: Int
       var active: (Clock.Instant, [Result<String?, Error>])?
       var eventIndex = 0
-      
+
       mutating func apply(when: Clock.Instant, results: [Result<String?, Error>]) async throws -> Element? {
         let token = queue.prepare()
         if eventIndex + 1 >= results.count {
@@ -52,17 +52,22 @@ extension AsyncSequenceValidationDiagram {
         }
         return try await withTaskCancellationHandler {
           try await withUnsafeThrowingContinuation { continuation in
-            queue.enqueue(Context.currentJob, deadline: when, continuation: continuation, results[eventIndex], index: index, token: token)
+            queue.enqueue(
+              Context.currentJob,
+              deadline: when,
+              continuation: continuation,
+              results[eventIndex],
+              index: index,
+              token: token
+            )
           }
         } onCancel: { [queue] in
           queue.cancel(token)
         }
       }
-      
+
       public mutating func next() async throws -> Element? {
-        if let (when, results) = active {
-          return try await apply(when: when, results: results)
-        } else {
+        guard let (when, results) = active else {
           let next = state.withCriticalRegion { state -> (Clock.Instant, Event)? in
             guard state.emissions.count > 0 else {
               return nil
@@ -77,36 +82,37 @@ extension AsyncSequenceValidationDiagram {
           active = (when, results)
           return try await apply(when: when, results: results)
         }
+        return try await apply(when: when, results: results)
       }
     }
-    
+
     public func makeAsyncIterator() -> Iterator {
       Iterator(state: state, queue: queue, index: index)
     }
-    
+
     func parse<Theme: AsyncSequenceValidationTheme>(_ dsl: String, theme: Theme, location: SourceLocation) throws {
       let emissions = try Event.parse(dsl, theme: theme, location: location)
       state.withCriticalRegion { state in
         state.emissions = emissions
       }
     }
-    
+
     var end: Clock.Instant? {
       return state.withCriticalRegion { state in
         state.emissions.map { $0.0 }.sorted().last
       }
     }
   }
-  
+
   public struct InputList: RandomAccessCollection, Sendable {
     let state = ManagedCriticalState([Input]())
     let queue: WorkQueue
-    
+
     public var startIndex: Int { return 0 }
     public var endIndex: Int {
       state.withCriticalRegion { $0.count }
     }
-    
+
     public subscript(position: Int) -> AsyncSequenceValidationDiagram.Input {
       get {
         return state.withCriticalRegion { state in

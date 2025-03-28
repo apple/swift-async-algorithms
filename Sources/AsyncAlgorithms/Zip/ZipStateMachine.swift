@@ -14,18 +14,24 @@ struct ZipStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
   Base3: AsyncSequence
->: Sendable where
+>: Sendable
+where
   Base1: Sendable,
   Base2: Sendable,
   Base3: Sendable,
   Base1.Element: Sendable,
   Base2.Element: Sendable,
-  Base3.Element: Sendable {
-  typealias DownstreamContinuation = UnsafeContinuation<Result<(
-    Base1.Element,
-    Base2.Element,
-    Base3.Element?
-  )?, Error>, Never>
+  Base3.Element: Sendable
+{
+  typealias DownstreamContinuation = UnsafeContinuation<
+    Result<
+      (
+        Base1.Element,
+        Base2.Element,
+        Base3.Element?
+      )?, Error
+    >, Never
+  >
 
   private enum State: Sendable {
     /// Small wrapper for the state of an upstream sequence.
@@ -101,7 +107,9 @@ struct ZipStateMachine<
 
     case .zipping:
       // An iterator was deinitialized while we have a suspended continuation.
-      preconditionFailure("Internal inconsistency current state \(self.state) and received iteratorDeinitialized()")
+      preconditionFailure(
+        "Internal inconsistency current state \(self.state) and received iteratorDeinitialized()"
+      )
 
     case .waitingForDemand(let task, let upstreams):
       // The iterator was dropped which signals that the consumer is finished.
@@ -110,7 +118,8 @@ struct ZipStateMachine<
 
       return .cancelTaskAndUpstreamContinuations(
         task: task,
-        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+          .compactMap { $0 }
       )
 
     case .finished:
@@ -159,7 +168,10 @@ struct ZipStateMachine<
     )
   }
 
-  mutating func childTaskSuspended(baseIndex: Int, continuation: UnsafeContinuation<Void, Error>) -> ChildTaskSuspendedAction? {
+  mutating func childTaskSuspended(
+    baseIndex: Int,
+    continuation: UnsafeContinuation<Void, Error>
+  ) -> ChildTaskSuspendedAction? {
     switch self.state {
     case .initial:
       // Child tasks are only created after we transitioned to `zipping`
@@ -179,7 +191,9 @@ struct ZipStateMachine<
         upstreams.2.continuation = continuation
 
       default:
-        preconditionFailure("Internal inconsistency current state \(self.state) and received childTaskSuspended() with base index \(baseIndex)")
+        preconditionFailure(
+          "Internal inconsistency current state \(self.state) and received childTaskSuspended() with base index \(baseIndex)"
+        )
       }
 
       self.state = .waitingForDemand(
@@ -194,9 +208,7 @@ struct ZipStateMachine<
       // already then we store the continuation otherwise we just go ahead and resume it
       switch baseIndex {
       case 0:
-        if upstreams.0.element == nil {
-          return .resumeContinuation(upstreamContinuation: continuation)
-        } else {
+        guard upstreams.0.element == nil else {
           self.state = .modifying
           upstreams.0.continuation = continuation
           self.state = .zipping(
@@ -206,11 +218,10 @@ struct ZipStateMachine<
           )
           return .none
         }
+        return .resumeContinuation(upstreamContinuation: continuation)
 
       case 1:
-        if upstreams.1.element == nil {
-          return .resumeContinuation(upstreamContinuation: continuation)
-        } else {
+        guard upstreams.1.element == nil else {
           self.state = .modifying
           upstreams.1.continuation = continuation
           self.state = .zipping(
@@ -220,11 +231,10 @@ struct ZipStateMachine<
           )
           return .none
         }
+        return .resumeContinuation(upstreamContinuation: continuation)
 
       case 2:
-        if upstreams.2.element == nil {
-          return .resumeContinuation(upstreamContinuation: continuation)
-        } else {
+        guard upstreams.2.element == nil else {
           self.state = .modifying
           upstreams.2.continuation = continuation
           self.state = .zipping(
@@ -234,9 +244,12 @@ struct ZipStateMachine<
           )
           return .none
         }
+        return .resumeContinuation(upstreamContinuation: continuation)
 
       default:
-        preconditionFailure("Internal inconsistency current state \(self.state) and received childTaskSuspended() with base index \(baseIndex)")
+        preconditionFailure(
+          "Internal inconsistency current state \(self.state) and received childTaskSuspended() with base index \(baseIndex)"
+        )
       }
 
     case .finished:
@@ -295,8 +308,9 @@ struct ZipStateMachine<
 
       // Implementing this for the two arities without variadic generics is a bit awkward sadly.
       if let first = upstreams.0.element,
-         let second = upstreams.1.element,
-         let third = upstreams.2.element {
+        let second = upstreams.1.element,
+        let third = upstreams.2.element
+      {
         // We got an element from each upstream so we can resume the downstream now
         self.state = .waitingForDemand(
           task: task,
@@ -313,8 +327,9 @@ struct ZipStateMachine<
         )
 
       } else if let first = upstreams.0.element,
-                let second = upstreams.1.element,
-                self.numberOfUpstreamSequences == 2 {
+        let second = upstreams.1.element,
+        self.numberOfUpstreamSequences == 2
+      {
         // We got an element from each upstream so we can resume the downstream now
         self.state = .waitingForDemand(
           task: task,
@@ -385,7 +400,8 @@ struct ZipStateMachine<
       return .resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
         downstreamContinuation: downstreamContinuation,
         task: task,
-        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+          .compactMap { $0 }
       )
 
     case .finished:
@@ -429,7 +445,8 @@ struct ZipStateMachine<
         downstreamContinuation: downstreamContinuation,
         error: error,
         task: task,
-        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+          .compactMap { $0 }
       )
 
     case .finished:
@@ -460,9 +477,9 @@ struct ZipStateMachine<
   mutating func cancelled() -> CancelledAction? {
     switch self.state {
     case .initial:
-        state = .finished
+      state = .finished
 
-        return .none
+      return .none
 
     case .waitingForDemand(let task, let upstreams):
       // The downstream task got cancelled so we need to cancel our upstream Task
@@ -471,7 +488,8 @@ struct ZipStateMachine<
 
       return .cancelTaskAndUpstreamContinuations(
         task: task,
-        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+          .compactMap { $0 }
       )
 
     case .zipping(let task, let upstreams, let downstreamContinuation):
@@ -482,7 +500,8 @@ struct ZipStateMachine<
       return .resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamContinuations(
         downstreamContinuation: downstreamContinuation,
         task: task,
-        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+        upstreamContinuations: [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+          .compactMap { $0 }
       )
 
     case .finished:
@@ -524,7 +543,8 @@ struct ZipStateMachine<
       // We also need to resume all upstream continuations now
       self.state = .modifying
 
-      let upstreamContinuations = [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation].compactMap { $0 }
+      let upstreamContinuations = [upstreams.0.continuation, upstreams.1.continuation, upstreams.2.continuation]
+        .compactMap { $0 }
       upstreams.0.continuation = nil
       upstreams.1.continuation = nil
       upstreams.2.continuation = nil

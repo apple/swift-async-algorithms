@@ -93,16 +93,16 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   public func makeAsyncIterator() -> Iterator {
     let storageType: StorageType
     switch self.policy.policy {
-      case .bounded(...0), .bufferingNewest(...0), .bufferingOldest(...0):
-        storageType = .transparent(self.base.makeAsyncIterator())
-      case .bounded(let limit):
-        storageType = .bounded(storage: BoundedBufferStorage(base: self.base, limit: limit))
-      case .unbounded:
-        storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .unlimited))
-      case .bufferingNewest(let limit):
-        storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .bufferingNewest(limit)))
-      case .bufferingOldest(let limit):
-        storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .bufferingOldest(limit)))
+    case .bounded(...0), .bufferingNewest(...0), .bufferingOldest(...0):
+      storageType = .transparent(self.base.makeAsyncIterator())
+    case .bounded(let limit):
+      storageType = .bounded(storage: BoundedBufferStorage(base: self.base, limit: limit))
+    case .unbounded:
+      storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .unlimited))
+    case .bufferingNewest(let limit):
+      storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .bufferingNewest(limit)))
+    case .bufferingOldest(let limit):
+      storageType = .unbounded(storage: UnboundedBufferStorage(base: self.base, policy: .bufferingOldest(limit)))
     }
     return Iterator(storageType: storageType)
   }
@@ -112,20 +112,20 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
 
     public mutating func next() async rethrows -> Element? {
       switch self.storageType {
-        case .transparent(var iterator):
-          let element = try await iterator.next()
-          self.storageType = .transparent(iterator)
-          return element
-        case .bounded(let storage):
-          return try await storage.next()?._rethrowGet()
-        case .unbounded(let storage):
-          return try await storage.next()?._rethrowGet()
+      case .transparent(var iterator):
+        let element = try await iterator.next()
+        self.storageType = .transparent(iterator)
+        return element
+      case .bounded(let storage):
+        return try await storage.next()?._rethrowGet()
+      case .unbounded(let storage):
+        return try await storage.next()?._rethrowGet()
       }
     }
   }
 }
 
-extension AsyncBufferSequence: Sendable where Base: Sendable { }
+extension AsyncBufferSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)
-extension AsyncBufferSequence.Iterator: Sendable { }
+extension AsyncBufferSequence.Iterator: Sendable {}

@@ -13,7 +13,7 @@ extension AsyncSequence {
   func violatingSpecification(returningPastEndIteration element: Element) -> SpecificationViolatingSequence<Self> {
     SpecificationViolatingSequence(self, kind: .producing(element))
   }
-  
+
   func violatingSpecification(throwingPastEndIteration error: Error) -> SpecificationViolatingSequence<Self> {
     SpecificationViolatingSequence(self, kind: .throwing(error))
   }
@@ -24,10 +24,10 @@ struct SpecificationViolatingSequence<Base: AsyncSequence> {
     case producing(Base.Element)
     case throwing(Error)
   }
-  
+
   let base: Base
   let kind: Kind
-  
+
   init(_ base: Base, kind: Kind) {
     self.base = base
     self.kind = kind
@@ -36,13 +36,13 @@ struct SpecificationViolatingSequence<Base: AsyncSequence> {
 
 extension SpecificationViolatingSequence: AsyncSequence {
   typealias Element = Base.Element
-  
+
   struct Iterator: AsyncIteratorProtocol {
     var iterator: Base.AsyncIterator
     let kind: Kind
     var finished = false
     var violated = false
-    
+
     mutating func next() async throws -> Element? {
       if finished {
         if violated {
@@ -66,7 +66,7 @@ extension SpecificationViolatingSequence: AsyncSequence {
       }
     }
   }
-  
+
   func makeAsyncIterator() -> Iterator {
     Iterator(iterator: base.makeAsyncIterator(), kind: kind)
   }

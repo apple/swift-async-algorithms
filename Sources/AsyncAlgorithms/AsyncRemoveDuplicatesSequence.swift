@@ -20,12 +20,16 @@ extension AsyncSequence where Element: Equatable {
 
 extension AsyncSequence {
   /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
-  public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async -> Bool) -> AsyncRemoveDuplicatesSequence<Self> {
+  public func removeDuplicates(
+    by predicate: @escaping @Sendable (Element, Element) async -> Bool
+  ) -> AsyncRemoveDuplicatesSequence<Self> {
     return AsyncRemoveDuplicatesSequence(self, predicate: predicate)
   }
-  
+
   /// Creates an asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
-  public func removeDuplicates(by predicate: @escaping @Sendable (Element, Element) async throws -> Bool) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
+  public func removeDuplicates(
+    by predicate: @escaping @Sendable (Element, Element) async throws -> Bool
+  ) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
     return AsyncThrowingRemoveDuplicatesSequence(self, predicate: predicate)
   }
 }
@@ -73,7 +77,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
 
   @usableFromInline
   let predicate: @Sendable (Element, Element) async -> Bool
-  
+
   init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async -> Bool) {
     self.base = base
     self.predicate = predicate
@@ -88,7 +92,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
 /// An asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
-  
+
   /// The iterator for an `AsyncThrowingRemoveDuplicatesSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
 
@@ -128,7 +132,7 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
 
   @usableFromInline
   let predicate: @Sendable (Element, Element) async throws -> Bool
-  
+
   init(_ base: Base, predicate: @escaping @Sendable (Element, Element) async throws -> Bool) {
     self.base = base
     self.predicate = predicate
@@ -140,12 +144,11 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
   }
 }
 
-
-extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
-extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable { }
-
-@available(*, unavailable)
-extension AsyncRemoveDuplicatesSequence.Iterator: Sendable { }
+extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncThrowingRemoveDuplicatesSequence.Iterator: Sendable { }
+extension AsyncRemoveDuplicatesSequence.Iterator: Sendable {}
+
+@available(*, unavailable)
+extension AsyncThrowingRemoveDuplicatesSequence.Iterator: Sendable {}

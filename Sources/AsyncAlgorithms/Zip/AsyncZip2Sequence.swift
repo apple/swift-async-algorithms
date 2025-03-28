@@ -21,7 +21,7 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence>(
 /// An asynchronous sequence that concurrently awaits values from two `AsyncSequence` types
 /// and emits a tuple of the values.
 public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: AsyncSequence, Sendable
-  where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable {
+where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable {
   public typealias Element = (Base1.Element, Base2.Element)
   public typealias AsyncIterator = Iterator
 
@@ -71,4 +71,4 @@ public struct AsyncZip2Sequence<Base1: AsyncSequence, Base2: AsyncSequence>: Asy
 }
 
 @available(*, unavailable)
-extension AsyncZip2Sequence.Iterator: Sendable { }
+extension AsyncZip2Sequence.Iterator: Sendable {}

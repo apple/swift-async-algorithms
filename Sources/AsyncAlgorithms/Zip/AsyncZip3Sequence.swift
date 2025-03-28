@@ -21,8 +21,16 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence
 
 /// An asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
 /// and emits a tuple of the values.
-public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: AsyncSequence, Sendable
-  where Base1: Sendable, Base1.Element: Sendable, Base2: Sendable, Base2.Element: Sendable, Base3: Sendable, Base3.Element: Sendable {
+public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: AsyncSequence,
+  Sendable
+where
+  Base1: Sendable,
+  Base1.Element: Sendable,
+  Base2: Sendable,
+  Base2.Element: Sendable,
+  Base3: Sendable,
+  Base3.Element: Sendable
+{
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)
   public typealias AsyncIterator = Iterator
 
@@ -37,7 +45,8 @@ public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base
   }
 
   public func makeAsyncIterator() -> AsyncIterator {
-    Iterator(storage: .init(self.base1, self.base2, self.base3)
+    Iterator(
+      storage: .init(self.base1, self.base2, self.base3)
     )
   }
 
@@ -76,4 +85,4 @@ public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base
 }
 
 @available(*, unavailable)
-extension AsyncZip3Sequence.Iterator: Sendable { }
+extension AsyncZip3Sequence.Iterator: Sendable {}

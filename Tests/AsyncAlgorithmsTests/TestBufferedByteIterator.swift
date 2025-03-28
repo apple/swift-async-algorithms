@@ -15,16 +15,16 @@ import AsyncAlgorithms
 final class TestBufferedByteIterator: XCTestCase {
   actor Isolated<T: Sendable> {
     var value: T
-    
+
     init(_ value: T) {
       self.value = value
     }
-    
+
     func update(_ value: T) async {
       self.value = value
     }
   }
-  
+
   func test_immediately_empty() async throws {
     let reloaded = Isolated(false)
     var iterator = AsyncBufferedByteIterator(capacity: 3) { buffer in
@@ -39,7 +39,7 @@ final class TestBufferedByteIterator: XCTestCase {
     wasReloaded = await reloaded.value
     XCTAssertTrue(wasReloaded)
   }
-  
+
   func test_one_pass() async throws {
     let reloaded = Isolated(0)
     var iterator = AsyncBufferedByteIterator(capacity: 3) { buffer in
@@ -52,7 +52,7 @@ final class TestBufferedByteIterator: XCTestCase {
       buffer.copyBytes(from: [1, 2, 3])
       return 3
     }
-    
+
     var reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 0)
     var byte = try await iterator.next()
@@ -76,7 +76,7 @@ final class TestBufferedByteIterator: XCTestCase {
     reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 2)
   }
-  
+
   func test_three_pass() async throws {
     let reloaded = Isolated(0)
     var iterator = AsyncBufferedByteIterator(capacity: 3) { buffer in
@@ -89,10 +89,10 @@ final class TestBufferedByteIterator: XCTestCase {
       buffer.copyBytes(from: [1, 2, 3])
       return 3
     }
-    
+
     var reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 0)
-    
+
     for n in 1...3 {
       var byte = try await iterator.next()
       XCTAssertEqual(byte, 1)
@@ -107,8 +107,7 @@ final class TestBufferedByteIterator: XCTestCase {
       reloadCount = await reloaded.value
       XCTAssertEqual(reloadCount, n)
     }
-    
-    
+
     var byte = try await iterator.next()
     XCTAssertNil(byte)
     reloadCount = await reloaded.value
@@ -118,7 +117,7 @@ final class TestBufferedByteIterator: XCTestCase {
     reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 4)
   }
-  
+
   func test_three_pass_throwing() async throws {
     let reloaded = Isolated(0)
     var iterator = AsyncBufferedByteIterator(capacity: 3) { buffer in
@@ -134,10 +133,10 @@ final class TestBufferedByteIterator: XCTestCase {
       buffer.copyBytes(from: [1, 2, 3])
       return 3
     }
-    
+
     var reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 0)
-    
+
     for n in 1...3 {
       do {
         var byte = try await iterator.next()
@@ -156,10 +155,9 @@ final class TestBufferedByteIterator: XCTestCase {
         XCTAssertEqual(n, 3)
         break
       }
-      
+
     }
-    
-    
+
     var byte = try await iterator.next()
     XCTAssertNil(byte)
     reloadCount = await reloaded.value
@@ -169,11 +167,11 @@ final class TestBufferedByteIterator: XCTestCase {
     reloadCount = await reloaded.value
     XCTAssertEqual(reloadCount, 3)
   }
-  
+
   func test_cancellation() async {
     struct RepeatingBytes: AsyncSequence {
       typealias Element = UInt8
-      
+
       func makeAsyncIterator() -> AsyncBufferedByteIterator {
         AsyncBufferedByteIterator(capacity: 3) { buffer in
           buffer.copyBytes(from: [1, 2, 3])

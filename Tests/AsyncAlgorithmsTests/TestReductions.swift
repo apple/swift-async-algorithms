@@ -26,7 +26,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_inclusive_reductions() async {
     let sequence = [1, 2, 3, 4].async.reductions { $0 + $1 }
     var iterator = sequence.makeAsyncIterator()
@@ -38,7 +38,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throw_upstream_reductions() async throws {
     let sequence = [1, 2, 3, 4].async
       .map { try throwOn(3, $0) }
@@ -59,7 +59,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throw_upstream_inclusive_reductions() async throws {
     let sequence = [1, 2, 3, 4].async
       .map { try throwOn(3, $0) }
@@ -78,7 +78,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throwing_reductions() async throws {
     let sequence = [1, 2, 3, 4].async.reductions("") { (partial, value) throws -> String in
       partial + "\(value)"
@@ -92,7 +92,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throwing_inclusive_reductions() async throws {
     let sequence = [1, 2, 3, 4].async.reductions { (lhs, rhs) throws -> Int in
       lhs + rhs
@@ -106,7 +106,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throw_upstream_reductions_throws() async throws {
     let sequence = [1, 2, 3, 4].async
       .map { try throwOn(3, $0) }
@@ -127,7 +127,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throw_upstream_inclusive_reductions_throws() async throws {
     let sequence = [1, 2, 3, 4].async
       .map { try throwOn(3, $0) }
@@ -148,7 +148,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_reductions_into() async {
     let sequence = [1, 2, 3, 4].async.reductions(into: "") { partial, value in
       partial.append("\(value)")
@@ -162,7 +162,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throwing_reductions_into() async throws {
     let sequence = [1, 2, 3, 4].async.reductions(into: "") { (partial, value) throws -> Void in
       partial.append("\(value)")
@@ -176,7 +176,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_throwing_reductions_into_throws() async throws {
     let sequence = [1, 2, 3, 4].async.reductions(into: "") { partial, value in
       _ = try throwOn("12", partial)
@@ -196,7 +196,7 @@ final class TestReductions: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_cancellation() async {
     let source = Indefinite(value: "test")
     let sequence = source.async.reductions(into: "") { partial, value in

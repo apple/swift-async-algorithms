@@ -29,7 +29,7 @@ final class TestChain2: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain2_outputs_elements_from_first_sequence_and_throws_when_first_throws() async throws {
     let chained = chain([1, 2, 3].async.map { try throwOn(3, $0) }, [4, 5, 6].async)
     var iterator = chained.makeAsyncIterator()
@@ -48,7 +48,7 @@ final class TestChain2: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain2_outputs_elements_from_sequences_and_throws_when_second_throws() async throws {
     let chained = chain([1, 2, 3].async, [4, 5, 6].async.map { try throwOn(5, $0) })
     var iterator = chained.makeAsyncIterator()
@@ -67,7 +67,7 @@ final class TestChain2: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain2_finishes_when_task_is_cancelled() async {
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")
@@ -115,7 +115,7 @@ final class TestChain3: XCTestCase {
     let pastEnd = await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain3_outputs_elements_from_first_sequence_and_throws_when_first_throws() async throws {
     let chained = chain([1, 2, 3].async.map { try throwOn(3, $0) }, [4, 5, 6].async, [7, 8, 9].async)
     var iterator = chained.makeAsyncIterator()
@@ -134,7 +134,7 @@ final class TestChain3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain3_outputs_elements_from_sequences_and_throws_when_second_throws() async throws {
     let chained = chain([1, 2, 3].async, [4, 5, 6].async.map { try throwOn(5, $0) }, [7, 8, 9].async)
     var iterator = chained.makeAsyncIterator()
@@ -153,7 +153,7 @@ final class TestChain3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain3_outputs_elements_from_sequences_and_throws_when_third_throws() async throws {
     let chained = chain([1, 2, 3].async, [4, 5, 6].async, [7, 8, 9].async.map { try throwOn(8, $0) })
     var iterator = chained.makeAsyncIterator()
@@ -172,7 +172,7 @@ final class TestChain3: XCTestCase {
     let pastEnd = try await iterator.next()
     XCTAssertNil(pastEnd)
   }
-  
+
   func test_chain3_finishes_when_task_is_cancelled() async {
     let finished = expectation(description: "finished")
     let iterated = expectation(description: "iterated")

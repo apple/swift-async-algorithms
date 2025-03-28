@@ -47,45 +47,49 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
 final class TaskDriver {
   let work: (TaskDriver) -> Void
   let queue: WorkQueue
-#if canImport(Darwin)
+  #if canImport(Darwin)
   var thread: pthread_t?
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+  #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   var thread = pthread_t()
-#elseif canImport(WinSDK)
-#error("TODO: Port TaskDriver threading to windows")
-#endif
-  
+  #elseif canImport(WinSDK)
+  #error("TODO: Port TaskDriver threading to windows")
+  #endif
+
   init(queue: WorkQueue, _ work: @escaping (TaskDriver) -> Void) {
     self.queue = queue
     self.work = work
   }
-  
+
   func start() {
-#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic)
-    pthread_create(&thread, nil, start_thread,
-      Unmanaged.passRetained(self).toOpaque())
-#elseif canImport(WinSDK)
-#error("TODO: Port TaskDriver threading to windows")
-#endif
+    #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    pthread_create(
+      &thread,
+      nil,
+      start_thread,
+      Unmanaged.passRetained(self).toOpaque()
+    )
+    #elseif canImport(WinSDK)
+    #error("TODO: Port TaskDriver threading to windows")
+    #endif
   }
-  
+
   func run() {
-#if canImport(Darwin)
+    #if canImport(Darwin)
     pthread_setname_np("Validation Diagram Clock Driver")
-#endif
+    #endif
     work(self)
   }
-  
+
   func join() {
-#if canImport(Darwin)
+    #if canImport(Darwin)
     pthread_join(thread!, nil)
-#elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     pthread_join(thread, nil)
-#elseif canImport(WinSDK)
-#error("TODO: Port TaskDriver threading to windows")
-#endif
+    #elseif canImport(WinSDK)
+    #error("TODO: Port TaskDriver threading to windows")
+    #endif
   }
-  
+
   func enqueue(_ job: JobRef) {
     let job = Job(job)
     queue.enqueue(AsyncSequenceValidationDiagram.Context.currentJob) {
@@ -96,4 +100,3 @@ final class TaskDriver {
     }
   }
 }
-

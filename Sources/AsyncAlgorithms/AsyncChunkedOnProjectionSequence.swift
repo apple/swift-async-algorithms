@@ -12,19 +12,28 @@
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type on the uniqueness of a given subject.
   @inlinable
-  public func chunked<Subject : Equatable, Collected: RangeReplaceableCollection>(into: Collected.Type, on projection: @escaping @Sendable (Element) -> Subject) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
+  public func chunked<Subject: Equatable, Collected: RangeReplaceableCollection>(
+    into: Collected.Type,
+    on projection: @escaping @Sendable (Element) -> Subject
+  ) -> AsyncChunkedOnProjectionSequence<Self, Subject, Collected> {
     AsyncChunkedOnProjectionSequence(self, projection: projection)
   }
 
   /// Creates an asynchronous sequence that creates chunks on the uniqueness of a given subject.
   @inlinable
-  public func chunked<Subject : Equatable>(on projection: @escaping @Sendable (Element) -> Subject) -> AsyncChunkedOnProjectionSequence<Self, Subject, [Element]> {
+  public func chunked<Subject: Equatable>(
+    on projection: @escaping @Sendable (Element) -> Subject
+  ) -> AsyncChunkedOnProjectionSequence<Self, Subject, [Element]> {
     chunked(into: [Element].self, on: projection)
   }
 }
 
 /// An `AsyncSequence` that chunks on a subject when it differs from the last element.
-public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equatable, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
+public struct AsyncChunkedOnProjectionSequence<
+  Base: AsyncSequence,
+  Subject: Equatable,
+  Collected: RangeReplaceableCollection
+>: AsyncSequence where Collected.Element == Base.Element {
   public typealias Element = (Subject, Collected)
 
   /// The iterator for a `AsyncChunkedOnProjectionSequence` instance.
@@ -67,22 +76,21 @@ public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equ
 
       while let next = try await base.next() {
         let subj = projection(next)
-        if subj == first.0 {
-          result.append(next)
-        } else {
+        guard subj == first.0 else {
           hangingNext = (subj, next)
           break
         }
+        result.append(next)
       }
       return (first.0, result)
     }
   }
 
   @usableFromInline
-  let base : Base
+  let base: Base
 
   @usableFromInline
-  let projection : @Sendable (Base.Element) -> Subject
+  let projection: @Sendable (Base.Element) -> Subject
 
   @usableFromInline
   init(_ base: Base, projection: @escaping @Sendable (Base.Element) -> Subject) {
@@ -96,7 +104,7 @@ public struct AsyncChunkedOnProjectionSequence<Base: AsyncSequence, Subject: Equ
   }
 }
 
-extension AsyncChunkedOnProjectionSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
+extension AsyncChunkedOnProjectionSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncChunkedOnProjectionSequence.Iterator: Sendable { }
+extension AsyncChunkedOnProjectionSequence.Iterator: Sendable {}

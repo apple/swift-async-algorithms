@@ -31,10 +31,10 @@ extension AsyncSequence {
 public struct AsyncInclusiveReductionsSequence<Base: AsyncSequence> {
   @usableFromInline
   let base: Base
-  
+
   @usableFromInline
   let transform: @Sendable (Base.Element, Base.Element) async -> Base.Element
-  
+
   @inlinable
   init(_ base: Base, transform: @Sendable @escaping (Base.Element, Base.Element) async -> Base.Element) {
     self.base = base
@@ -44,7 +44,7 @@ public struct AsyncInclusiveReductionsSequence<Base: AsyncSequence> {
 
 extension AsyncInclusiveReductionsSequence: AsyncSequence {
   public typealias Element = Base.Element
-  
+
   /// The iterator for an `AsyncInclusiveReductionsSequence` instance.
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
@@ -84,7 +84,7 @@ extension AsyncInclusiveReductionsSequence: AsyncSequence {
   }
 }
 
-extension AsyncInclusiveReductionsSequence: Sendable where Base: Sendable { }
+extension AsyncInclusiveReductionsSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)
-extension AsyncInclusiveReductionsSequence.Iterator: Sendable { }
+extension AsyncInclusiveReductionsSequence.Iterator: Sendable {}

@@ -13,13 +13,18 @@ extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection`
   /// type by testing if elements belong in the same group.
   @inlinable
-  public func chunked<Collected: RangeReplaceableCollection>(into: Collected.Type, by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
+  public func chunked<Collected: RangeReplaceableCollection>(
+    into: Collected.Type,
+    by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool
+  ) -> AsyncChunkedByGroupSequence<Self, Collected> where Collected.Element == Element {
     AsyncChunkedByGroupSequence(self, grouping: belongInSameGroup)
   }
 
   /// Creates an asynchronous sequence that creates chunks by testing if elements belong in the same group.
   @inlinable
-  public func chunked(by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool) -> AsyncChunkedByGroupSequence<Self, [Element]> {
+  public func chunked(
+    by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool
+  ) -> AsyncChunkedByGroupSequence<Self, [Element]> {
     chunked(into: [Element].self, by: belongInSameGroup)
   }
 }
@@ -46,7 +51,8 @@ extension AsyncSequence {
 ///      // [10, 20, 30]
 ///      // [10, 40, 40]
 ///      // [10, 20]
-public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence where Collected.Element == Base.Element {
+public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence
+where Collected.Element == Base.Element {
   public typealias Element = Collected
 
   /// The iterator for a `AsyncChunkedByGroupSequence` instance.
@@ -76,7 +82,7 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
       } else {
         hangingNext = nil
       }
-      
+
       guard let first = firstOpt else {
         return nil
       }
@@ -86,23 +92,22 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
 
       var prev = first
       while let next = try await base.next() {
-        if grouping(prev, next) {
-          result.append(next)
-          prev = next
-        } else {
+        guard grouping(prev, next) else {
           hangingNext = next
           break
         }
+        result.append(next)
+        prev = next
       }
       return result
     }
   }
 
   @usableFromInline
-  let base : Base
+  let base: Base
 
   @usableFromInline
-  let grouping : @Sendable (Base.Element, Base.Element) -> Bool
+  let grouping: @Sendable (Base.Element, Base.Element) -> Bool
 
   @usableFromInline
   init(_ base: Base, grouping: @escaping @Sendable (Base.Element, Base.Element) -> Bool) {
@@ -116,7 +121,7 @@ public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeR
   }
 }
 
-extension AsyncChunkedByGroupSequence : Sendable where Base : Sendable, Base.Element : Sendable { }
+extension AsyncChunkedByGroupSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncChunkedByGroupSequence.Iterator: Sendable { }
+extension AsyncChunkedByGroupSequence.Iterator: Sendable {}

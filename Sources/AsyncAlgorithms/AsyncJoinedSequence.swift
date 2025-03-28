@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 extension AsyncSequence where Element: AsyncSequence {
-  /// Concatenate an `AsyncSequence` of `AsyncSequence` elements 
+  /// Concatenate an `AsyncSequence` of `AsyncSequence` elements
   @inlinable
   public func joined() -> AsyncJoinedSequence<Self> {
     return AsyncJoinedSequence(self)
@@ -32,42 +32,42 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
       case sequence(Base.AsyncIterator, Base.Element.AsyncIterator)
       case terminal
     }
-    
+
     @usableFromInline
     var state: State
-    
+
     @inlinable
     init(_ iterator: Base.AsyncIterator) {
       state = .initial(iterator)
     }
-    
+
     @inlinable
     public mutating func next() async rethrows -> Base.Element.Element? {
       do {
         switch state {
-          case .terminal:
+        case .terminal:
+          return nil
+        case .initial(var outerIterator):
+          guard let innerSequence = try await outerIterator.next() else {
+            state = .terminal
             return nil
-          case .initial(var outerIterator):
-            guard let innerSequence = try await outerIterator.next() else {
-              state = .terminal
-              return nil
-            }
-            let innerIterator = innerSequence.makeAsyncIterator()
+          }
+          let innerIterator = innerSequence.makeAsyncIterator()
+          state = .sequence(outerIterator, innerIterator)
+          return try await next()
+        case .sequence(var outerIterator, var innerIterator):
+          if let item = try await innerIterator.next() {
             state = .sequence(outerIterator, innerIterator)
-            return try await next()
-          case .sequence(var outerIterator, var innerIterator):
-            if let item = try await innerIterator.next() {
-              state = .sequence(outerIterator, innerIterator)
-              return item
-            }
-            
-            guard let nextInner = try await outerIterator.next() else {
-              state = .terminal
-              return nil
-            }
+            return item
+          }
 
-            state = .sequence(outerIterator, nextInner.makeAsyncIterator())
-            return try await next()
+          guard let nextInner = try await outerIterator.next() else {
+            state = .terminal
+            return nil
+          }
+
+          state = .sequence(outerIterator, nextInner.makeAsyncIterator())
+          return try await next()
         }
       } catch {
         state = .terminal
@@ -75,15 +75,15 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
       }
     }
   }
-  
+
   @usableFromInline
   let base: Base
-  
+
   @usableFromInline
   init(_ base: Base) {
     self.base = base
   }
-  
+
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     return Iterator(base.makeAsyncIterator())
@@ -91,7 +91,7 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
 }
 
 extension AsyncJoinedSequence: Sendable
-where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable { }
+where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable {}
 
 @available(*, unavailable)
-extension AsyncJoinedSequence.Iterator: Sendable { }
+extension AsyncJoinedSequence.Iterator: Sendable {}

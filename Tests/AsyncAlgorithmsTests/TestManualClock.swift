@@ -32,7 +32,7 @@ final class TestManualClock: XCTestCase {
     await fulfillment(of: [afterSleep], timeout: 1.0)
     XCTAssertTrue(state.withCriticalRegion { $0 })
   }
-  
+
   func test_sleep_cancel() async {
     let clock = ManualClock()
     let start = clock.now
@@ -55,7 +55,7 @@ final class TestManualClock: XCTestCase {
     XCTAssertTrue(state.withCriticalRegion { $0 })
     XCTAssertTrue(failure.withCriticalRegion { $0 is CancellationError })
   }
-  
+
   func test_sleep_cancel_before_advance() async {
     let clock = ManualClock()
     let start = clock.now

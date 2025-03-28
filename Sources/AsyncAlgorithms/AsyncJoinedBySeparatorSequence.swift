@@ -12,13 +12,16 @@
 extension AsyncSequence where Element: AsyncSequence {
   /// Concatenate an `AsyncSequence` of `AsyncSequence` elements with a separator.
   @inlinable
-  public func joined<Separator: AsyncSequence>(separator: Separator) -> AsyncJoinedBySeparatorSequence<Self, Separator> {
+  public func joined<Separator: AsyncSequence>(
+    separator: Separator
+  ) -> AsyncJoinedBySeparatorSequence<Self, Separator> {
     return AsyncJoinedBySeparatorSequence(self, separator: separator)
   }
 }
 
 /// An `AsyncSequence` that concatenates `AsyncSequence` elements with a separator.
-public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
+public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: AsyncSequence>: AsyncSequence
+where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   public typealias Element = Base.Element.Element
   public typealias AsyncIterator = Iterator
 
@@ -36,31 +39,31 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
         @usableFromInline
         func startSeparator() -> SeparatorState {
           switch self {
-            case .initial(let separatorSequence):
-              return .partialAsync(separatorSequence.makeAsyncIterator(), [])
-            case .cached(let array):
-              return .partialCached(array.makeIterator(), array)
-            default:
-              fatalError("Invalid separator sequence state")
+          case .initial(let separatorSequence):
+            return .partialAsync(separatorSequence.makeAsyncIterator(), [])
+          case .cached(let array):
+            return .partialCached(array.makeIterator(), array)
+          default:
+            fatalError("Invalid separator sequence state")
           }
         }
 
         @usableFromInline
         func next() async rethrows -> (Element?, SeparatorState) {
           switch self {
-            case .partialAsync(var separatorIterator, var cache):
-              guard let next = try await separatorIterator.next() else {
-                return (nil, .cached(cache))
-              }
-              cache.append(next)
-              return (next, .partialAsync(separatorIterator, cache))
-            case .partialCached(var cacheIterator, let cache):
-              guard let next = cacheIterator.next() else {
-                return (nil, .cached(cache))
-              }
-              return (next, .partialCached(cacheIterator, cache))
-            default:
-              fatalError("Invalid separator sequence state")
+          case .partialAsync(var separatorIterator, var cache):
+            guard let next = try await separatorIterator.next() else {
+              return (nil, .cached(cache))
+            }
+            cache.append(next)
+            return (next, .partialAsync(separatorIterator, cache))
+          case .partialCached(var cacheIterator, let cache):
+            guard let next = cacheIterator.next() else {
+              return (nil, .cached(cache))
+            }
+            return (next, .partialCached(cacheIterator, cache))
+          default:
+            fatalError("Invalid separator sequence state")
           }
         }
       }
@@ -83,37 +86,37 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
     public mutating func next() async rethrows -> Base.Element.Element? {
       do {
         switch state {
-          case .terminal:
+        case .terminal:
+          return nil
+        case .initial(var outerIterator, let separator):
+          guard let innerSequence = try await outerIterator.next() else {
+            state = .terminal
             return nil
-          case .initial(var outerIterator, let separator):
-            guard let innerSequence = try await outerIterator.next() else {
-              state = .terminal
-              return nil
-            }
-            let innerIterator = innerSequence.makeAsyncIterator()
-            state = .sequence(outerIterator, innerIterator, .initial(separator))
-            return try await next()
-          case .sequence(var outerIterator, var innerIterator, let separatorState):
-            if let item = try await innerIterator.next() {
-              state = .sequence(outerIterator, innerIterator, separatorState)
-              return item
-            }
-
-            guard let nextInner = try await outerIterator.next() else {
-              state = .terminal
-              return nil
-            }
-
-            state = .separator(outerIterator, separatorState.startSeparator(), nextInner)
-            return try await next()
-          case .separator(let iterator, let separatorState, let nextBase):
-            let (itemOpt, newSepState) = try await separatorState.next()
-            guard let item = itemOpt else {
-              state = .sequence(iterator, nextBase.makeAsyncIterator(), newSepState)
-              return try await next()
-            }
-            state = .separator(iterator, newSepState, nextBase)
+          }
+          let innerIterator = innerSequence.makeAsyncIterator()
+          state = .sequence(outerIterator, innerIterator, .initial(separator))
+          return try await next()
+        case .sequence(var outerIterator, var innerIterator, let separatorState):
+          if let item = try await innerIterator.next() {
+            state = .sequence(outerIterator, innerIterator, separatorState)
             return item
+          }
+
+          guard let nextInner = try await outerIterator.next() else {
+            state = .terminal
+            return nil
+          }
+
+          state = .separator(outerIterator, separatorState.startSeparator(), nextInner)
+          return try await next()
+        case .separator(let iterator, let separatorState, let nextBase):
+          let (itemOpt, newSepState) = try await separatorState.next()
+          guard let item = itemOpt else {
+            state = .sequence(iterator, nextBase.makeAsyncIterator(), newSepState)
+            return try await next()
+          }
+          state = .separator(iterator, newSepState, nextBase)
+          return item
         }
       } catch {
         state = .terminal
@@ -141,7 +144,7 @@ public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: Asy
 }
 
 extension AsyncJoinedBySeparatorSequence: Sendable
-where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable { }
+where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable {}
 
 @available(*, unavailable)
-extension AsyncJoinedBySeparatorSequence.Iterator: Sendable { }
+extension AsyncJoinedBySeparatorSequence.Iterator: Sendable {}

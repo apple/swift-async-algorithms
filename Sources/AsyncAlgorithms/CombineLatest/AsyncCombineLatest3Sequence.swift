@@ -24,13 +24,15 @@ public func combineLatest<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
   Base3: AsyncSequence
->(_ base1: Base1, _ base2: Base2, _ base3: Base3) -> AsyncCombineLatest3Sequence<Base1, Base2, Base3> where
+>(_ base1: Base1, _ base2: Base2, _ base3: Base3) -> AsyncCombineLatest3Sequence<Base1, Base2, Base3>
+where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,
   Base2.Element: Sendable,
   Base3: Sendable,
-  Base3.Element: Sendable {
+  Base3.Element: Sendable
+{
   AsyncCombineLatest3Sequence(base1, base2, base3)
 }
 
@@ -39,13 +41,15 @@ public struct AsyncCombineLatest3Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence,
   Base3: AsyncSequence
->: AsyncSequence, Sendable where
+>: AsyncSequence, Sendable
+where
   Base1: Sendable,
   Base1.Element: Sendable,
   Base2: Sendable,
   Base2.Element: Sendable,
   Base3: Sendable,
-  Base3.Element: Sendable {
+  Base3.Element: Sendable
+{
   public typealias Element = (Base1.Element, Base2.Element, Base3.Element)
   public typealias AsyncIterator = Iterator
 
@@ -60,7 +64,8 @@ public struct AsyncCombineLatest3Sequence<
   }
 
   public func makeAsyncIterator() -> AsyncIterator {
-    Iterator(storage: .init(self.base1, self.base2, self.base3)
+    Iterator(
+      storage: .init(self.base1, self.base2, self.base3)
     )
   }
 
@@ -99,4 +104,4 @@ public struct AsyncCombineLatest3Sequence<
 }
 
 @available(*, unavailable)
-extension AsyncCombineLatest3Sequence.Iterator: Sendable { }
+extension AsyncCombineLatest3Sequence.Iterator: Sendable {}
