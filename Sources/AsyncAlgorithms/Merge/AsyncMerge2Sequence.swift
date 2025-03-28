@@ -25,7 +25,7 @@ where
   return AsyncMerge2Sequence(base1, base2)
 }
 
-/// An ``Swift/AsyncSequence`` that takes two upstream ``Swift/AsyncSequence``s and combines their elements.
+/// An `AsyncSequence` that takes two upstream `AsyncSequence`s and combines their elements.
 public struct AsyncMerge2Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence

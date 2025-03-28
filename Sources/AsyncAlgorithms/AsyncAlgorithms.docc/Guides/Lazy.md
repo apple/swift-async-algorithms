@@ -1,9 +1,9 @@
 # AsyncSyncSequence
 
+v
+
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncSyncSequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestLazy.swift)]
-
-Converts a non-asynchronous sequence into an asynchronous one. 
 
 This operation is available for all `Sequence` types. 
 

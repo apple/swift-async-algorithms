@@ -1,9 +1,9 @@
 # Merge
 
+Merges two or more asynchronous sequences sharing the same element type into one singular asynchronous sequence.
+
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Merge/AsyncMerge2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Merge/AsyncMerge3Sequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestMerge.swift)]
-
-Merges two or more asynchronous sequences sharing the same element type into one singular asynchronous sequence.
 
 ```swift
 let appleFeed = URL(string: "http://www.example.com/ticker?symbol=AAPL")!.lines.map { "AAPL: " + $0 }

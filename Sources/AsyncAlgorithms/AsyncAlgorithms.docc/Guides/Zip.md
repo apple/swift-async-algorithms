@@ -1,9 +1,9 @@
 # Zip
 
+Combines the latest values produced from two or more asynchronous sequences into an asynchronous sequence of tuples.
+
 [[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Zip/AsyncZip2Sequence.swift), [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Zip/AsyncZip3Sequence.swift) | 
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestZip.swift)]
-
-Combines the latest values produced from two or more asynchronous sequences into an asynchronous sequence of tuples.
 
 ```swift
 let appleFeed = URL(string: "http://www.example.com/ticker?symbol=AAPL")!.lines
