@@ -51,7 +51,7 @@ would become part of a public API? If so, what kinds of changes can be
 made without breaking ABI? Can this feature be added/removed without
 breaking ABI? For more information about the resilience model, see the
 [library evolution
-document](https://github.com/apple/swift/blob/master/docs/LibraryEvolution.rst)
+document](https://github.com/apple/swift/blob/main/docs/LibraryEvolution.rst)
 in the Swift repository.
 
 ## Alternatives considered
