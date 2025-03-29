@@ -2,11 +2,10 @@
 
 * Proposal: [SAA-0016](0016-multi-producer-single-consumer-channel.md)
 * Authors: [Franz Busch](https://github.com/FranzBusch)
-* Review Manager: TBD
 * Status: **Implemented**
 
 ## Revision
-- 2025/03/24: Adopt `~Copyable` for better performance.
+- 2025/03/24: Adopt `~Copyable` for correct semantics and better performance.
 - 2023/12/18: Migrate proposal from Swift Evolution to Swift Async Algorithms.
 - 2023/12/19: Add element size dependent strategy
 - 2024/05/19: Rename to multi producer single consumer channel
@@ -25,8 +24,8 @@ with the goal to model asynchronous multi-producer-single-consumer systems.
 After using the `AsyncSequence` protocol, the `Async[Throwing]Stream` types, and
 the `Async[Throwing]Channel` types extensively over the past years, we learned
 that there is a gap in the ecosystem for a type that provides strict
-multi-producer-single-consumer guarantees with backpressure support.
-Additionally, any type stream/channel like type needs to have a clear definition
+multi-producer-single-consumer guarantees with external backpressure support.
+Additionally, any stream/channel like type needs to have a clear definition
 about the following behaviors:
 
 1. Backpressure
@@ -138,9 +137,9 @@ protocols are not supporting `~Copyable` types we provide a way to convert the
 proposed channel to an asynchronous sequence. This leaves us room to support any
 potential future asynchronous streaming protocol that supports `~Copyable`.
 
-### Creating an MultiProducerSingleConsumerChannel
+### Creating a MultiProducerSingleConsumerChannel
 
-You can create an `MultiProducerSingleConsumerChannel` instance using the new
+You can create an `MultiProducerSingleConsumerChannel` instance using the
 `makeChannel(of: backpressureStrategy:)` method. This method returns you the
 channel and the source. The source can be used to send new values to the
 asynchronous channel. The new API specifically provides a
@@ -839,7 +838,7 @@ To achieve maximum performance the implementation is using `~Copyable` extensive
 On Swift versions before 6.1, there is a https://github.com/swiftlang/swift/issues/78048 when using; hence, this type
 is only usable with Swift 6.1 and later compilers. 
 
-## Acknowledgements
+## Acknowledgements
 
 - [Johannes Weiss](https://github.com/weissi) - For making me aware how
 important this problem is and providing great ideas on how to shape the API.
