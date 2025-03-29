@@ -55,7 +55,7 @@ let package = Package(
       name: "Example",
       dependencies: ["AsyncAlgorithms"],
       swiftSettings: [
-          .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .testTarget(
