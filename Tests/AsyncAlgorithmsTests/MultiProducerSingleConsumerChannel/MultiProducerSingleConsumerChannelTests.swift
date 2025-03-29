@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.1)
 import AsyncAlgorithms
 import XCTest
 
@@ -1114,3 +1115,4 @@ extension Optional where Wrapped: ~Copyable {
     return result
   }
 }
+#endif
