@@ -328,7 +328,7 @@ let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
 )
 var channel = consume channelAndSource.channel
 var source = consume channelAndSource.source
-source.onTermination = { print("Terminated") }
+source.setOnTerminationCallback { print("Terminated") }
 
 let task = Task {
     await channel.next()
@@ -344,7 +344,7 @@ let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
 )
 var channel = consume channelAndSource.channel
 var source = consume channelAndSource.source
-source.onTermination = { print("Terminated") }
+source.setOnTerminationCallback { print("Terminated") }
 _ = consume channel // Prints Terminated
 ```
 
@@ -356,7 +356,7 @@ let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
 )
 var channel = consume channelAndSource.channel
 var source = consume channelAndSource.source
-source.onTermination = { print("Terminated") }
+source.setOnTerminationCallback { print("Terminated") }
 
 _ = try await source.send(1)
 source.finish()
@@ -374,7 +374,7 @@ let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
 var channel = consume channelAndSource.channel
 var source1 = consume channelAndSource.source
 var source2 = source1.copy()
-source1.onTermination = { print("Terminated") }
+source1.setOnTerminationCallback { print("Terminated") }
 
 _ = try await source1.send(1)
 _ = consume source1
@@ -601,9 +601,7 @@ extension MultiProducerSingleConsumerChannel {
         /// A callback to invoke when the channel finished.
         ///
         /// This is called after the last element has been consumed by the channel.
-        public func setOnTerminationCallback(_ callback: @escaping @Sendable () -> Void) {
-            self._storage.onTermination = callback
-        }
+        public func setOnTerminationCallback(_ callback: @escaping @Sendable () -> Void)
 
         /// Creates a new source which can be used to send elements to the channel concurrently.
         ///
