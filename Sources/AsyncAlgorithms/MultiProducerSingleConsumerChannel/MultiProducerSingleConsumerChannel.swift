@@ -274,7 +274,7 @@ extension MultiProducerSingleConsumerChannel {
     /// - Returns: The result that indicates if more elements should be produced at this time.
     @inlinable
     public mutating func send<S>(
-      contentsOf sequence: consuming sendingS
+      contentsOf sequence: consuming sending S
     ) throws -> SendResult where Element == S.Element, S: Sequence, Element: Copyable {
       try self._storage.send(contentsOf: sequence)
     }
@@ -288,7 +288,7 @@ extension MultiProducerSingleConsumerChannel {
     /// - Parameter element: The element to send to the channel.
     /// - Returns: The result that indicates if more elements should be produced at this time.
     @inlinable
-    public mutating func send(_ element: consuming sendingElement) throws -> SendResult {
+    public mutating func send(_ element: consuming sending Element) throws -> SendResult {
       try self._storage.send(contentsOf: CollectionOfOne(element))
     }
 
@@ -334,7 +334,7 @@ extension MultiProducerSingleConsumerChannel {
     ///   invoked during the call to ``send(contentsOf:onProduceMore:)``.
     @inlinable
     public mutating func send<S>(
-      contentsOf sequence: consuming sendingS,
+      contentsOf sequence: consuming sending S,
       onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
     ) where Element == S.Element, S: Sequence, Element: Copyable {
       do {
@@ -364,7 +364,7 @@ extension MultiProducerSingleConsumerChannel {
     ///   invoked during the call to ``send(_:onProduceMore:)``.
     @inlinable
     public mutating func send(
-      _ element: consuming sendingElement,
+      _ element: consuming sending Element,
       onProduceMore: @escaping @Sendable (Result<Void, Error>) -> Void
     ) {
       do {
@@ -394,9 +394,9 @@ extension MultiProducerSingleConsumerChannel {
     ///   - sequence: The elements to send to the channel.
     @inlinable
     public mutating func send<S>(
-      contentsOf sequence: consuming sendingS
+      contentsOf sequence: consuming sending S
     ) async throws where Element == S.Element, S: Sequence, Element: Copyable {
-      let syncSend: (sending S, inout sendingSelf) throws -> SendResult = { try $1.send(contentsOf: $0) }
+      let syncSend: (sending S, inout sending Self) throws -> SendResult = { try $1.send(contentsOf: $0) }
       let sendResult = try syncSend(sequence, &self)
 
       switch consume sendResult {
@@ -430,8 +430,8 @@ extension MultiProducerSingleConsumerChannel {
     /// - Parameters:
     ///   - element: The element to send to the channel.
     @inlinable
-    public mutating func send(_ element: consuming sendingElement) async throws {
-      let syncSend: (consuming sendingElement, inout sendingSelf) throws -> SendResult = { try $1.send($0) }
+    public mutating func send(_ element: consuming sending Element) async throws {
+      let syncSend: (consuming sending Element, inout sending Self) throws -> SendResult = { try $1.send($0) }
       let sendResult = try syncSend(element, &self)
 
       switch consume sendResult {
@@ -463,7 +463,7 @@ extension MultiProducerSingleConsumerChannel {
     /// - Parameters:
     ///   - sequence: The elements to send to the channel.
     @inlinable
-    public mutating func send<S>(contentsOf sequence: consuming sendingS) async throws
+    public mutating func send<S>(contentsOf sequence: consuming sending S) async throws
     where Element == S.Element, S: AsyncSequence, Element: Copyable, S: Sendable, Element: Sendable {
       for try await element in sequence {
         try await self.send(contentsOf: CollectionOfOne(element))

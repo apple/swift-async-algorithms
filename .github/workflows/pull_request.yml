@@ -22,3 +22,4 @@ jobs:
     uses: swiftlang/github-workflows/.github/workflows/soundness.yml@main
     with:
       license_header_check_project_name: "Swift Async Algorithms"
+      format_check_container_image: "swiftlang/swift:nightly-6.1-noble"  # Needed since 6.0.x doesn't support sending keyword
