@@ -5,11 +5,11 @@
 * Status: **Implemented**
 
 ## Revision
-- 2025/03/24: Adopt `~Copyable` for correct semantics and better performance.
 - 2023/12/18: Migrate proposal from Swift Evolution to Swift Async Algorithms.
 - 2023/12/19: Add element size dependent strategy
 - 2024/05/19: Rename to multi producer single consumer channel
 - 2024/05/28: Add unbounded strategy
+- 2025/03/24: Adopt `~Copyable` for correct semantics and better performance.
 
 ## Introduction
 
