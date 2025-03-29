@@ -159,10 +159,11 @@ extension MultiProducerSingleConsumerChannel {
       }
     }
 
+    @inlinable
     init(
       backpressureStrategy: _InternalBackpressureStrategy
     ) {
-      self._stateMachine = .init(.init(backpressureStrategy: backpressureStrategy))
+      self._stateMachine = Mutex<_StateMachine>(_StateMachine(backpressureStrategy: backpressureStrategy))
     }
 
     func channelDeinitialized() {
@@ -562,6 +563,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
       }
     }
 
+    @usableFromInline
     init(
       backpressureStrategy: MultiProducerSingleConsumerChannel._InternalBackpressureStrategy
     ) {
