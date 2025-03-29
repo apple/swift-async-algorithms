@@ -1,5 +1,6 @@
 // swift-tools-version: 5.8
 
+import Foundation
 import PackageDescription
 
 let package = Package(
@@ -49,7 +50,7 @@ let package = Package(
   ]
 )
 
-if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
+if ProcessInfo.processInfo.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0"),
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
