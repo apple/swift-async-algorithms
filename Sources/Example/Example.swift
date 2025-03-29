@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if compiler(>=6.0)
+#if compiler(>=6.1)
 import AsyncAlgorithms
 
 @available(macOS 15.0, *)

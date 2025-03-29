@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if compiler(>=6.0)
+#if compiler(>=6.1)
 import DequeModule
 import Synchronization
 
