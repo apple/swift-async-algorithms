@@ -33,6 +33,7 @@ extension XCTestCase {
     #endif
   }
 
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(
     theme: Theme,
     expectedFailures: Set<String>,
@@ -77,6 +78,7 @@ extension XCTestCase {
     }
   }
 
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   func validate<Test: AsyncSequenceValidationTest>(
     expectedFailures: Set<String>,
     @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test,
@@ -86,6 +88,7 @@ extension XCTestCase {
     validate(theme: .ascii, expectedFailures: expectedFailures, build, file: file, line: line)
   }
 
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public func validate<Test: AsyncSequenceValidationTest, Theme: AsyncSequenceValidationTheme>(
     theme: Theme,
     @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test,
@@ -95,6 +98,7 @@ extension XCTestCase {
     validate(theme: theme, expectedFailures: [], build, file: file, line: line)
   }
 
+  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
   public func validate<Test: AsyncSequenceValidationTest>(
     @AsyncSequenceValidationDiagram _ build: (AsyncSequenceValidationDiagram) -> Test,
     file: StaticString = #file,

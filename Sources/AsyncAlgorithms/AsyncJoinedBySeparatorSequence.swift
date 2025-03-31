@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence where Element: AsyncSequence {
   /// Concatenate an `AsyncSequence` of `AsyncSequence` elements with a separator.
   @inlinable
@@ -20,6 +21,7 @@ extension AsyncSequence where Element: AsyncSequence {
 }
 
 /// An `AsyncSequence` that concatenates `AsyncSequence` elements with a separator.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: AsyncSequence>: AsyncSequence
 where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   public typealias Element = Base.Element.Element
@@ -143,6 +145,7 @@ where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncJoinedBySeparatorSequence: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable {}
 

@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
   /// has elapsed by using a specified Clock.

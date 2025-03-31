@@ -20,6 +20,7 @@
 /// Throws:
 /// ``combineLatest(_:_:)`` throws when one of the bases throws. If one of the bases threw any buffered and not yet consumed
 /// values will be dropped.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public func combineLatest<
   Base1: AsyncSequence,
   Base2: AsyncSequence
@@ -34,6 +35,7 @@ where
 }
 
 /// An `AsyncSequence` that combines the latest values produced from two asynchronous sequences into an asynchronous sequence of tuples.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncCombineLatest2Sequence<
   Base1: AsyncSequence,
   Base2: AsyncSequence

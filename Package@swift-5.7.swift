@@ -4,12 +4,6 @@ import PackageDescription
 
 let package = Package(
   name: "swift-async-algorithms",
-  platforms: [
-    .macOS("10.15"),
-    .iOS("13.0"),
-    .tvOS("13.0"),
-    .watchOS("6.0"),
-  ],
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
     .library(name: "AsyncSequenceValidation", targets: ["AsyncSequenceValidation"]),

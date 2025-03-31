@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` of a given count.
   @inlinable
@@ -27,6 +28,7 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks elements into `RangeReplaceableCollection` instances of at least a given count.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence
 where Collected.Element == Base.Element {
   public typealias Element = Collected
@@ -89,8 +91,14 @@ where Collected.Element == Base.Element {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChunksOfCountSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChunksOfCountSequence.Iterator: Sendable where Base.AsyncIterator: Sendable, Base.Element: Sendable {}
 
-@available(*, unavailable)
-extension AsyncChunksOfCountSequence.Iterator: Sendable {}
+// The following conflicts with the above conformance. The compiler is okay with this
+// when 'platforms' are specified in the package manifest but not when the @available
+// attribute is used instead.
+//
+// @available(*, unavailable)
+// extension AsyncChunksOfCountSequence.Iterator: Sendable { }

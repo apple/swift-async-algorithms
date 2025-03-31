@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given error-throwing closure.
@@ -38,6 +39,7 @@ extension AsyncSequence {
 /// An asynchronous sequence containing the accumulated results of combining the
 /// elements of the asynchronous sequence using a given error-throwing closure.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
   @usableFromInline
   let base: Base
@@ -52,6 +54,7 @@ public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -99,6 +102,7 @@ extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingInclusiveReductionsSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)

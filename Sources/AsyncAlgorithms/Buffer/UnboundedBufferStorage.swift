@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
   private let stateMachine: ManagedCriticalState<UnboundedBufferStateMachine<Base>>
 

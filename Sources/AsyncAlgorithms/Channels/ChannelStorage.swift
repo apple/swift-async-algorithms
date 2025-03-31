@@ -8,6 +8,7 @@
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
   private let stateMachine: ManagedCriticalState<ChannelStateMachine<Element, Failure>>
   private let ids = ManagedCriticalState<UInt64>(0)

@@ -19,6 +19,7 @@
 /// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`, and then over the elements of `s3`
 @inlinable
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(
   _ s1: Base1,
   _ s2: Base2,
@@ -29,6 +30,7 @@ public func chain<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequen
 
 /// A concatenation of three asynchronous sequences with the same element type.
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncChain3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>
 where Base1.Element == Base2.Element, Base1.Element == Base3.Element {
   @usableFromInline
@@ -48,6 +50,7 @@ where Base1.Element == Base2.Element, Base1.Element == Base3.Element {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChain3Sequence: AsyncSequence {
   public typealias Element = Base1.Element
 
@@ -99,6 +102,7 @@ extension AsyncChain3Sequence: AsyncSequence {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChain3Sequence: Sendable where Base1: Sendable, Base2: Sendable, Base3: Sendable {}
 
 @available(*, unavailable)

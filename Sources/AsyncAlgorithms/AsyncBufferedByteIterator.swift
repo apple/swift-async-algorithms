@@ -39,6 +39,7 @@
 ///     }
 ///
 ///
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
   public typealias Element = UInt8
   @usableFromInline var buffer: _AsyncBytesBuffer
@@ -68,6 +69,7 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
 extension AsyncBufferedByteIterator: Sendable {}
 
 @frozen @usableFromInline
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 internal struct _AsyncBytesBuffer {
   @usableFromInline
   final class Storage {

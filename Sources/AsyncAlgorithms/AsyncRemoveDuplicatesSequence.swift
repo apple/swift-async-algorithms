@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence where Element: Equatable {
   /// Creates an asynchronous sequence that omits repeated elements.
   public func removeDuplicates() -> AsyncRemoveDuplicatesSequence<Self> {
@@ -18,6 +19,7 @@ extension AsyncSequence where Element: Equatable {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
   public func removeDuplicates(
@@ -35,6 +37,7 @@ extension AsyncSequence {
 }
 
 /// An asynchronous sequence that omits repeated elements by testing them with a predicate.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -90,6 +93,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
 }
 
 /// An asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -144,7 +148,9 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

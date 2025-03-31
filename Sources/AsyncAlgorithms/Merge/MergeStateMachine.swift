@@ -15,6 +15,7 @@ import DequeModule
 ///
 /// Right now this state machine supports 3 upstream `AsyncSequences`; however, this can easily be extended.
 /// Once variadic generic land we should migrate this to use them instead.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct MergeStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

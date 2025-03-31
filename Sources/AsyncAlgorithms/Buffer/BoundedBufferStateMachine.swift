@@ -11,6 +11,7 @@
 
 import DequeModule
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct BoundedBufferStateMachine<Base: AsyncSequence> {
   typealias Element = Base.Element
   typealias SuspendedProducer = UnsafeContinuation<Void, Never>
@@ -322,5 +323,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension BoundedBufferStateMachine: Sendable where Base: Sendable {}
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension BoundedBufferStateMachine.State: Sendable where Base: Sendable {}

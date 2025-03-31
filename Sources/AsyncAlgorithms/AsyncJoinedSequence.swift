@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence where Element: AsyncSequence {
   /// Concatenate an `AsyncSequence` of `AsyncSequence` elements
   @inlinable
@@ -19,6 +20,7 @@ extension AsyncSequence where Element: AsyncSequence {
 
 /// An `AsyncSequence` that concatenates`AsyncSequence` elements
 @frozen
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence {
   public typealias Element = Base.Element.Element
   public typealias AsyncIterator = Iterator
@@ -90,6 +92,7 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncJoinedSequence: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable {}
 

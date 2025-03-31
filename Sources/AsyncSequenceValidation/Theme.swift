@@ -9,18 +9,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public protocol AsyncSequenceValidationTheme {
   func token(_ character: Character, inValue: Bool) -> AsyncSequenceValidationDiagram.Token
 
   func description(for token: AsyncSequenceValidationDiagram.Token) -> String
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequenceValidationTheme where Self == AsyncSequenceValidationDiagram.ASCIITheme {
   public static var ascii: AsyncSequenceValidationDiagram.ASCIITheme {
     return AsyncSequenceValidationDiagram.ASCIITheme()
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequenceValidationDiagram {
   public enum Token: Sendable {
     case step

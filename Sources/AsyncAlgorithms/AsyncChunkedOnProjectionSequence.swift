@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type on the uniqueness of a given subject.
   @inlinable
@@ -29,6 +30,7 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks on a subject when it differs from the last element.
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public struct AsyncChunkedOnProjectionSequence<
   Base: AsyncSequence,
   Subject: Equatable,
@@ -104,6 +106,7 @@ public struct AsyncChunkedOnProjectionSequence<
   }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncChunkedOnProjectionSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

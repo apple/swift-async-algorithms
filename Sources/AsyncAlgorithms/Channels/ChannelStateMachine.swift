@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 import OrderedCollections
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
   private struct SuspendedProducer: Hashable, Sendable {
     let id: UInt64
