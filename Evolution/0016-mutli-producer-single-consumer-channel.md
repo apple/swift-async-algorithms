@@ -760,7 +760,7 @@ production APIs and has an effective buffer of one per producer. This means that
 any producer will be suspended until its value has been consumed. `AsyncChannel`
 can handle multiple consumers and resumes them in FIFO order.
 
-### swift-nio: NIOAsyncSequenceProducer
+### swift-nio: NIOAsyncSequenceProducer
 
 The NIO team have created their own root asynchronous sequence with the goal to
 provide a high performance sequence that can be used to bridge a NIO `Channel`
