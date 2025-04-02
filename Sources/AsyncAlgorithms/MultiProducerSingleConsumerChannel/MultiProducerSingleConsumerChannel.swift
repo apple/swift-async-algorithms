@@ -161,7 +161,7 @@ public struct MultiProducerSingleConsumerChannel<Element, Failure: Error>: ~Copy
     of elementType: Element.Type = Element.self,
     throwing failureType: Failure.Type = Never.self,
     backpressureStrategy: Source.BackpressureStrategy
-  ) -> ChannelAndStream {
+  ) -> sending ChannelAndStream {
     let storage = _Storage(
       backpressureStrategy: backpressureStrategy.internalBackpressureStrategy
     )
@@ -209,7 +209,7 @@ extension MultiProducerSingleConsumerChannel {
   /// A struct to send values to the channel.
   ///
   /// Use this source to provide elements to the channel by calling one of the `send` methods.
-  public struct Source: ~Copyable, Sendable {
+  public struct Source: ~Copyable {
     /// A struct representing the backpressure of the channel.
     public struct BackpressureStrategy: Sendable {
       var internalBackpressureStrategy: _InternalBackpressureStrategy
@@ -234,8 +234,8 @@ extension MultiProducerSingleConsumerChannel {
       ///   - high: When the number of buffered elements rises above the high watermark, producers will be suspended.
       ///   - waterLevelForElement: A closure used to compute the contribution of each buffered element to the current water level.
       ///
-      /// - Note, `waterLevelForElement` will be called on each element when it is written into the source and when
-      /// it is consumed from the channel, so it is recommended to provide a function that runs in constant time.
+      /// - Important: `waterLevelForElement` will be called during a lock on each element when it is written into the source and when
+      /// it is consumed from the channel, so it must be side-effect free and at best constant in time.
       public static func watermark(
         low: Int,
         high: Int,
@@ -446,7 +446,7 @@ extension MultiProducerSingleConsumerChannel {
     public mutating func send<S>(
       contentsOf sequence: consuming sending S
     ) async throws where Element == S.Element, S: Sequence, Element: Copyable {
-      let syncSend: (sending S, inout sending Self) throws -> SendResult = { try $1.send(contentsOf: $0) }
+      let syncSend: (sending S, inout Self) throws -> SendResult = { try $1.send(contentsOf: $0) }
       let sendResult = try syncSend(sequence, &self)
 
       switch consume sendResult {
@@ -481,7 +481,7 @@ extension MultiProducerSingleConsumerChannel {
     ///   - element: The element to send to the channel.
     @inlinable
     public mutating func send(_ element: consuming sending Element) async throws {
-      let syncSend: (consuming sending Element, inout sending Self) throws -> SendResult = { try $1.send($0) }
+      let syncSend: (consuming sending Element, inout Self) throws -> SendResult = { try $1.send($0) }
       let sendResult = try syncSend(element, &self)
 
       switch consume sendResult {
