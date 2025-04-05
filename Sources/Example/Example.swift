@@ -32,10 +32,10 @@ struct Example {
 
   static func testMPSCChannel(
     count: Int,
-    backpressureStrategy: MultiProducerSingleConsumerChannel<Int, Never>.Source.BackpressureStrategy
+    backpressureStrategy: MultiProducerSingleConsumerAsyncChannel<Int, Never>.Source.BackpressureStrategy
   ) async {
     await withTaskGroup(of: Void.self) { group in
-      let channelAndSource = MultiProducerSingleConsumerChannel.makeChannel(
+      let channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
         of: Int.self,
         backpressureStrategy: backpressureStrategy
       )
