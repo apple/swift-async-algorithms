@@ -14,7 +14,7 @@ import DequeModule
 import Synchronization
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MultiProducerSingleConsumerChannel {
+extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
     @usableFromInline
@@ -140,7 +140,7 @@ extension MultiProducerSingleConsumerChannel {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MultiProducerSingleConsumerChannel {
+extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   final class _Storage: Sendable {
     @usableFromInline
@@ -179,9 +179,9 @@ extension MultiProducerSingleConsumerChannel {
         for producerContinuation in producerContinuations {
           switch producerContinuation {
           case .closure(let onProduceMore):
-            onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+            onProduceMore(.failure(MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()))
           case .continuation(let continuation):
-            continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+            continuation.resume(throwing: MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
           }
         }
         onTermination?()
@@ -210,9 +210,9 @@ extension MultiProducerSingleConsumerChannel {
         for producerContinuation in producerContinuations {
           switch producerContinuation {
           case .closure(let onProduceMore):
-            onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+            onProduceMore(.failure(MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()))
           case .continuation(let continuation):
-            continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+            continuation.resume(throwing: MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
           }
         }
         onTermination?()
@@ -241,9 +241,9 @@ extension MultiProducerSingleConsumerChannel {
         for producerContinuation in producerContinuations {
           switch producerContinuation {
           case .closure(let onProduceMore):
-            onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+            onProduceMore(.failure(MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()))
           case .continuation(let continuation):
-            continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+            continuation.resume(throwing: MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
           }
         }
         onTermination?()
@@ -283,7 +283,7 @@ extension MultiProducerSingleConsumerChannel {
     @inlinable
     func send(
       contentsOf sequence: sending some Sequence<Element>
-    ) throws -> MultiProducerSingleConsumerChannel<Element, Failure>.Source.SendResult {
+    ) throws -> MultiProducerSingleConsumerAsyncChannel<Element, Failure>.Source.SendResult {
       let action = self._stateMachine.withLock {
         $0.send(sequence)
       }
@@ -304,7 +304,7 @@ extension MultiProducerSingleConsumerChannel {
         return .enqueueCallback(.init(id: callbackToken))
 
       case .throwFinishedError:
-        throw MultiProducerSingleConsumerChannelAlreadyFinishedError()
+        throw MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()
       }
     }
 
@@ -396,9 +396,9 @@ extension MultiProducerSingleConsumerChannel {
         for producerContinuation in producerContinuations {
           switch producerContinuation {
           case .closure(let onProduceMore):
-            onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+            onProduceMore(.failure(MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()))
           case .continuation(let continuation):
-            continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+            continuation.resume(throwing: MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
           }
         }
 
@@ -509,9 +509,9 @@ extension MultiProducerSingleConsumerChannel {
           for producerContinuation in producerContinuations {
             switch producerContinuation {
             case .closure(let onProduceMore):
-              onProduceMore(.failure(MultiProducerSingleConsumerChannelAlreadyFinishedError()))
+              onProduceMore(.failure(MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()))
             case .continuation(let continuation):
-              continuation.resume(throwing: MultiProducerSingleConsumerChannelAlreadyFinishedError())
+              continuation.resume(throwing: MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
             }
           }
           onTermination?()
@@ -525,7 +525,7 @@ extension MultiProducerSingleConsumerChannel {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MultiProducerSingleConsumerChannel._Storage {
+extension MultiProducerSingleConsumerAsyncChannel._Storage {
   /// The state machine of the channel.
   @usableFromInline
   struct _StateMachine: ~Copyable {
@@ -565,7 +565,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
 
     @usableFromInline
     init(
-      backpressureStrategy: MultiProducerSingleConsumerChannel._InternalBackpressureStrategy
+      backpressureStrategy: MultiProducerSingleConsumerAsyncChannel._InternalBackpressureStrategy
     ) {
       self._state = .channeling(
         .init(
@@ -896,7 +896,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
           )
         } else {
           // An iterator needs to be initialized before it can be deinitialized.
-          fatalError("MultiProducerSingleConsumerChannel internal inconsistency")
+          fatalError("MultiProducerSingleConsumerAsyncChannel internal inconsistency")
         }
 
       case .sourceFinished(let sourceFinished):
@@ -916,7 +916,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
           return .callOnTermination(sourceFinished.onTermination)
         } else {
           // An iterator needs to be initialized before it can be deinitialized.
-          fatalError("MultiProducerSingleConsumerChannel internal inconsistency")
+          fatalError("MultiProducerSingleConsumerAsyncChannel internal inconsistency")
         }
 
       case .finished(let finished):
@@ -1074,14 +1074,14 @@ extension MultiProducerSingleConsumerChannel._Storage {
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .sourceFinished(sourceFinished))
 
-        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerChannelAlreadyFinishedError())
+        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
 
       case .finished(let finished):
         // Since we are unlocking between sending elements and suspending the send
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .finished(finished))
 
-        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerChannelAlreadyFinishedError())
+        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
       }
     }
 
@@ -1124,14 +1124,14 @@ extension MultiProducerSingleConsumerChannel._Storage {
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .sourceFinished(sourceFinished))
 
-        return .resumeProducerWithError(continuation, MultiProducerSingleConsumerChannelAlreadyFinishedError())
+        return .resumeProducerWithError(continuation, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
 
       case .finished(let finished):
         // Since we are unlocking between sending elements and suspending the send
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .finished(finished))
 
-        return .resumeProducerWithError(continuation, MultiProducerSingleConsumerChannelAlreadyFinishedError())
+        return .resumeProducerWithError(continuation, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
       }
     }
 
@@ -1274,7 +1274,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
       case .channeling(var channeling):
         guard channeling.consumerContinuation == nil else {
           // We have multiple AsyncIterators iterating the sequence
-          fatalError("MultiProducerSingleConsumerChannel internal inconsistency")
+          fatalError("MultiProducerSingleConsumerAsyncChannel internal inconsistency")
         }
 
         guard let element = channeling.buffer.popFirst() else {
@@ -1356,7 +1356,7 @@ extension MultiProducerSingleConsumerChannel._Storage {
       case .channeling(var channeling):
         guard channeling.consumerContinuation == nil else {
           // We have multiple AsyncIterators iterating the sequence
-          fatalError("MultiProducerSingleConsumerChannel internal inconsistency")
+          fatalError("MultiProducerSingleConsumerAsyncChannel internal inconsistency")
         }
 
         // We have to check here again since we might have a producer interleave next and suspendNext
@@ -1472,14 +1472,14 @@ extension MultiProducerSingleConsumerChannel._Storage {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
+extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
   @usableFromInline
   enum _State: ~Copyable {
     @usableFromInline
     struct Channeling: ~Copyable {
       /// The backpressure strategy.
       @usableFromInline
-      var backpressureStrategy: MultiProducerSingleConsumerChannel._InternalBackpressureStrategy
+      var backpressureStrategy: MultiProducerSingleConsumerAsyncChannel._InternalBackpressureStrategy
 
       /// Indicates if the iterator was initialized.
       @usableFromInline
@@ -1527,7 +1527,7 @@ extension MultiProducerSingleConsumerChannel._Storage._StateMachine {
 
       @inlinable
       init(
-        backpressureStrategy: MultiProducerSingleConsumerChannel._InternalBackpressureStrategy,
+        backpressureStrategy: MultiProducerSingleConsumerAsyncChannel._InternalBackpressureStrategy,
         iteratorInitialized: Bool,
         sequenceInitialized: Bool,
         onTermination: (@Sendable () -> Void)? = nil,
