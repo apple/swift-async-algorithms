@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that emits the latest element after a given quiescence period
   /// has elapsed by using a specified Clock.

@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 /// State machine for zip
+@available(AsyncAlgorithms 1.0, *)
 struct ZipStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

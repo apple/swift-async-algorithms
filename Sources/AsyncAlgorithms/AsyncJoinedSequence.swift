@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence where Element: AsyncSequence {
   /// Concatenate an `AsyncSequence` of `AsyncSequence` elements
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func joined() -> AsyncJoinedSequence<Self> {
     return AsyncJoinedSequence(self)
@@ -18,6 +20,7 @@ extension AsyncSequence where Element: AsyncSequence {
 }
 
 /// An `AsyncSequence` that concatenates`AsyncSequence` elements
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base.Element: AsyncSequence {
   public typealias Element = Base.Element.Element
@@ -90,6 +93,7 @@ public struct AsyncJoinedSequence<Base: AsyncSequence>: AsyncSequence where Base
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncJoinedSequence: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable {}
 

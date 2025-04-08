@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given error-throwing closure.
@@ -27,6 +28,7 @@ extension AsyncSequence {
   ///   result and the next element in the receiving sequence. If the closure
   ///     throws an error, the sequence throws.
   /// - Returns: An asynchronous sequence of the reduced elements.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func reductions(
     _ transform: @Sendable @escaping (Element, Element) async throws -> Element
@@ -37,6 +39,7 @@ extension AsyncSequence {
 
 /// An asynchronous sequence containing the accumulated results of combining the
 /// elements of the asynchronous sequence using a given error-throwing closure.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
   @usableFromInline
@@ -52,10 +55,12 @@ public struct AsyncThrowingInclusiveReductionsSequence<Base: AsyncSequence> {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
   public typealias Element = Base.Element
 
   /// The iterator for an `AsyncThrowingInclusiveReductionsSequence` instance.
+  @available(AsyncAlgorithms 1.0, *)
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -93,12 +98,14 @@ extension AsyncThrowingInclusiveReductionsSequence: AsyncSequence {
     }
   }
 
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base.makeAsyncIterator(), transform: transform)
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncThrowingInclusiveReductionsSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)

@@ -11,6 +11,7 @@
 
 /// Creates an asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
 /// and emits a tuple of the values.
+@available(AsyncAlgorithms 1.0, *)
 public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(
   _ base1: Base1,
   _ base2: Base2,
@@ -21,6 +22,7 @@ public func zip<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence
 
 /// An asynchronous sequence that concurrently awaits values from three `AsyncSequence` types
 /// and emits a tuple of the values.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncZip3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: AsyncSequence,
   Sendable
 where

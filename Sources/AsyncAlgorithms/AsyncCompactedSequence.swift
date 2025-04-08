@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Returns a new `AsyncSequence` that iterates over every non-nil element from the
   /// original `AsyncSequence`.
@@ -18,6 +19,7 @@ extension AsyncSequence {
   /// - Returns: An `AsyncSequence` where the element is the unwrapped original
   ///   element and iterates over every non-nil element from the original
   ///   `AsyncSequence`.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func compacted<Unwrapped>() -> AsyncCompactedSequence<Self, Unwrapped>
   where Element == Unwrapped? {
@@ -27,6 +29,7 @@ extension AsyncSequence {
 
 /// An `AsyncSequence` that iterates over every non-nil element from the original
 /// `AsyncSequence`.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncCompactedSequence<Base: AsyncSequence, Element>: AsyncSequence
 where Base.Element == Element? {
@@ -66,6 +69,7 @@ where Base.Element == Element? {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncCompactedSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

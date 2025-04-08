@@ -9,9 +9,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection`
   /// type by testing if elements belong in the same group.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunked<Collected: RangeReplaceableCollection>(
     into: Collected.Type,
@@ -21,6 +23,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks by testing if elements belong in the same group.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunked(
     by belongInSameGroup: @escaping @Sendable (Element, Element) -> Bool
@@ -51,6 +54,7 @@ extension AsyncSequence {
 ///      // [10, 20, 30]
 ///      // [10, 40, 40]
 ///      // [10, 20]
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncChunkedByGroupSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence
 where Collected.Element == Base.Element {
   public typealias Element = Collected
@@ -121,6 +125,7 @@ where Collected.Element == Base.Element {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChunkedByGroupSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

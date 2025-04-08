@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
   private let stateMachine: ManagedCriticalState<UnboundedBufferStateMachine<Base>>
 

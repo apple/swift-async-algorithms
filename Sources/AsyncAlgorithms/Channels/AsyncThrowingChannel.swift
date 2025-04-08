@@ -18,6 +18,7 @@
 /// and is resumed when the next call to `next()` on the `Iterator` is made, or when `finish()`/`fail(_:)` is called
 /// from another Task. As `finish()` and `fail(_:)` induce a terminal state, there is no more need for a back pressure management.
 /// Those functions do not suspend and will finish all the pending iterations.
+@available(AsyncAlgorithms 1.0, *)
 public final class AsyncThrowingChannel<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
   public typealias Element = Element
   public typealias AsyncIterator = Iterator

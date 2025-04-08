@@ -12,6 +12,7 @@
 import DequeModule
 
 /// State machine for combine latest
+@available(AsyncAlgorithms 1.0, *)
 struct CombineLatestStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

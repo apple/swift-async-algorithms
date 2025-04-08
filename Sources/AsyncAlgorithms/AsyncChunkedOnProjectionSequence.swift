@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type on the uniqueness of a given subject.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunked<Subject: Equatable, Collected: RangeReplaceableCollection>(
     into: Collected.Type,
@@ -20,6 +22,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks on the uniqueness of a given subject.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunked<Subject: Equatable>(
     on projection: @escaping @Sendable (Element) -> Subject
@@ -29,6 +32,7 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks on a subject when it differs from the last element.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncChunkedOnProjectionSequence<
   Base: AsyncSequence,
   Subject: Equatable,
@@ -104,6 +108,7 @@ public struct AsyncChunkedOnProjectionSequence<
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChunkedOnProjectionSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

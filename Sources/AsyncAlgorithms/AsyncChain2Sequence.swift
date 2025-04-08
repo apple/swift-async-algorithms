@@ -17,6 +17,7 @@
 ///   - s2: The second asynchronous sequence.
 /// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`.
+@available(AsyncAlgorithms 1.0, *)
 @inlinable
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence>(
   _ s1: Base1,
@@ -26,6 +27,7 @@ public func chain<Base1: AsyncSequence, Base2: AsyncSequence>(
 }
 
 /// A concatenation of two asynchronous sequences with the same element type.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncChain2Sequence<Base1: AsyncSequence, Base2: AsyncSequence> where Base1.Element == Base2.Element {
   @usableFromInline
@@ -41,10 +43,12 @@ public struct AsyncChain2Sequence<Base1: AsyncSequence, Base2: AsyncSequence> wh
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChain2Sequence: AsyncSequence {
   public typealias Element = Base1.Element
 
   /// The iterator for a `AsyncChain2Sequence` instance.
+  @available(AsyncAlgorithms 1.0, *)
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -76,12 +80,14 @@ extension AsyncChain2Sequence: AsyncSequence {
     }
   }
 
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base1.makeAsyncIterator(), base2.makeAsyncIterator())
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChain2Sequence: Sendable where Base1: Sendable, Base2: Sendable {}
 
 @available(*, unavailable)

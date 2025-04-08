@@ -11,6 +11,7 @@
 
 import DequeModule
 
+@available(AsyncAlgorithms 1.0, *)
 struct UnboundedBufferStateMachine<Base: AsyncSequence> {
   typealias Element = Base.Element
   typealias SuspendedConsumer = UnsafeContinuation<Result<Element, Error>?, Never>
@@ -252,5 +253,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension UnboundedBufferStateMachine: Sendable where Base: Sendable {}
+@available(AsyncAlgorithms 1.0, *)
 extension UnboundedBufferStateMachine.State: Sendable where Base: Sendable {}

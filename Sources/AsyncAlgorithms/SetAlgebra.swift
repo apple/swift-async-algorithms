@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension SetAlgebra {
   /// Creates a new set from an asynchronous sequence of items.
   ///

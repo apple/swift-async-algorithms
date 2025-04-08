@@ -9,10 +9,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension Sequence {
   /// An asynchronous sequence containing the same elements as this sequence,
   /// but on which operations, such as `map` and `filter`, are
   /// implemented asynchronously.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public var async: AsyncSyncSequence<Self> {
     AsyncSyncSequence(self)
@@ -27,6 +29,7 @@ extension Sequence {
 ///
 /// This functions similarly to `LazySequence` by accessing elements sequentially
 /// in the iterator's `next()` method.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   public typealias Element = Base.Element
@@ -65,6 +68,7 @@ public struct AsyncSyncSequence<Base: Sequence>: AsyncSequence {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSyncSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)

@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence where Element: Equatable {
   /// Creates an asynchronous sequence that omits repeated elements.
+  @available(AsyncAlgorithms 1.0, *)
   public func removeDuplicates() -> AsyncRemoveDuplicatesSequence<Self> {
     AsyncRemoveDuplicatesSequence(self) { lhs, rhs in
       lhs == rhs
@@ -18,8 +20,10 @@ extension AsyncSequence where Element: Equatable {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that omits repeated elements by testing them with a predicate.
+  @available(AsyncAlgorithms 1.0, *)
   public func removeDuplicates(
     by predicate: @escaping @Sendable (Element, Element) async -> Bool
   ) -> AsyncRemoveDuplicatesSequence<Self> {
@@ -27,6 +31,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
+  @available(AsyncAlgorithms 1.0, *)
   public func removeDuplicates(
     by predicate: @escaping @Sendable (Element, Element) async throws -> Bool
   ) -> AsyncThrowingRemoveDuplicatesSequence<Self> {
@@ -35,6 +40,7 @@ extension AsyncSequence {
 }
 
 /// An asynchronous sequence that omits repeated elements by testing them with a predicate.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -90,6 +96,7 @@ public struct AsyncRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence 
 }
 
 /// An asynchronous sequence that omits repeated elements by testing them with an error-throwing predicate.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = Base.Element
 
@@ -144,7 +151,9 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncThrowingRemoveDuplicatesSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
