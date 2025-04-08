@@ -15,6 +15,7 @@ import DequeModule
 ///
 /// Right now this state machine supports 3 upstream `AsyncSequences`; however, this can easily be extended.
 /// Once variadic generic land we should migrate this to use them instead.
+@available(AsyncAlgorithms 1.0, *)
 struct MergeStateMachine<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

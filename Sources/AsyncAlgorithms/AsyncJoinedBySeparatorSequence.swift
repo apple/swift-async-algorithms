@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence where Element: AsyncSequence {
   /// Concatenate an `AsyncSequence` of `AsyncSequence` elements with a separator.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func joined<Separator: AsyncSequence>(
     separator: Separator
@@ -20,6 +22,7 @@ extension AsyncSequence where Element: AsyncSequence {
 }
 
 /// An `AsyncSequence` that concatenates `AsyncSequence` elements with a separator.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncJoinedBySeparatorSequence<Base: AsyncSequence, Separator: AsyncSequence>: AsyncSequence
 where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   public typealias Element = Base.Element.Element
@@ -143,6 +146,7 @@ where Base.Element: AsyncSequence, Separator.Element == Base.Element.Element {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncJoinedBySeparatorSequence: Sendable
 where Base: Sendable, Base.Element: Sendable, Base.Element.Element: Sendable, Separator: Sendable {}
 

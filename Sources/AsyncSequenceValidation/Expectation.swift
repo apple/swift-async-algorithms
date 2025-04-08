@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequenceValidationDiagram {
   public struct ExpectationResult: Sendable {
     public struct Event: Sendable {

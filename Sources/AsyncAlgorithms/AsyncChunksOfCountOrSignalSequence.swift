@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type of a given count or when a signal `AsyncSequence` produces an element.
+  @available(AsyncAlgorithms 1.0, *)
   public func chunks<Signal, Collected: RangeReplaceableCollection>(
     ofCount count: Int,
     or signal: Signal,
@@ -20,6 +22,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count or when a signal `AsyncSequence` produces an element.
+  @available(AsyncAlgorithms 1.0, *)
   public func chunks<Signal>(
     ofCount count: Int,
     or signal: Signal
@@ -28,6 +31,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` type when a signal `AsyncSequence` produces an element.
+  @available(AsyncAlgorithms 1.0, *)
   public func chunked<Signal, Collected: RangeReplaceableCollection>(
     by signal: Signal,
     into: Collected.Type
@@ -36,6 +40,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks when a signal `AsyncSequence` produces an element.
+  @available(AsyncAlgorithms 1.0, *)
   public func chunked<Signal>(by signal: Signal) -> AsyncChunksOfCountOrSignalSequence<Self, [Element], Signal> {
     chunked(by: signal, into: [Element].self)
   }
@@ -78,6 +83,7 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks elements into collected `RangeReplaceableCollection` instances by either count or a signal from another `AsyncSequence`.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncChunksOfCountOrSignalSequence<
   Base: AsyncSequence,
   Collected: RangeReplaceableCollection,

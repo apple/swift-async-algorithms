@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension RangeReplaceableCollection {
   /// Creates a new instance of a collection containing the elements of an asynchronous sequence.
   ///

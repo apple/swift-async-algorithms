@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 final class ZipStorage<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>: Sendable
 where
   Base1: Sendable,

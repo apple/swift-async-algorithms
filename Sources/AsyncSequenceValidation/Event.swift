@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequenceValidationDiagram {
   struct Failure: Error, Equatable {}
 

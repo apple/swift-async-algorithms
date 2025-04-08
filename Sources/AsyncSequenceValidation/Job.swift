@@ -11,6 +11,7 @@
 
 import _CAsyncSequenceValidationSupport
 
+@available(AsyncAlgorithms 1.0, *)
 struct Job: Hashable, @unchecked Sendable {
   let job: JobRef
 
