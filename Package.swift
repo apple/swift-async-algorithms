@@ -4,23 +4,24 @@ import PackageDescription
 import CompilerPluginSupport
 
 // Availability Macros
-let availabilityTags = [_Availability("AsyncAlgorithms")]
+let availabilityTags = [Availability("AsyncAlgorithms")]
 let versionNumbers = ["1.0"]
 
 // Availability Macro Utilities
-enum _OSAvailability: String {
+enum OSAvailability: String {
   // This should match the package's deployment target
-  case alwaysAvailable = "macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
+  case initialIntroduction = "macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
+  case pending = "macOS 9999, iOS 9999, tvOS 9999, watchOS 9999"
   // Use 10000 for future availability to avoid compiler magic around
   // the 9999 version number but ensure it is greater than 9999
   case future = "macOS 10000, iOS 10000, tvOS 10000, watchOS 10000"
 }
 
-struct _Availability {
+struct Availability {
   let name: String
-  let osAvailability: _OSAvailability
+  let osAvailability: OSAvailability
 
-  init(_ name: String, availability: _OSAvailability = .alwaysAvailable) {
+  init(_ name: String, availability: OSAvailability = .initialIntroduction) {
     self.name = name
     self.osAvailability = availability
   }
