@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 import OrderedCollections
 
+@available(AsyncAlgorithms 1.0, *)
 struct ChannelStateMachine<Element: Sendable, Failure: Error>: Sendable {
   private struct SuspendedProducer: Hashable, Sendable {
     let id: UInt64

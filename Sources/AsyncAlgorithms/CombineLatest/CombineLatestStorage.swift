@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 final class CombineLatestStorage<
   Base1: AsyncSequence,
   Base2: AsyncSequence,

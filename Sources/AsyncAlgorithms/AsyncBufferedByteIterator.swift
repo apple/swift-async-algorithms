@@ -39,6 +39,7 @@
 ///     }
 ///
 ///
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
   public typealias Element = UInt8
   @usableFromInline var buffer: _AsyncBytesBuffer
@@ -67,6 +68,7 @@ public struct AsyncBufferedByteIterator: AsyncIteratorProtocol {
 @available(*, unavailable)
 extension AsyncBufferedByteIterator: Sendable {}
 
+@available(AsyncAlgorithms 1.0, *)
 @frozen @usableFromInline
 internal struct _AsyncBytesBuffer {
   @usableFromInline

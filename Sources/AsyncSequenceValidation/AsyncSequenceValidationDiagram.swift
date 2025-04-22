@@ -12,6 +12,7 @@
 import _CAsyncSequenceValidationSupport
 
 @resultBuilder
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncSequenceValidationDiagram: Sendable {
   public struct Component<T> {
     var component: T

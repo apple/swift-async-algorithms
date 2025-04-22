@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// An `AsyncSequence` that iterates over the adjacent pairs of the original
   /// original `AsyncSequence`.
@@ -26,6 +27,7 @@ extension AsyncSequence {
   ///
   /// - Returns: An `AsyncSequence` where the element is a tuple of two adjacent elements
   ///   or the original `AsyncSequence`.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func adjacentPairs() -> AsyncAdjacentPairsSequence<Self> {
     AsyncAdjacentPairsSequence(self)
@@ -34,6 +36,7 @@ extension AsyncSequence {
 
 /// An `AsyncSequence` that iterates over the adjacent pairs of the original
 /// `AsyncSequence`.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   public typealias Element = (Base.Element, Base.Element)
@@ -83,6 +86,7 @@ public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncAdjacentPairsSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)

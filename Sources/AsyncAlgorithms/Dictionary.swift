@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension Dictionary {
   /// Creates a new dictionary from the key-value pairs in the given asynchronous sequence.
   ///
@@ -21,6 +22,7 @@ extension Dictionary {
   /// - Parameter keysAndValues: An asynchronous sequence of key-value pairs to use for
   ///   the new dictionary. Every key in `keysAndValues` must be unique.
   /// - Precondition: The sequence must not have duplicate keys.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public init<S: AsyncSequence>(uniqueKeysWithValues keysAndValues: S) async rethrows
   where S.Element == (Key, Value) {
@@ -45,6 +47,7 @@ extension Dictionary {
   ///     keys that are encountered. The closure returns the desired value for
   ///     the final dictionary, or throws an error if building the dictionary
   ///     can't proceed.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public init<S: AsyncSequence>(
     _ keysAndValues: S,
@@ -72,6 +75,7 @@ extension Dictionary {
   ///   - values: An asynchronous sequence of values to group into a dictionary.
   ///   - keyForValue: A closure that returns a key for each element in
   ///     `values`.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public init<S: AsyncSequence>(grouping values: S, by keyForValue: (S.Element) async throws -> Key) async rethrows
   where Value == [S.Element] {

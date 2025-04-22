@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given error-throwing closure.
@@ -23,6 +24,7 @@ extension AsyncSequence {
   ///     the result. If the closure throws an error, the sequence throws.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func reductions<Result>(
     _ initial: Result,
@@ -47,6 +49,7 @@ extension AsyncSequence {
   ///     error, the sequence throws.
   /// - Returns: An asynchronous sequence of the initial value followed by the reduced
   ///   elements.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func reductions<Result>(
     into initial: Result,
@@ -58,6 +61,7 @@ extension AsyncSequence {
 
 /// An asynchronous sequence of applying an error-throwing transform to the element of
 /// an asynchronous sequence and the previously transformed result.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Element> {
   @usableFromInline
@@ -81,8 +85,10 @@ public struct AsyncThrowingExclusiveReductionsSequence<Base: AsyncSequence, Elem
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
   /// The iterator for an `AsyncThrowingExclusiveReductionsSequence` instance.
+  @available(AsyncAlgorithms 1.0, *)
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -124,12 +130,14 @@ extension AsyncThrowingExclusiveReductionsSequence: AsyncSequence {
     }
   }
 
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base.makeAsyncIterator(), initial: initial, transform: transform)
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncThrowingExclusiveReductionsSequence: Sendable where Base: Sendable, Element: Sendable {}
 
 @available(*, unavailable)

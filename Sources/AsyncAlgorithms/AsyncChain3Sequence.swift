@@ -18,6 +18,7 @@
 ///   - s3: The third asynchronous sequence.
 /// - Returns: An asynchronous sequence that iterates first over the elements of `s1`, and
 ///   then over the elements of `s2`, and then over the elements of `s3`
+@available(AsyncAlgorithms 1.0, *)
 @inlinable
 public func chain<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>(
   _ s1: Base1,
@@ -28,6 +29,7 @@ public func chain<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequen
 }
 
 /// A concatenation of three asynchronous sequences with the same element type.
+@available(AsyncAlgorithms 1.0, *)
 @frozen
 public struct AsyncChain3Sequence<Base1: AsyncSequence, Base2: AsyncSequence, Base3: AsyncSequence>
 where Base1.Element == Base2.Element, Base1.Element == Base3.Element {
@@ -48,10 +50,12 @@ where Base1.Element == Base2.Element, Base1.Element == Base3.Element {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChain3Sequence: AsyncSequence {
   public typealias Element = Base1.Element
 
   /// The iterator for a `AsyncChain3Sequence` instance.
+  @available(AsyncAlgorithms 1.0, *)
   @frozen
   public struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -93,12 +97,14 @@ extension AsyncChain3Sequence: AsyncSequence {
     }
   }
 
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func makeAsyncIterator() -> Iterator {
     Iterator(base1.makeAsyncIterator(), base2.makeAsyncIterator(), base3.makeAsyncIterator())
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChain3Sequence: Sendable where Base1: Sendable, Base2: Sendable, Base3: Sendable {}
 
 @available(*, unavailable)

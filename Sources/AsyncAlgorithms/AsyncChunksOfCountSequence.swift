@@ -9,8 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence {
   /// Creates an asynchronous sequence that creates chunks of a given `RangeReplaceableCollection` of a given count.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunks<Collected: RangeReplaceableCollection>(
     ofCount count: Int,
@@ -20,6 +22,7 @@ extension AsyncSequence {
   }
 
   /// Creates an asynchronous sequence that creates chunks of a given count.
+  @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func chunks(ofCount count: Int) -> AsyncChunksOfCountSequence<Self, [Element]> {
     chunks(ofCount: count, into: [Element].self)
@@ -27,6 +30,7 @@ extension AsyncSequence {
 }
 
 /// An `AsyncSequence` that chunks elements into `RangeReplaceableCollection` instances of at least a given count.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncChunksOfCountSequence<Base: AsyncSequence, Collected: RangeReplaceableCollection>: AsyncSequence
 where Collected.Element == Base.Element {
   public typealias Element = Collected
@@ -89,8 +93,7 @@ where Collected.Element == Base.Element {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChunksOfCountSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncChunksOfCountSequence.Iterator: Sendable where Base.AsyncIterator: Sendable, Base.Element: Sendable {}
-
-@available(*, unavailable)
-extension AsyncChunksOfCountSequence.Iterator: Sendable {}

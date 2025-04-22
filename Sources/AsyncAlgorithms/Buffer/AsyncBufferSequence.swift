@@ -9,6 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence where Self: Sendable {
   /// Creates an asynchronous sequence that buffers elements.
   ///
@@ -20,6 +21,7 @@ extension AsyncSequence where Self: Sendable {
   ///
   /// - Parameter policy: A policy that drives the behaviour of the ``AsyncBufferSequence``
   /// - Returns: An asynchronous sequence that buffers elements up to a given limit.
+  @available(AsyncAlgorithms 1.0, *)
   public func buffer(
     policy: AsyncBufferSequencePolicy
   ) -> AsyncBufferSequence<Self> {
@@ -28,6 +30,7 @@ extension AsyncSequence where Self: Sendable {
 }
 
 /// A policy dictating the buffering behaviour of an ``AsyncBufferSequence``
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncBufferSequencePolicy: Sendable {
   enum _Policy {
     case bounded(Int)
@@ -69,6 +72,7 @@ public struct AsyncBufferSequencePolicy: Sendable {
 }
 
 /// An `AsyncSequence` that buffers elements in regard to a policy.
+@available(AsyncAlgorithms 1.0, *)
 public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence {
   enum StorageType {
     case transparent(Base.AsyncIterator)
@@ -125,6 +129,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncBufferSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)
