@@ -288,10 +288,15 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
     @usableFromInline
     let _storage: _Storage
+    
+    @usableFromInline
+    let _id: UInt64
 
-    internal init(storage: _Storage) {
+    internal init(
+      storage: _Storage
+    ) {
       self._storage = storage
-      self._storage.sourceInitialized()
+      self._id = self._storage.sourceInitialized()
     }
 
     deinit {
@@ -301,8 +306,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
     /// Sets a callback to invoke when the channel terminated.
     ///
     /// This is called after the last element has been consumed by the channel.
-    public func setOnTerminationCallback(_ callback: @escaping @Sendable () -> Void) {
-      self._storage.onTermination = callback
+    /// If the channel has already terminated this callback is called immediately.
+    ///
+    /// - Important: Only one termination callback can be set per source. Setting a callback if
+    /// a previous one has been set will override the previous one.
+    public func setOnTerminationCallback(_ callback: (@Sendable () -> Void)?) {
+      self._storage.setOnTerminationCallback(sourceID: self._id, callback: callback)
     }
 
     /// Creates a new source which can be used to send elements to the channel concurrently.
