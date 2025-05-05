@@ -81,25 +81,35 @@ final class MultiProducerSingleConsumerAsyncChannelTests: XCTestCase {
     var channel = consume channelAndSource.channel
     var source1 = consume channelAndSource.source
     var source2 = source1.copy()
-    nonisolated(unsafe) var didTerminate = false
+    nonisolated(unsafe) var didTerminate1 = false
+    nonisolated(unsafe) var didTerminate2 = false
     source1.setOnTerminationCallback {
-      didTerminate = true
+      didTerminate1 = true
+    }
+    source2.setOnTerminationCallback {
+      didTerminate2 = true
     }
 
     _ = try await source1.send(1)
-    XCTAssertFalse(didTerminate)
+    XCTAssertFalse(didTerminate1)
+    XCTAssertFalse(didTerminate2)
     _ = consume source1
-    XCTAssertFalse(didTerminate)
+    XCTAssertFalse(didTerminate1)
+    XCTAssertFalse(didTerminate2)
     _ = try await source2.send(2)
-    XCTAssertFalse(didTerminate)
+    XCTAssertFalse(didTerminate1)
+    XCTAssertFalse(didTerminate2)
 
     _ = await channel.next()
-    XCTAssertFalse(didTerminate)
+    XCTAssertFalse(didTerminate1)
+    XCTAssertFalse(didTerminate2)
     _ = await channel.next()
-    XCTAssertFalse(didTerminate)
+    XCTAssertFalse(didTerminate1)
+    XCTAssertFalse(didTerminate2)
     _ = consume source2
     _ = await channel.next()
-    XCTAssertTrue(didTerminate)
+    XCTAssertTrue(didTerminate1)
+    XCTAssertTrue(didTerminate2)
   }
 
   func testSourceDeinitialized_whenSourceFinished() async throws {
