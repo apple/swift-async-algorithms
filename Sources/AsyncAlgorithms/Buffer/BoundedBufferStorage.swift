@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 @available(AsyncAlgorithms 1.0, *)
-final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
+struct BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
   private let stateMachine: ManagedCriticalState<BoundedBufferStateMachine<Base>>
 
   init(base: Base, limit: Int) {
@@ -152,7 +152,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
     }
   }
 
-  deinit {
+  func iteratorDeinitialized() {
     self.interrupted()
   }
 }
