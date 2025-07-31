@@ -75,6 +75,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       var buffer = [Element]()
       var finished = false
       var failure: Failure?
+      var cancelled = false
       var limit: CheckedContinuation<Bool, Never>?
       var demand: CheckedContinuation<Void, Never>?
       
@@ -155,14 +156,17 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func cancel() {
-      // TODO: this currently is a hard cancel, it should be refined to only cancel when everything is terminal
       let (task, limit, demand, cancelled) = state.withLock { state -> (IteratingTask?, CheckedContinuation<Bool, Never>?, CheckedContinuation<Void, Never>?, Bool)  in
-        defer {
-          state.iteratingTask = .cancelled
-          state.limit = nil
-          state.demand = nil
+        if state.sides.count == 0 {
+          defer {
+            state.iteratingTask = .cancelled
+            state.cancelled = true
+          }
+          return state.emit(state.iteratingTask)
+        } else {
+          state.cancelled = true
+          return state.emit(nil)
         }
-        return state.emit(state.iteratingTask)
       }
       task?.cancel()
       limit?.resume(returning: cancelled)
@@ -178,21 +182,32 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func unregisterSide(_ id: Int) {
-      let (side, continuation, cancelled) = state.withLock { state -> (Side.State?, CheckedContinuation<Bool, Never>?, Bool) in
+      let (side, continuation, cancelled, iteratingTaskToCancel) = state.withLock { state -> (Side.State?, CheckedContinuation<Bool, Never>?, Bool, IteratingTask?) in
         let side = state.sides.removeValue(forKey: id)
         state.trimBuffer()
+        let cancelRequested = state.sides.count == 0 && state.cancelled
         if let limit, state.buffer.count < limit {
           defer { state.limit = nil }
           if case .cancelled = state.iteratingTask {
-            return (side, state.limit, true)
+            return (side, state.limit, true, nil)
           } else {
-            return (side, state.limit, false)
+            defer {
+              if cancelRequested {
+                state.iteratingTask = .cancelled
+              }
+            }
+            return (side, state.limit, false, cancelRequested ? state.iteratingTask : nil)
           }
         } else {
           if case .cancelled = state.iteratingTask {
-            return (side, nil, true)
+            return (side, nil, true, nil)
           } else {
-            return (side, nil, false)
+            defer {
+              if cancelRequested {
+                state.iteratingTask = .cancelled
+              }
+            }
+            return (side, nil, false, cancelRequested ? state.iteratingTask : nil)
           }
         }
       }
@@ -201,6 +216,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       }
       if let side {
         side.continuaton?.resume(returning: .success(nil))
+      }
+      if let iteratingTaskToCancel {
+        iteratingTaskToCancel.cancel()
       }
     }
     
