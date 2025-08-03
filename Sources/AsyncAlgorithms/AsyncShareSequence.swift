@@ -12,7 +12,7 @@ extension AsyncSequence where Element: Sendable {
 struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable {
   final class Side {
     struct State {
-      var continuaton: CheckedContinuation<Result<Element?, Failure>, Never>?
+      var continuation: CheckedContinuation<Result<Element?, Failure>, Never>?
       var position = 0
       
       func offset(_ adjustment: Int) -> State {
