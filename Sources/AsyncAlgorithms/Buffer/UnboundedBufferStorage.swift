@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 @available(AsyncAlgorithms 1.0, *)
-final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
+struct UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Sendable {
   private let stateMachine: ManagedCriticalState<UnboundedBufferStateMachine<Base>>
 
   init(base: Base, policy: UnboundedBufferStateMachine<Base>.Policy) {
@@ -120,7 +120,7 @@ final class UnboundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Se
     }
   }
 
-  deinit {
+  func iteratorDeinitialized() {
     self.interrupted()
   }
 }

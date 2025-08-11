@@ -112,19 +112,45 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   }
 
   public struct Iterator: AsyncIteratorProtocol {
-    var storageType: StorageType
+    final class InternalClass {
+      private var storageType: StorageType
+
+      fileprivate init(storageType: StorageType) {
+        self.storageType = storageType
+      }
+
+      deinit {
+        switch self.storageType {
+        case .transparent: break
+        case .bounded(let storage):
+          storage.iteratorDeinitialized()
+        case .unbounded(let storage):
+          storage.iteratorDeinitialized()
+        }
+      }
+
+      public func next() async rethrows -> Element? {
+        switch self.storageType {
+        case .transparent(var iterator):
+          let element = try await iterator.next()
+          self.storageType = .transparent(iterator)
+          return element
+        case .bounded(let storage):
+          return try await storage.next()?._rethrowGet()
+        case .unbounded(let storage):
+          return try await storage.next()?._rethrowGet()
+        }
+      }
+    }
+
+    let internalClass: InternalClass
+
+    fileprivate init(storageType: StorageType) {
+      internalClass = InternalClass(storageType: storageType)
+    }
 
     public mutating func next() async rethrows -> Element? {
-      switch self.storageType {
-      case .transparent(var iterator):
-        let element = try await iterator.next()
-        self.storageType = .transparent(iterator)
-        return element
-      case .bounded(let storage):
-        return try await storage.next()?._rethrowGet()
-      case .unbounded(let storage):
-        return try await storage.next()?._rethrowGet()
-      }
+      try await internalClass.next()
     }
   }
 }
