@@ -98,7 +98,7 @@ The order of the interleaving of the prints are not guaranteed; however the orde
 If the creation were instead altered to the following:
 
 ```swift
-let exampleSource = [0, 1, 2, 3, 4].async.share(bufferingPolicy: .bufferingNewest(2))
+let exampleSource = [0, 1, 2, 3, 4].async.share(bufferingPolicy: .bufferingLatest(2))
 ```
 
 The output would print the possible ordering of:

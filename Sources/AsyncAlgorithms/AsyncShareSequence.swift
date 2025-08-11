@@ -227,9 +227,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       var generation = 0
       var sides = [Int: Side.State]()
       var iteratingTask: IteratingTask
-      var buffer = [Element]()
-      var finished = false
-      var failure: Failure?
+      private(set) var buffer = [Element]()
+      private(set) var finished = false
+      private(set) var failure: Failure?
       var cancelled = false
       var limit: UnsafeContinuation<Bool, Never>?
       var demand: UnsafeContinuation<Void, Never>?
@@ -485,11 +485,10 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
           if let element {
             state.enqueue(element)
           } else {
-            state.finished = true
+            state.finish()
           }
         case .failure(let failure):
-          state.finished = true
-          state.failure = failure
+          state.fail(failure)
         }
         for (id, side) in state.sides {
           if let continuation = side.continuaton {
