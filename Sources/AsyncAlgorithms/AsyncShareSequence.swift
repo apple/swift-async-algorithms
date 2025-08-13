@@ -123,10 +123,10 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
   final class Side {
     // Tracks the state of a single consumer's iteration.
     //
-    // - `continuaton`: The continuation waiting for the next element (nil if not waiting)
+    // - `continuation`: The continuation waiting for the next element (nil if not waiting)
     // - `position`: The consumer's current position in the shared buffer
     struct State {
-      var continuaton: UnsafeContinuation<Result<Element?, Failure>, Never>?
+      var continuation: UnsafeContinuation<Result<Element?, Failure>, Never>?
       var position = 0
       
       // Creates a new state with the position adjusted by the given offset.
@@ -137,7 +137,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       // - Parameter adjustment: The number of positions to subtract from the current position
       // - Returns: A new `State` with the adjusted position
       func offset(_ adjustment: Int) -> State {
-        State(continuaton: continuaton, position: position - adjustment)
+        State(continuation: continuation, position: position - adjustment)
       }
     }
     
@@ -397,7 +397,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         continuation.resume(returning: cancelled)
       }
       if let side {
-        side.continuaton?.resume(returning: .success(nil))
+        side.continuation?.resume(returning: .success(nil))
       }
       if let iteratingTaskToCancel {
         iteratingTaskToCancel.cancel()
@@ -437,7 +437,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
         let hasPendingDemand = state.withLock { state in
           for (_, side) in state.sides {
-            if side.continuaton != nil {
+            if side.continuation != nil {
               return true
             }
           }
@@ -485,13 +485,13 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
           state.fail(failure)
         }
         for (id, side) in state.sides {
-          if let continuation = side.continuaton {
+          if let continuation = side.continuation {
             if side.position < state.buffer.count {
               resumptions.append(Resumption(continuation: continuation, result: .success(state.buffer[side.position])))
               state.sides[id]?.position += 1
-              state.sides[id]?.continuaton = nil
+              state.sides[id]?.continuation = nil
             } else if state.finished {
-              state.sides[id]?.continuaton = nil
+              state.sides[id]?.continuation = nil
               if let failure = state.failure {
                 resumptions.append(Resumption(continuation: continuation, result: .failure(failure)))
               } else {
@@ -535,7 +535,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
               } else if state.finished {
                 return state.emit(.success(nil), limit: limit)
               } else {
-                state.sides[id]?.continuaton = continuation
+                state.sides[id]?.continuation = continuation
                 return state.emit(nil, limit: limit)
               }
             }
