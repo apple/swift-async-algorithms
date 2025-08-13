@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 public struct GatedSequence<Element> {
+  public typealias Failure = Never
   let elements: [Element]
   let gates: [Gate]
   var index = 0
@@ -37,6 +38,15 @@ extension GatedSequence: AsyncSequence {
     }
 
     public mutating func next() async -> Element? {
+      guard gatedElements.count > 0 else {
+        return nil
+      }
+      let (element, gate) = gatedElements.removeFirst()
+      await gate.enter()
+      return element
+    }
+    
+    public mutating func next(isolation actor: isolated (any Actor)?) async throws(Never) -> Element? {
       guard gatedElements.count > 0 else {
         return nil
       }
