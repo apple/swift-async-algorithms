@@ -29,7 +29,7 @@ The `Sendable` annotation identifies to the developer that this sequence can be 
 ```swift
 extension AsyncSequence where Element: Sendable {
   public func share(
-    bufferingPolicy: AsyncBufferSequencePolicy = .unbounded
+    bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)
   ) -> some AsyncSequence<Element, Failure> & Sendable
 }
 ```
@@ -44,7 +44,7 @@ When the underlying type backing the share algorithm is constructed a new extent
 
 That construction then creates an initial shared state and buffer. No task is started initially; it is only upon the first demand that the task backing the iteration is started; this means on the first call to next a task is spun up servicing all potential sides. The order of which the sides are serviced is not specified and cannot be relied upon, however the order of delivery within a side is always guarenteed to be ordered. The singular task servicing the iteration will be the only place holding any sort of iterator from the base `AsyncSequence`; so that iterator is isolated and not sent from one isolation to another. That iteration first awaits any limit availability and then awaits for a demand given by a side. After-which it then awaits an element or terminal event from the iterator and enqueues the elements to the buffer. 
 
-The buffer itself is only held in one location, each side however has a cursor index into that buffer and when values are consumed it adjusts the indexes accordingly; leaving the buffer usage only as big as the largest deficit. This means that new sides that are started post initial start up will not have a "replay" effect; that is a similar but distinct algorithm and is not addressed by this proposal. Any buffer size sensitive systems that wish to adjust behavior should be aware that specifying a policy is a suggested step. However in common usage similar to other such systems servicing desktop and mobile applications the default and common behavior is to be unbounded. This allows for a progressive disclosure from common usage that just works out of the box with no configuration, to more advanced cases that need finer grained control. Furthermore there are scenarios where one might want ways of identifing dropped value events within the iteration of a side, this is something that will be addressed later in an upcoming proposal.
+The buffer itself is only held in one location, each side however has a cursor index into that buffer and when values are consumed it adjusts the indexes accordingly; leaving the buffer usage only as big as the largest deficit. This means that new sides that are started post initial start up will not have a "replay" effect; that is a similar but distinct algorithm and is not addressed by this proposal. Any buffer size sensitive systems that wish to adjust behavior should be aware that specifying a policy is a suggested step. However in common usage similar to other such systems servicing desktop and mobile applications the common behavior is often unbounded. Alternatively desktop or mobile applications will often want `.bounded(1)` since that enforces the slowest consumption to drive the forward progress at most 1 buffered element. All of the use cases have a reasonable default of `.bounded(1)`; mobile, deskop, and server side uses. Leaving this as the default parameter keeps the progressive disclosure of the beahviors - such that the easiest thing to write is correct for all uses, and then more advanced control can be adjusted by passing in a specific policy. This default argument diverges slightly from AsyncStream, but follows a similar behavior to that of Combine's `share`.
 
 As previously stated, the isolation of the iteration of the upstream/base AsyncSequence is to a detached task, this ensures that individual sides can have independent cancellation. Those cancellations will have the effect of remvoing that side from the shared iteration and cleaning up accordingly (including adjusting the trimming of the internal buffer).
 
@@ -53,7 +53,7 @@ Representing concurrent access is difficult to express all potential examples bu
 Practically this all means that a given iteration may be "behind" another and can eventually catch up (provided it is within the buffer limit).
 
 ```swift
-let exampleSource = [0, 1, 2, 3, 4].async.share()
+let exampleSource = [0, 1, 2, 3, 4].async.share(bufferingPolicy: .unbounded)
 
 let t1 = Task {
   for await element in exampleSource {
@@ -130,6 +130,51 @@ Task 1 2
 ```
 
 However in this particular case the newest values are the dropped elements.
+
+The `.bounded(N)` policy enforces consumption to prevent any side from being beyond a given amount away from other sides' consumption.
+
+```swift
+let exampleSource = [0, 1, 2, 3, 4].async.share(bufferingPolicy: .bounded(1))
+
+let t1 = Task {
+  for await element in exampleSource {
+    if element == 0 {
+      try? await Task.sleep(for: .seconds(1))
+    }
+    print("Task 1", element)
+  }
+}
+
+let t2 = Task {
+  for await element in exampleSource {
+    if element == 3 {
+      try? await Task.sleep(for: .seconds(1))
+    }
+    print("Task 2", element)
+  }
+}
+
+await t1.value
+await t2.value
+```
+
+Will have a potential ordering output of:
+
+```
+Task 2 0
+Task 2 1
+Task 1 0
+Task 1 1
+Task 2 2
+Task 1 2
+Task 1 3
+Task 1 4
+Task 2 3
+Task 2 4
+```
+
+In that example output Task 2 can get element 0 and 1 but must await until task 1 has caught up to the specified buffering. This limit means that no additional iteration (and no values are then dropped) is made until the buffer count is below the specified value.
+
 
 ## Effect on API resilience
 

@@ -1,20 +1,147 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Async Algorithms open source project
+//
+// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+//
+//===----------------------------------------------------------------------===//
+
 import Synchronization
 
-@available(macOS 26.0, *)
-extension AsyncSequence where Element: Sendable {
-  @available(macOS 26.0, *) // TODO: fix the availability for this to be defined as @available(AsyncAlgorithms 1.1, *)
-  public func share(bufferingPolicy: AsyncBufferSequencePolicy = .unbounded) -> some AsyncSequence<Element, Failure> & Sendable {
-    return AsyncShareSequence(self, bufferingPolicy: bufferingPolicy)
+@available(AsyncAlgorithms 1.1, *)
+extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
+  /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
+  ///
+  /// The `share` method transforms an async sequence into a shareable sequence that can be safely
+  /// iterated by multiple concurrent tasks. This is useful when you want to broadcast elements from
+  /// a single source to multiple consumers without duplicating work or creating separate iterations.
+  ///
+  /// - Important: Each element from the source sequence is delivered to all active iterators.
+  ///   Elements are buffered according to the specified buffering policy to handle timing differences
+  ///   between consumers.
+  ///
+  /// - Parameter bufferingPolicy: The policy controlling how elements are buffered when consumers
+  ///   iterate at different rates. Defaults to `.bounded(1)`.
+  ///   - `.bounded(n)`: Limits the buffer to `n` elements, applying backpressure to the source when that limit is reached
+  ///   - `.bufferingOldest(n)`: Keeps the oldest `n` elements, discarding newer ones when full
+  ///   - `.bufferingNewest(n)`: Keeps the newest `n` elements, discarding older ones when full  
+  ///   - `.unbounded`: Allows unlimited buffering (use with caution)
+  ///
+  /// - Returns: A sendable async sequence that can be safely shared across multiple concurrent tasks.
+  ///
+  /// ## Example Usage
+  ///
+  /// ```swift
+  /// let numbers = AsyncStream<Int> { continuation in
+  ///     Task {
+  ///         for i in 1...5 {
+  ///             continuation.yield(i)
+  ///             try await Task.sleep(for: .seconds(1))
+  ///         }
+  ///         continuation.finish()
+  ///     }
+  /// }
+  ///
+  /// let shared = numbers.share()
+  ///
+  /// // Multiple tasks can iterate concurrently
+  /// async let consumer1 = Task {
+  ///     for await value in shared {
+  ///         print("Consumer 1: \(value)")
+  ///     }
+  /// }
+  ///
+  /// async let consumer2 = Task {
+  ///     for await value in shared {
+  ///         print("Consumer 2: \(value)")
+  ///     }
+  /// }
+  ///
+  /// await consumer1.value
+  /// await consumer2.value
+  /// ```
+  ///
+  /// ## Buffering Behavior
+  ///
+  /// The buffering policy determines how the shared sequence handles elements when consumers
+  /// iterate at different speeds:
+  ///
+  /// - **Bounded**: Applies backpressure to slow down the source when the buffer is full
+  /// - **Buffering Oldest**: Drops new elements when the buffer is full, preserving older ones
+  /// - **Buffering Newest**: Drops old elements when the buffer is full, preserving newer ones
+  /// - **Unbounded**: Never drops elements but may consume unbounded memory
+  ///
+  /// - Note: The source async sequence's iterator is consumed only once, regardless of how many
+  ///   concurrent consumers are active. This makes sharing efficient for expensive-to-produce sequences.
+  public func share(bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)) -> some AsyncSequence<Element, Failure> & Sendable {
+    // the iterator is transferred to the isolation of the iterating task
+    // this has to be done "unsafely" since we cannot annotate the transfer
+    // however since iterating an AsyncSequence types twice has been defined
+    // as invalid and one creation of the iterator is virtually a consuming
+    // operation so this is safe at runtime.
+    nonisolated(unsafe) let iterator = makeAsyncIterator()
+    return AsyncShareSequence<Self>( {
+      iterator
+    }, bufferingPolicy: bufferingPolicy)
   }
 }
 
-@available(macOS 26.0, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable {
+// An async sequence that enables safe concurrent sharing of a single source sequence.
+//
+// `AsyncShareSequence` wraps a base async sequence and allows multiple concurrent iterators
+// to consume elements from the same source. It handles all the complexity of coordinating
+// between multiple consumers, buffering elements, and managing the lifecycle of the underlying
+// iteration.
+//
+// ## Key Features
+//
+// - **Single Source Iteration**: The base sequence's iterator is created and consumed only once
+// - **Concurrent Safe**: Multiple tasks can safely iterate simultaneously
+// - **Configurable Buffering**: Supports various buffering strategies for different use cases
+// - **Automatic Cleanup**: Properly manages resources and cancellation across all consumers
+//
+// ## Internal Architecture
+//
+// The implementation uses several key components:
+// - `Side`: Represents a single consumer's iteration state
+// - `Iteration`: Coordinates all consumers and manages the shared buffer
+// - `Extent`: Manages the overall lifecycle and cleanup
+//
+// This type is typically not used directly; instead, use the `share()` method on any
+// async sequence that meets the sendability requirements.
+@available(AsyncAlgorithms 1.1, *)
+struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
+  // Represents a single consumer's connection to the shared sequence.
+  //
+  // Each iterator of the shared sequence creates its own `Side` instance, which tracks
+  // that consumer's position in the shared buffer and manages its continuation for
+  // async iteration. The `Side` automatically registers itself with the central
+  // `Iteration` coordinator and cleans up when deallocated.
+  //
+  // ## Lifecycle
+  //
+  // - **Creation**: Automatically registers with the iteration coordinator
+  // - **Usage**: Tracks buffer position and manages async continuations
+  // - **Cleanup**: Automatically unregisters and cancels pending operations on deinit
   final class Side {
+    // Tracks the state of a single consumer's iteration.
+    //
+    // - `continuaton`: The continuation waiting for the next element (nil if not waiting)
+    // - `position`: The consumer's current position in the shared buffer
     struct State {
-      var continuation: CheckedContinuation<Result<Element?, Failure>, Never>?
+      var continuaton: UnsafeContinuation<Result<Element?, Failure>, Never>?
       var position = 0
       
+      // Creates a new state with the position adjusted by the given offset.
+      //
+      // This is used when the shared buffer is trimmed to maintain correct
+      // relative positioning for this consumer.
+      //
+      // - Parameter adjustment: The number of positions to subtract from the current position
+      // - Returns: A new `State` with the adjusted position
       func offset(_ adjustment: Int) -> State {
         State(continuaton: continuaton, position: position - adjustment)
       }
@@ -37,11 +164,29 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
   }
   
+  // The central coordinator that manages the shared iteration state.
+  //
+  // `Iteration` is responsible for:
+  // - Managing the single background task that consumes the source sequence
+  // - Coordinating between multiple consumer sides
+  // - Buffering elements according to the specified policy
+  // - Handling backpressure and flow control
+  // - Managing cancellation and cleanup
+  //
+  // ## Thread Safety
+  //
+  // All operations are synchronized using a `Mutex` to ensure thread-safe access
+  // to the shared state across multiple concurrent consumers.
   final class Iteration: Sendable {
-    // this is the swapped state of transferring the base to the iterating task
-    // it does send the Base... but only one transfer
-    enum IteratingTask: @unchecked Sendable {
-      case pending(Base)
+    // Represents the state of the background task that consumes the source sequence.
+    //
+    // The iteration task goes through several states during its lifecycle:
+    // - `pending`: Initial state, holds the factory to create the iterator
+    // - `starting`: Transitional state while the task is being created
+    // - `running`: Active state with a running background task
+    // - `cancelled`: Terminal state when the iteration has been cancelled
+    enum IteratingTask {
+      case pending(@Sendable () -> sending Base.AsyncIterator)
       case starting
       case running(Task<Void, Never>)
       case cancelled
@@ -62,7 +207,17 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         }
       }
     }
+    // The complete shared state for coordinating all aspects of the shared iteration.
+    //
+    // This state is protected by a mutex and contains all the information needed
+    // to coordinate between multiple consumers, manage buffering, and control
+    // the background iteration task.
     struct State: Sendable {
+      // Defines how elements are stored and potentially discarded in the shared buffer.
+      //
+      // - `unbounded`: Store all elements without limit (may cause memory growth)
+      // - `bufferingOldest(Int)`: Keep only the oldest N elements, ignore newer ones when full
+      // - `bufferingNewest(Int)`: Keep only the newest N elements, discard older ones when full
       enum StoragePolicy: Sendable {
         case unbounded
         case bufferingOldest(Int)
@@ -76,13 +231,13 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       var finished = false
       var failure: Failure?
       var cancelled = false
-      var limit: CheckedContinuation<Bool, Never>?
-      var demand: CheckedContinuation<Void, Never>?
+      var limit: UnsafeContinuation<Bool, Never>?
+      var demand: UnsafeContinuation<Void, Never>?
       
       let storagePolicy: StoragePolicy
       
-      init(_ base: Base, bufferingPolicy: AsyncBufferSequencePolicy) {
-        self.iteratingTask = .pending(base)
+      init(_ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator, bufferingPolicy: AsyncBufferSequencePolicy) {
+        self.iteratingTask = .pending(iteratorFactory)
         switch bufferingPolicy.policy {
         case .bounded: self.storagePolicy = .unbounded
         case .bufferingOldest(let bound): self.storagePolicy = .bufferingOldest(bound)
@@ -91,6 +246,14 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         }
       }
       
+      // Removes elements from the front of the buffer that all consumers have already processed.
+      //
+      // This method finds the minimum position across all active consumers and removes
+      // that many elements from the front of the buffer. It then adjusts all consumer
+      // positions to account for the removed elements, maintaining their relative positions.
+      //
+      // This optimization prevents the buffer from growing indefinitely when all consumers
+      // are keeping pace with each other.
       mutating func trimBuffer() {
         if let minimumIndex = sides.values.map({ $0.position }).min(), minimumIndex > 0 {
           buffer.removeFirst(minimumIndex)
@@ -100,18 +263,43 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         }
       }
       
-      mutating func emit<T>(_ value: T) -> (T, CheckedContinuation<Bool, Never>?, CheckedContinuation<Void, Never>?, Bool) {
+      // Private state machine transitions for the emission of a given value.
+      //
+      // This method ensures the continuations are properly consumed when emitting values
+      // and returns those continuations for resumption.
+      private mutating func _emit<T>(_ value: T, limit: Int) -> (T, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) {
+        let belowLimit = buffer.count < limit || limit == 0
         defer {
-          limit = nil
+          if belowLimit {
+            self.limit = nil
+          }
           demand = nil
         }
         if case .cancelled = iteratingTask {
-          return (value, limit, demand, true)
+          return (value, belowLimit ? self.limit : nil, demand, true)
         } else {
-          return (value, limit, demand, false)
+          return (value, belowLimit ? self.limit : nil, demand, false)
         }
       }
       
+      // Internal state machine transitions for the emission of a given value.
+      //
+      // This method ensures the continuations are properly consumed when emitting values
+      // and returns those continuations for resumption.
+      //
+      // If no limit is specified it interprets that as an unbounded limit.
+      mutating func emit<T>(_ value: T, limit: Int?) -> (T, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) {
+        return _emit(value, limit: limit ?? .max)
+      }
+      
+      // Adds an element to the buffer according to the configured storage policy.
+      //
+      // The behavior depends on the storage policy:
+      // - **Unbounded**: Always appends the element
+      // - **Buffering Oldest**: Appends only if under the limit, otherwise ignores the element
+      // - **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
+      //
+      // - Parameter element: The element to add to the buffer
       mutating func enqueue(_ element: Element) {
         let count = buffer.count
         
@@ -145,8 +333,8 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     let state: Mutex<State>
     let limit: Int?
     
-    init(_ base: Base, bufferingPolicy: AsyncBufferSequencePolicy) {
-      state = Mutex(State(base, bufferingPolicy: bufferingPolicy))
+    init(_ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator, bufferingPolicy: AsyncBufferSequencePolicy) {
+      state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
       switch bufferingPolicy.policy {
       case .bounded(let limit):
         self.limit = limit
@@ -156,20 +344,20 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func cancel() {
-      let (task, limit, demand, cancelled) = state.withLock { state -> (IteratingTask?, CheckedContinuation<Bool, Never>?, CheckedContinuation<Void, Never>?, Bool)  in
+      let (task, limitContinuation, demand, cancelled) = state.withLock { state -> (IteratingTask?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool)  in
         if state.sides.count == 0 {
           defer {
             state.iteratingTask = .cancelled
             state.cancelled = true
           }
-          return state.emit(state.iteratingTask)
+          return state.emit(state.iteratingTask, limit: limit)
         } else {
           state.cancelled = true
-          return state.emit(nil)
+          return state.emit(nil, limit: limit)
         }
       }
       task?.cancel()
-      limit?.resume(returning: cancelled)
+      limitContinuation?.resume(returning: cancelled)
       demand?.resume()
     }
     
@@ -182,7 +370,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func unregisterSide(_ id: Int) {
-      let (side, continuation, cancelled, iteratingTaskToCancel) = state.withLock { state -> (Side.State?, CheckedContinuation<Bool, Never>?, Bool, IteratingTask?) in
+      let (side, continuation, cancelled, iteratingTaskToCancel) = state.withLock { state -> (Side.State?, UnsafeContinuation<Bool, Never>?, Bool, IteratingTask?) in
         let side = state.sides.removeValue(forKey: id)
         state.trimBuffer()
         let cancelRequested = state.sides.count == 0 && state.cancelled
@@ -224,8 +412,8 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     
     func iterate() async -> Bool {
       if let limit {
-        let cancelled = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-          let (resume, cancelled) = state.withLock { state -> (CheckedContinuation<Bool, Never>?, Bool) in
+        let cancelled = await withUnsafeContinuation { (continuation: UnsafeContinuation<Bool, Never>) in
+          let (resume, cancelled) = state.withLock { state -> (UnsafeContinuation<Bool, Never>?, Bool) in
             if state.buffer.count >= limit {
               state.limit = continuation
               if case .cancelled = state.iteratingTask {
@@ -252,7 +440,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       }
       
       // await a demand
-      await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
         let hasPendingDemand = state.withLock { state in
           for (_, side) in state.sides {
             if side.continuaton != nil {
@@ -281,7 +469,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     struct Resumption {
-      let continuation: CheckedContinuation<Result<Element?, Failure>, Never>
+      let continuation: UnsafeContinuation<Result<Element?, Failure>, Never>
       let result: Result<Element?, Failure>
       
       func resume() {
@@ -290,7 +478,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func emit(_ result: Result<Element?, Failure>) {
-      let (resumptions, demandContinuation) = state.withLock { state -> ([Resumption], CheckedContinuation<Void, Never>?) in
+      let (resumptions, limitContinuation, demandContinuation, cancelled) = state.withLock { state -> ([Resumption], UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
         var resumptions = [Resumption]()
         switch result {
         case .success(let element):
@@ -320,14 +508,11 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
           }
         }
         state.trimBuffer()
-        if let limit, state.buffer.count < limit {
-          defer {
-            state.demand = nil
-          }
-          return (resumptions, state.demand)
-        } else {
-          return (resumptions, nil)
-        }
+        return state.emit(resumptions, limit: limit)
+      }
+      
+      if let limitContinuation {
+        limitContinuation.resume(returning: cancelled)
       }
       if let demandContinuation {
         demandContinuation.resume()
@@ -338,11 +523,11 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
     
     func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Element? {
-      let (base, cancelled) = state.withLock { state -> (Base?, Bool) in
+      let (factory, cancelled) = state.withLock { state -> ((@Sendable () -> sending Base.AsyncIterator)?, Bool) in
         switch state.iteratingTask {
-        case .pending(let base):
+        case .pending(let factory):
           state.iteratingTask = .starting
-          return (base, false)
+          return (factory, false)
         case .cancelled:
           return (nil, true)
         default:
@@ -350,10 +535,13 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         }
       }
       if cancelled { return nil }
-      if let base {
-        nonisolated(unsafe) let transfer = base.makeAsyncIterator()
-        let task = Task.detached { [transfer, self] in
-          var iterator = transfer
+      if let factory {
+        // this has to be interfaced as detached since we want the priority inference
+        // from the creator to not have a direct effect on the iteration.
+        // This might be improved later by passing on the creation context's task
+        // priority.
+        let task = Task.detached(name: "Share Iteration") { [factory, self] in
+          var iterator = factory()
           do {
             while await iterate() {
               if let element = try await iterator.next() {
@@ -372,24 +560,26 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
         }
       }
       let result: Result<Element?, Failure> = await withTaskCancellationHandler {
-        await withCheckedContinuation { continuation in
-          let (res, limitContinuation, demandContinuation, cancelled) = state.withLock { state -> (Result<Element?, Failure>?, CheckedContinuation<Bool, Never>?, CheckedContinuation<Void, Never>?, Bool) in
-            let side = state.sides[id]!
+        await withUnsafeContinuation { continuation in
+          let (res, limitContinuation, demandContinuation, cancelled) = state.withLock { state -> (Result<Element?, Failure>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
+            guard let side = state.sides[id] else {
+              return state.emit(.success(nil), limit: limit)
+            }
             if side.position < state.buffer.count {
               // There's an element available at this position
               let element = state.buffer[side.position]
               state.sides[id]?.position += 1
               state.trimBuffer()
-              return state.emit(.success(element))
+              return state.emit(.success(element), limit: limit)
             } else {
               // Position is beyond the buffer
               if let failure = state.failure {
-                return state.emit(.failure(failure))
+                return state.emit(.failure(failure), limit: limit)
               } else if state.finished {
-                return state.emit(.success(nil))
+                return state.emit(.success(nil), limit: limit)
               } else {
                 state.sides[id]?.continuaton = continuation
-                return state.emit(nil)
+                return state.emit(nil, limit: limit)
               }
             }
           }
@@ -411,11 +601,20 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     }
   }
   
+  // Manages the lifecycle of the shared iteration.
+  //
+  // `Extent` serves as the ownership boundary for the shared sequence. When the
+  // `AsyncShareSequence` itself is deallocated, the `Extent` ensures that the
+  // background iteration task is properly cancelled and all resources are cleaned up.
+  //
+  // This design allows multiple iterators to safely reference the same underlying
+  // iteration coordinator while ensuring proper cleanup when the shared sequence
+  // is no longer needed.
   final class Extent: Sendable {
     let iteration: Iteration
     
-    init(_ base: Base, bufferingPolicy: AsyncBufferSequencePolicy) {
-      iteration = Iteration(base, bufferingPolicy: bufferingPolicy)
+    init(_ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator, bufferingPolicy: AsyncBufferSequencePolicy) {
+      iteration = Iteration(iteratorFactory, bufferingPolicy: bufferingPolicy)
     }
     
     deinit {
@@ -425,19 +624,18 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
   
   let extent: Extent
   
-  init(_ base: Base, bufferingPolicy: AsyncBufferSequencePolicy) {
-    extent = Extent(base, bufferingPolicy: bufferingPolicy)
+  
+  init(_ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator, bufferingPolicy: AsyncBufferSequencePolicy) {
+    extent = Extent(iteratorFactory, bufferingPolicy: bufferingPolicy)
   }
 }
 
-@available(macOS 26.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension AsyncShareSequence: AsyncSequence {
   typealias Element = Base.Element
   typealias Failure = Base.Failure
   
   struct Iterator: AsyncIteratorProtocol {
-    
-    
     let side: Side
     
     init(_ iteration: Iteration) {
