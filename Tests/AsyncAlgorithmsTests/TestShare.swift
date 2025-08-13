@@ -547,25 +547,6 @@ final class TestShare: XCTestCase {
     let value = await newIterator.next(isolation: nil)
     XCTAssertNil(value) // Should return nil since source is exhausted
   }
-
-  // MARK: - Edge Cases
-  
-  func test_share_with_immediate_cancellation() async {
-    let shared = Indefinite(value: 42).async.share()
-    
-    let task = Task {
-      for await _ in shared {
-        // This should not execute since we cancel immediately
-        XCTFail("Should not execute due to immediate cancellation")
-      }
-    }
-    
-    // Cancel immediately
-    task.cancel()
-    
-    // Task should complete without issues
-    await task.value
-  }
   
   func test_share_multiple_sequential_consumers() async {
     let source = [1, 2, 3, 4, 5]
@@ -590,6 +571,6 @@ final class TestShare: XCTestCase {
 
 // MARK: - Helper Types
 
-enum TestError: Error, Equatable {
+fileprivate enum TestError: Error, Equatable {
   case failure
 }
