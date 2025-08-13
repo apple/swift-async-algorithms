@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 import Synchronization
+import DequeModule
 
 @available(AsyncAlgorithms 1.1, *)
 extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
@@ -19,69 +20,62 @@ extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIt
   /// iterated by multiple concurrent tasks. This is useful when you want to broadcast elements from
   /// a single source to multiple consumers without duplicating work or creating separate iterations.
   ///
-  /// - Important: Each element from the source sequence is delivered to all active iterators.
-  ///   Elements are buffered according to the specified buffering policy to handle timing differences
-  ///   between consumers.
+  /// Each element from the source sequence is delivered to all active iterators.
+  /// Elements are buffered according to the specified buffering policy to handle timing differences
+  /// between consumers.
   ///
-  /// - Parameter bufferingPolicy: The policy controlling how elements are buffered when consumers
-  ///   iterate at different rates. Defaults to `.bounded(1)`.
-  ///   - `.bounded(n)`: Limits the buffer to `n` elements, applying backpressure to the source when that limit is reached
-  ///   - `.bufferingOldest(n)`: Keeps the oldest `n` elements, discarding newer ones when full
-  ///   - `.bufferingNewest(n)`: Keeps the newest `n` elements, discarding older ones when full  
-  ///   - `.unbounded`: Allows unlimited buffering (use with caution)
-  ///
-  /// - Returns: A sendable async sequence that can be safely shared across multiple concurrent tasks.
+  /// The base sequence is iterated in it's own task to ensure that cancellation is not polluted from
+  /// one side of iteration to another.
   ///
   /// ## Example Usage
   ///
   /// ```swift
-  /// let numbers = AsyncStream<Int> { continuation in
-  ///     Task {
-  ///         for i in 1...5 {
-  ///             continuation.yield(i)
-  ///             try await Task.sleep(for: .seconds(1))
-  ///         }
-  ///         continuation.finish()
-  ///     }
+  /// let numbers = [1, 2, 3, 4, 5].share.map {
+  ///  try? await Task.sleep(for: .seconds(1))
+  ///  return $0
   /// }
   ///
   /// let shared = numbers.share()
   ///
   /// // Multiple tasks can iterate concurrently
-  /// async let consumer1 = Task {
-  ///     for await value in shared {
-  ///         print("Consumer 1: \(value)")
-  ///     }
+  /// let consumer1 = Task {
+  ///   for await value in shared {
+  ///     print("Consumer 1: \(value)")
+  ///   }
   /// }
   ///
-  /// async let consumer2 = Task {
-  ///     for await value in shared {
-  ///         print("Consumer 2: \(value)")
-  ///     }
+  /// let consumer2 = Task {
+  ///   for await value in shared {
+  ///     print("Consumer 2: \(value)")
+  ///   }
   /// }
   ///
   /// await consumer1.value
   /// await consumer2.value
   /// ```
   ///
-  /// ## Buffering Behavior
+  /// - Parameter bufferingPolicy: The policy controlling how elements are enqueued to the shared buffer. Defaults to `.bounded(1)`.
+  ///   - `.bounded(n)`: Limits the buffer to `n` elements, applying backpressure to the source when that limit is reached
+  ///   - `.bufferingOldest(n)`: Keeps the oldest `n` elements, discarding newer ones when full
+  ///   - `.bufferingNewest(n)`: Keeps the newest `n` elements, discarding older ones when full
+  ///   - `.unbounded`: Allows unlimited buffering (use with caution)
   ///
-  /// The buffering policy determines how the shared sequence handles elements when consumers
-  /// iterate at different speeds:
+  /// - Returns: A sendable async sequence that can be safely shared across multiple concurrent tasks.
   ///
-  /// - **Bounded**: Applies backpressure to slow down the source when the buffer is full
-  /// - **Buffering Oldest**: Drops new elements when the buffer is full, preserving older ones
-  /// - **Buffering Newest**: Drops old elements when the buffer is full, preserving newer ones
-  /// - **Unbounded**: Never drops elements but may consume unbounded memory
-  ///
-  /// - Note: The source async sequence's iterator is consumed only once, regardless of how many
-  ///   concurrent consumers are active. This makes sharing efficient for expensive-to-produce sequences.
   public func share(bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)) -> some AsyncSequence<Element, Failure> & Sendable {
-    // the iterator is transferred to the isolation of the iterating task
+    // The iterator is transferred to the isolation of the iterating task
     // this has to be done "unsafely" since we cannot annotate the transfer
     // however since iterating an AsyncSequence types twice has been defined
     // as invalid and one creation of the iterator is virtually a consuming
     // operation so this is safe at runtime.
+    // The general principal of `.share()` is to provide a mecahnism for non-
+    // shared AsyncSequence types to be shared. The parlance for those is
+    // that the base AsyncSequence type is not Sendable. If the iterator
+    // is not marked as `nonisolated(unsafe)` the compiler will claim that
+    // the value is "Capture of 'iterator' with non-Sendable type 'Self.AsyncIterator' in a '@Sendable' closure;"
+    // Since the closure returns a disconnected non-sendable value there is no
+    // distinct problem here and the compiler just needs to be informed
+    // that the diagnostic is overly pessimistic.
     nonisolated(unsafe) let iterator = makeAsyncIterator()
     return AsyncShareSequence<Self>( {
       iterator
@@ -98,17 +92,17 @@ extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIt
 //
 // ## Key Features
 //
-// - **Single Source Iteration**: The base sequence's iterator is created and consumed only once
-// - **Concurrent Safe**: Multiple tasks can safely iterate simultaneously
-// - **Configurable Buffering**: Supports various buffering strategies for different use cases
-// - **Automatic Cleanup**: Properly manages resources and cancellation across all consumers
+//   **Single Source Iteration**: The base sequence's iterator is created and consumed only once
+//   **Concurrent Safe**: Multiple tasks can safely iterate simultaneously
+//   **Configurable Buffering**: Supports various buffering strategies for different use cases
+//   **Automatic Cleanup**: Properly manages resources and cancellation across all consumers
 //
 // ## Internal Architecture
 //
 // The implementation uses several key components:
-// - `Side`: Represents a single consumer's iteration state
-// - `Iteration`: Coordinates all consumers and manages the shared buffer
-// - `Extent`: Manages the overall lifecycle and cleanup
+//   `Side`: Represents a single consumer's iteration state
+//   `Iteration`: Coordinates all consumers and manages the shared buffer
+//   `Extent`: Manages the overall lifecycle and cleanup
 //
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
@@ -123,9 +117,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
   //
   // ## Lifecycle
   //
-  // - **Creation**: Automatically registers with the iteration coordinator
-  // - **Usage**: Tracks buffer position and manages async continuations
-  // - **Cleanup**: Automatically unregisters and cancels pending operations on deinit
+  //   **Creation**: Automatically registers with the iteration coordinator
+  //   **Usage**: Tracks buffer position and manages async continuations
+  //   **Cleanup**: Automatically unregisters and cancels pending operations on deinit
   final class Side {
     // Tracks the state of a single consumer's iteration.
     //
@@ -167,11 +161,11 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
   // The central coordinator that manages the shared iteration state.
   //
   // `Iteration` is responsible for:
-  // - Managing the single background task that consumes the source sequence
-  // - Coordinating between multiple consumer sides
-  // - Buffering elements according to the specified policy
-  // - Handling backpressure and flow control
-  // - Managing cancellation and cleanup
+  //   Managing the single background task that consumes the source sequence
+  //   Coordinating between multiple consumer sides
+  //   Buffering elements according to the specified policy
+  //   Handling backpressure and flow control
+  //   Managing cancellation and cleanup
   //
   // ## Thread Safety
   //
@@ -181,10 +175,10 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     // Represents the state of the background task that consumes the source sequence.
     //
     // The iteration task goes through several states during its lifecycle:
-    // - `pending`: Initial state, holds the factory to create the iterator
-    // - `starting`: Transitional state while the task is being created
-    // - `running`: Active state with a running background task
-    // - `cancelled`: Terminal state when the iteration has been cancelled
+    //   `pending`: Initial state, holds the factory to create the iterator
+    //   `starting`: Transitional state while the task is being created
+    //   `running`: Active state with a running background task
+    //   `cancelled`: Terminal state when the iteration has been cancelled
     enum IteratingTask {
       case pending(@Sendable () -> sending Base.AsyncIterator)
       case starting
@@ -215,9 +209,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
     struct State: Sendable {
       // Defines how elements are stored and potentially discarded in the shared buffer.
       //
-      // - `unbounded`: Store all elements without limit (may cause memory growth)
-      // - `bufferingOldest(Int)`: Keep only the oldest N elements, ignore newer ones when full
-      // - `bufferingNewest(Int)`: Keep only the newest N elements, discard older ones when full
+      //   `unbounded`: Store all elements without limit (may cause memory growth)
+      //   `bufferingOldest(Int)`: Keep only the oldest N elements, ignore newer ones when full
+      //   `bufferingNewest(Int)`: Keep only the newest N elements, discard older ones when full
       enum StoragePolicy: Sendable {
         case unbounded
         case bufferingOldest(Int)
@@ -227,7 +221,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       var generation = 0
       var sides = [Int: Side.State]()
       var iteratingTask: IteratingTask
-      private(set) var buffer = [Element]()
+      private(set) var buffer = Deque<Element>()
       private(set) var finished = false
       private(set) var failure: Failure?
       var cancelled = false
@@ -295,9 +289,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       // Adds an element to the buffer according to the configured storage policy.
       //
       // The behavior depends on the storage policy:
-      // - **Unbounded**: Always appends the element
-      // - **Buffering Oldest**: Appends only if under the limit, otherwise ignores the element
-      // - **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
+      //   **Unbounded**: Always appends the element
+      //   **Buffering Oldest**: Appends only if under the limit, otherwise ignores the element
+      //   **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
       //
       // - Parameter element: The element to add to the buffer
       mutating func enqueue(_ element: Element) {
@@ -521,44 +515,8 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       }
     }
     
-    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Element? {
-      let (factory, cancelled) = state.withLock { state -> ((@Sendable () -> sending Base.AsyncIterator)?, Bool) in
-        switch state.iteratingTask {
-        case .pending(let factory):
-          state.iteratingTask = .starting
-          return (factory, false)
-        case .cancelled:
-          return (nil, true)
-        default:
-          return (nil, false)
-        }
-      }
-      if cancelled { return nil }
-      if let factory {
-        // this has to be interfaced as detached since we want the priority inference
-        // from the creator to not have a direct effect on the iteration.
-        // This might be improved later by passing on the creation context's task
-        // priority.
-        let task = Task.detached(name: "Share Iteration") { [factory, self] in
-          var iterator = factory()
-          do {
-            while await iterate() {
-              if let element = try await iterator.next() {
-                emit(.success(element))
-              } else {
-                emit(.success(nil))
-              }
-            }
-          } catch {
-            emit(.failure(error as! Failure))
-          }
-        }
-        state.withLock { state in
-          precondition(state.iteratingTask.isStarting)
-          state.iteratingTask = .running(task)
-        }
-      }
-      let result: Result<Element?, Failure> = await withTaskCancellationHandler {
+    private func nextIteration(_ id: Int) async -> Result<AsyncShareSequence<Base>.Element?, AsyncShareSequence<Base>.Failure> {
+      return await withTaskCancellationHandler {
         await withUnsafeContinuation { continuation in
           let (res, limitContinuation, demandContinuation, cancelled) = state.withLock { state -> (Result<Element?, Failure>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
             guard let side = state.sides[id] else {
@@ -595,8 +553,91 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       } onCancel: {
         cancel(id: id)
       }
+    }
+    
+    private func iterationLoop(factory: @Sendable () -> sending Base.AsyncIterator) async {
+      var iterator = factory()
+      do {
+        while await iterate() {
+          if let element = try await iterator.next() {
+            emit(.success(element))
+          } else {
+            emit(.success(nil))
+          }
+        }
+      } catch {
+        emit(.failure(error as! Failure))
+      }
+    }
+    
+    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Element? {
+      let (factory, cancelled) = state.withLock { state -> ((@Sendable () -> sending Base.AsyncIterator)?, Bool) in
+        switch state.iteratingTask {
+        case .pending(let factory):
+          state.iteratingTask = .starting
+          return (factory, false)
+        case .cancelled:
+          return (nil, true)
+        default:
+          return (nil, false)
+        }
+      }
+      if cancelled { return nil }
+      if let factory {
+        let task: Task<Void, Never>
+        // for the fancy dance of availability and canImport see the comment on the next check for details
+#if canImport(_Concurrency, _version: 6.2)
+        if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
+          task = Task(name: "Share Iteration") { [factory, self] in
+            await iterationLoop(factory: factory)
+          }
+        } else {
+          task = Task.detached(name: "Share Iteration") { [factory, self] in
+            await iterationLoop(factory: factory)
+          }
+        }
+#else
+        task = Task.detached(name: "Share Iteration") { [factory, self] in
+          await iterationLoop(factory: factory)
+        }
+#endif
+        // Known Issue: there is a very small race where the task may not get a priority escalation during startup
+        // this unfortuantely cannot be avoided since the task should ideally not be formed within the critical
+        // region of the state. Since that could lead to potential deadlocks in low-core-count systems.
+        // That window is relatively small and can be revisited if a suitable proof of safe behavior can be
+        // determined.
+        state.withLock { state in
+          precondition(state.iteratingTask.isStarting)
+          state.iteratingTask = .running(task)
+        }
+      }
       
-      return try result.get()
+      // withTaskPriorityEscalationHandler is only available for the '26 releases and the 6.2 version of
+      // the _Concurrency library. This menas for Darwin based OSes we have to have a fallback at runtime,
+      // and for non-darwin OSes we need to verify against the ability to import that version.
+      // Using this priority escalation means that the base task can avoid being detached.
+#if canImport(_Concurrency, _version: 6.2)
+      if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
+        return try await withTaskPriorityEscalationHandler {
+          return await nextIteration(id)
+        } onPriorityEscalated: { old, new in
+          let task = state.withLock { state -> Task<Void, Never>? in
+            switch state.iteratingTask {
+            case .running(let task):
+              return task
+            default:
+              return nil
+            }
+          }
+          task?.escalatePriority(to: new)
+        }.get()
+      } else {
+        return try await nextIteration(id).get()
+      }
+#else
+      return try await nextIteration(id).get()
+#endif
+      
     }
   }
   
