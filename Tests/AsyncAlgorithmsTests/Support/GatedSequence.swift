@@ -10,7 +10,6 @@
 //===----------------------------------------------------------------------===//
 
 public struct GatedSequence<Element> {
-    typealias Failure = Never
   let elements: [Element]
   let gates: [Gate]
   var index = 0
