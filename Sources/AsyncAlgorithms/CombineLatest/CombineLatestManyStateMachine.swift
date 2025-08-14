@@ -11,8 +11,6 @@
 
 import DequeModule
 
-// TODO: Do we need to add Failure: Error generic here?
-
 /// State machine for combine latest
 @available(AsyncAlgorithms 1.1, *)
 struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
