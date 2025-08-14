@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 import DequeModule
 
 /// State machine for combine latest
@@ -595,3 +597,5 @@ struct CombineLatestManyStateMachine<Element: Sendable, Failure: Error>: Sendabl
     }
   }
 }
+
+#endif

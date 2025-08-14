@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 import XCTest
 import AsyncAlgorithms
 
@@ -46,40 +48,42 @@ final class TestCombineLatestMany: XCTestCase {
     c.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4)])
+    XCTAssertEqual(value, [[1, 4, 7]])
     a.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4)])
+    XCTAssertEqual(value, [[1, 4, 7], [2, 4, 7]])
     b.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4), (2, "b", 4)])
+    XCTAssertEqual(value, [[1, 4, 7], [2, 4, 7], [2, 5, 7]])
     c.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5)])
+    XCTAssertEqual(value, [[1, 4, 7], [2, 4, 7], [2, 5, 7], [2, 5, 8]])
     a.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5), (3, "b", 5)])
+    XCTAssertEqual(value, [[1, 4, 7], [2, 4, 7], [2, 5, 7], [2, 5, 8], [3, 5, 8]])
     b.advance()
 
     value = await validator.validate()
-    XCTAssertEqual(value, [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5), (3, "b", 5), (3, "c", 5)])
+    XCTAssertEqual(value, [[1, 4, 7], [2, 4, 7], [2, 5, 7], [2, 5, 8], [3, 5, 8], [3, 6, 8]])
     c.advance()
 
     value = await validator.validate()
     XCTAssertEqual(
       value,
-      [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5), (3, "b", 5), (3, "c", 5), (3, "c", 6)]
+      [[1, 4, 7], [2, 4, 7], [2, 5, 7], [2, 5, 8], [3, 5, 8], [3, 6, 8], [3, 6, 9]]
     )
 
     await fulfillment(of: [finished], timeout: 1.0)
     value = validator.current
     XCTAssertEqual(
       value,
-      [(1, "a", 4), (2, "a", 4), (2, "b", 4), (2, "b", 5), (3, "b", 5), (3, "c", 5), (3, "c", 6)]
+      [[1, 4, 7], [2, 4, 7], [2, 5, 7], [2, 5, 8], [3, 5, 8], [3, 6, 8], [3, 6, 9]]
     )
   }
 }
+
+#endif

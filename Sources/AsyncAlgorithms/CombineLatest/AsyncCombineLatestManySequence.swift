@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 /// Creates an asynchronous sequence that combines the latest values from many `AsyncSequence` types
 /// by emitting a tuple of the values. ``combineLatestMany(_:)`` only emits a value whenever any of the base `AsyncSequence`s
 /// emit a value (so long as each of the bases have emitted at least one value).
@@ -58,13 +60,12 @@ public struct AsyncCombineLatestManySequence<Element: Sendable, Failure: Error>:
       }
 
       func next() async throws(Failure) -> [Element]? {
-          fatalError()
-//        guard let element = try await self.storage.next() else {
-//          return nil
-//        }
-//
-//        // This force unwrap is safe since there must be a third element.
-//        return element
+        guard let element = try await self.storage.next() else {
+          return nil
+        }
+
+        // This force unwrap is safe since there must be a third element.
+        return element
       }
     }
 
@@ -82,3 +83,5 @@ public struct AsyncCombineLatestManySequence<Element: Sendable, Failure: Error>:
 
 @available(*, unavailable)
 extension AsyncCombineLatestManySequence.Iterator: Sendable {}
+
+#endif

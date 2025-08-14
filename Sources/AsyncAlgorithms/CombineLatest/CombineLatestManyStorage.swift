@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 @available(AsyncAlgorithms 1.1, *)
 final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendable {
   typealias StateMachine = CombineLatestManyStateMachine<Element, Failure>
@@ -35,9 +37,9 @@ final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendabl
     }
   }
 
-  func next() async throws -> [Element]? {
-    try await withTaskCancellationHandler {
-      let result = await withUnsafeContinuation { continuation in
+  func next() async throws(Failure) -> [Element]? {
+    let result = await withTaskCancellationHandler {
+      await withUnsafeContinuation { continuation in
         let action: StateMachine.NextAction? = self.stateMachine.withCriticalRegion { stateMachine in
           let action = stateMachine.next(for: continuation)
           switch action {
@@ -82,9 +84,6 @@ final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendabl
           break
         }
       }
-
-      return try result._rethrowGet()
-
     } onCancel: {
       let action = self.stateMachine.withCriticalRegion { stateMachine in
         stateMachine.cancelled()
@@ -96,19 +95,20 @@ final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendabl
         let task,
         let upstreamContinuations
       ):
-          task.cancel()
+        task.cancel()
         upstreamContinuations.forEach { $0.resume() }
 
         downstreamContinuation.resume(returning: .success(nil))
 
       case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-          task.cancel()
+        task.cancel()
         upstreamContinuations.forEach { $0.resume() }
 
       case .none:
         break
       }
     }
+    return try result.get()
   }
 
   private func startTask(
@@ -234,3 +234,5 @@ final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendabl
     stateMachine.taskIsStarted(task: task, downstreamContinuation: downstreamContinuation)
   }
 }
+
+#endif
