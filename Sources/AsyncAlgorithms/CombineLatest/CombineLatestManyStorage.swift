@@ -10,8 +10,8 @@
 //===----------------------------------------------------------------------===//
 
 @available(AsyncAlgorithms 1.1, *)
-final class CombineLatestManyStorage<Element: Sendable>: Sendable {
-  typealias StateMachine = CombineLatestManyStateMachine<Element>
+final class CombineLatestManyStorage<Element: Sendable, Failure: Error>: Sendable {
+  typealias StateMachine = CombineLatestManyStateMachine<Element, Failure>
 
   private let stateMachine: ManagedCriticalState<StateMachine>
 
@@ -27,9 +27,8 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
       let task,
       let upstreamContinuation
     ):
-      upstreamContinuation.forEach { $0.resume(throwing: CancellationError()) }
-
       task.cancel()
+      upstreamContinuation.forEach { $0.resume() }
 
     case .none:
       break
@@ -97,14 +96,14 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
         let task,
         let upstreamContinuations
       ):
-        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-        task.cancel()
+          task.cancel()
+        upstreamContinuations.forEach { $0.resume() }
 
         downstreamContinuation.resume(returning: .success(nil))
 
       case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-        upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
-        task.cancel()
+          task.cancel()
+        upstreamContinuations.forEach { $0.resume() }
 
       case .none:
         break
@@ -114,13 +113,13 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
 
   private func startTask(
     stateMachine: inout StateMachine,
-    bases: [any CombineLatestManyStateMachine<Element>.Base],
+    bases: [any (AsyncSequence<Element, Failure> & Sendable)],
     downstreamContinuation: StateMachine.DownstreamContinuation
   ) {
     // This creates a new `Task` that is iterating the upstream
     // sequences. We must store it to cancel it at the right times.
     let task = Task {
-      await withThrowingTaskGroup(of: Void.self) { group in
+      await withTaskGroup(of: Result<Void, Failure>.self) { group in
         // For each upstream sequence we are adding a child task that
         // is consuming the upstream sequence
         for (baseIndex, base) in bases.enumerated() {
@@ -131,7 +130,7 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
               // We are creating a continuation before requesting the next
               // element from upstream. This continuation is only resumed
               // if the downstream consumer called `next` to signal his demand.
-              try await withUnsafeThrowingContinuation { continuation in
+              await withUnsafeContinuation { continuation in
                 let action = self.stateMachine.withCriticalRegion { stateMachine in
                   stateMachine.childTaskSuspended(baseIndex: baseIndex, continuation: continuation)
                 }
@@ -140,15 +139,19 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
                 case .resumeContinuation(let upstreamContinuation):
                   upstreamContinuation.resume()
 
-                case .resumeContinuationWithError(let upstreamContinuation, let error):
-                  upstreamContinuation.resume(throwing: error)
-
                 case .none:
                   break
                 }
               }
+              
+              let element: Element?
+              do {
+                element = try await baseIterator.next(isolation: nil)
+              } catch {
+                return .failure(error as! Failure) // Looks like a compiler bug
+              }
 
-              if let element = try await baseIterator.next() {
+              if let element = element {
                 let action = self.stateMachine.withCriticalRegion { stateMachine in
                   stateMachine.elementProduced(value: element, atBaseIndex: baseIndex)
                 }
@@ -172,15 +175,15 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
                   let upstreamContinuations
                 ):
 
-                  upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
                   task.cancel()
+                  upstreamContinuations.forEach { $0.resume() }
 
                   downstreamContinuation.resume(returning: .success(nil))
                   break loop
 
                 case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-                  upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
                   task.cancel()
+                  upstreamContinuations.forEach { $0.resume() }
 
                   break loop
 
@@ -189,13 +192,17 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
                 }
               }
             }
+            return .success(())
           }
         }
 
         while !group.isEmpty {
-          do {
-            try await group.next()
-          } catch {
+          let result = await group.next()
+          
+          switch result {
+          case .success, .none:
+            break
+          case .failure(let error):
             // One of the upstream sequences threw an error
             let action = self.stateMachine.withCriticalRegion { stateMachine in
               stateMachine.upstreamThrew(error)
@@ -203,16 +210,16 @@ final class CombineLatestManyStorage<Element: Sendable>: Sendable {
 
             switch action {
             case .cancelTaskAndUpstreamContinuations(let task, let upstreamContinuations):
-              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
               task.cancel()
-            case .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+              upstreamContinuations.forEach { $0.resume() }
+            case .resumeContinuationWithFailureAndCancelTaskAndUpstreamContinuations(
               let downstreamContinuation,
               let error,
               let task,
               let upstreamContinuations
             ):
-              upstreamContinuations.forEach { $0.resume(throwing: CancellationError()) }
               task.cancel()
+              upstreamContinuations.forEach { $0.resume() }
               downstreamContinuation.resume(returning: .failure(error))
             case .none:
               break

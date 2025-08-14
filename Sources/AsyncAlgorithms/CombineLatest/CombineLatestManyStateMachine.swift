@@ -13,17 +13,17 @@ import DequeModule
 
 /// State machine for combine latest
 @available(AsyncAlgorithms 1.1, *)
-struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
+struct CombineLatestManyStateMachine<Element: Sendable, Failure: Error>: Sendable {
   typealias DownstreamContinuation = UnsafeContinuation<
-    Result<[Element]?, Error>, Never
+    Result<[Element]?, Failure>, Never
   >
-  typealias Base = AsyncSequence<Element, any Error> & Sendable
+  typealias Base = AsyncSequence<Element, Failure> & Sendable
 
   private enum State: Sendable {
     /// Small wrapper for the state of an upstream sequence.
     struct Upstream: Sendable {
       /// The upstream continuation.
-      var continuation: UnsafeContinuation<Void, Error>?
+      var continuation: UnsafeContinuation<Void, Never>?
       /// The produced upstream element.
       var element: Element?
       /// Indicates wether the upstream finished/threw already
@@ -53,7 +53,7 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     )
 
     case upstreamThrew(
-      error: Error
+      error: Failure
     )
 
     /// The state once the downstream consumer stopped, i.e. by dropping all references
@@ -77,10 +77,10 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
   /// Actions returned by `iteratorDeinitialized()`.
   enum IteratorDeinitializedAction {
     /// Indicates that the `Task` needs to be cancelled and
-    /// the upstream continuations need to be resumed with a `CancellationError`.
+    /// the upstream continuations need to be resumed with a `CancellationFailure`.
     case cancelTaskAndUpstreamContinuations(
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
   }
 
@@ -151,18 +151,13 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
   enum ChildTaskSuspendedAction {
     /// Indicates that the continuation should be resumed which will lead to calling `next` on the upstream.
     case resumeContinuation(
-      upstreamContinuation: UnsafeContinuation<Void, Error>
-    )
-    /// Indicates that the continuation should be resumed with an Error because another upstream sequence threw.
-    case resumeContinuationWithError(
-      upstreamContinuation: UnsafeContinuation<Void, Error>,
-      error: Error
+      upstreamContinuation: UnsafeContinuation<Void, Never>
     )
   }
 
   mutating func childTaskSuspended(
     baseIndex: Int,
-    continuation: UnsafeContinuation<Void, Error>
+    continuation: UnsafeContinuation<Void, Never>
   ) -> ChildTaskSuspendedAction? {
     switch self.state {
     case .initial:
@@ -193,9 +188,8 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
       // Since cancellation is cooperative it might be that child tasks are still getting
       // suspended even though we already cancelled them. We must tolerate this and just resume
       // the continuation with an error.
-      return .resumeContinuationWithError(
-        upstreamContinuation: continuation,
-        error: CancellationError()
+      return .resumeContinuation(
+        upstreamContinuation: continuation
       )
 
     case .modifying:
@@ -208,7 +202,7 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     /// Indicates that the downstream continuation should be resumed with the element.
     case resumeContinuation(
       downstreamContinuation: DownstreamContinuation,
-      result: Result<[Element]?, Error>
+      result: Result<[Element]?, Failure>
     )
   }
 
@@ -293,14 +287,14 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     /// Indicates the task and the upstream continuations should be cancelled.
     case cancelTaskAndUpstreamContinuations(
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
     /// Indicates that the downstream continuation should be resumed with `nil` and
     /// the task and the upstream continuations should be cancelled.
     case resumeContinuationWithNilAndCancelTaskAndUpstreamContinuations(
       downstreamContinuation: DownstreamContinuation,
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
   }
 
@@ -394,19 +388,19 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     /// Indicates the task and the upstream continuations should be cancelled.
     case cancelTaskAndUpstreamContinuations(
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
     /// Indicates that the downstream continuation should be resumed with the `error` and
     /// the task and the upstream continuations should be cancelled.
-    case resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+    case resumeContinuationWithFailureAndCancelTaskAndUpstreamContinuations(
       downstreamContinuation: DownstreamContinuation,
-      error: Error,
+      error: Failure,
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
   }
 
-  mutating func upstreamThrew(_ error: Error) -> UpstreamThrewAction? {
+  mutating func upstreamThrew(_ error: Failure) -> UpstreamThrewAction? {
     switch self.state {
     case .initial:
       preconditionFailure("Internal inconsistency current state \(self.state) and received upstreamThrew()")
@@ -433,7 +427,7 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
       // the upstream work.
       self.state = .finished
 
-      return .resumeContinuationWithErrorAndCancelTaskAndUpstreamContinuations(
+      return .resumeContinuationWithFailureAndCancelTaskAndUpstreamContinuations(
         downstreamContinuation: downstreamContinuation,
         error: error,
         task: task,
@@ -456,12 +450,12 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     case resumeDownstreamContinuationWithNilAndCancelTaskAndUpstreamContinuations(
       downstreamContinuation: DownstreamContinuation,
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
     /// Indicates that the task and the upstream continuations should be cancelled.
     case cancelTaskAndUpstreamContinuations(
       task: Task<Void, Never>,
-      upstreamContinuations: [UnsafeContinuation<Void, Error>]
+      upstreamContinuations: [UnsafeContinuation<Void, Never>]
     )
   }
 
@@ -515,12 +509,12 @@ struct CombineLatestManyStateMachine<Element: Sendable>: Sendable {
     case startTask([any Base])
     /// Indicates that all upstream continuations should be resumed.
     case resumeUpstreamContinuations(
-      upstreamContinuation: [UnsafeContinuation<Void, Error>]
+      upstreamContinuation: [UnsafeContinuation<Void, Never>]
     )
     /// Indicates that the downstream continuation should be resumed with the result.
     case resumeContinuation(
       downstreamContinuation: DownstreamContinuation,
-      result: Result<[Element]?, Error>
+      result: Result<[Element]?, Failure>
     )
     /// Indicates that the downstream continuation should be resumed with `nil`.
     case resumeDownstreamContinuationWithNil(DownstreamContinuation)

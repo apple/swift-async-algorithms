@@ -19,7 +19,7 @@ final class TestCombineLatestMany: XCTestCase {
     let b = [4, 5, 6].async
     let c = [7, 8, 9].async
     let sequence = combineLatestMany([a, b, c])
-    let actual = try await Array(sequence)
+    let actual = await Array(sequence)
     XCTAssertGreaterThanOrEqual(actual.count, 3)
   }
 
@@ -31,7 +31,7 @@ final class TestCombineLatestMany: XCTestCase {
     let sequence = combineLatestMany([a, b, c])
     let validator = Validator<[Int]>()
     validator.test(sequence) { iterator in
-      let pastEnd = await iterator.next()
+      let pastEnd = await iterator.next(isolation: nil)
       XCTAssertNil(pastEnd)
       finished.fulfill()
     }

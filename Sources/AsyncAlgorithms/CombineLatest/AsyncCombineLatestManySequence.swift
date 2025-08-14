@@ -21,21 +21,18 @@
 /// ``combineLatestMany(_:)`` throws when one of the bases throws. If one of the bases threw any buffered and not yet consumed
 /// values will be dropped.
 @available(AsyncAlgorithms 1.1, *)
-public func combineLatestMany<Element: Sendable>(_ bases: [any CombineLatestManyBase<Element>]) -> AsyncCombineLatestManySequence<Element>
-{
-  AsyncCombineLatestManySequence(bases)
+public func combineLatestMany<Element: Sendable, Failure: Error>(
+    _ bases: [any (AsyncSequence<Element, Failure> & Sendable)]
+) -> some AsyncSequence<[Element], Failure> & Sendable {
+  AsyncCombineLatestManySequence<Element, Failure>(bases)
 }
-
-// TODO: Can we get rid of this typealias?
-@available(AsyncAlgorithms 1.1, *)
-public typealias CombineLatestManyBase<Element: Sendable> = AsyncSequence<Element, any Error> & Sendable
 
 /// An `AsyncSequence` that combines the latest values produced from many asynchronous sequences into an asynchronous sequence of tuples.
 @available(AsyncAlgorithms 1.1, *)
-public struct AsyncCombineLatestManySequence<Element: Sendable>: AsyncSequence, Sendable {
+public struct AsyncCombineLatestManySequence<Element: Sendable, Failure: Error>: AsyncSequence, Sendable {
   public typealias AsyncIterator = Iterator
     
-  typealias Base = AsyncSequence<Element, any Error> & Sendable
+  typealias Base = AsyncSequence<Element, Failure> & Sendable
   let bases: [any Base]
 
   init(_ bases: [any Base]) {
@@ -50,9 +47,9 @@ public struct AsyncCombineLatestManySequence<Element: Sendable>: AsyncSequence, 
 
   public struct Iterator: AsyncIteratorProtocol {
     final class InternalClass {
-      private let storage: CombineLatestManyStorage<Element>
+      private let storage: CombineLatestManyStorage<Element, Failure>
 
-      fileprivate init(storage: CombineLatestManyStorage<Element>) {
+      fileprivate init(storage: CombineLatestManyStorage<Element, Failure>) {
         self.storage = storage
       }
 
@@ -60,23 +57,24 @@ public struct AsyncCombineLatestManySequence<Element: Sendable>: AsyncSequence, 
         self.storage.iteratorDeinitialized()
       }
 
-      func next() async throws -> [Element]? {
-        guard let element = try await self.storage.next() else {
-          return nil
-        }
-
-        // This force unwrap is safe since there must be a third element.
-        return element
+      func next() async throws(Failure) -> [Element]? {
+          fatalError()
+//        guard let element = try await self.storage.next() else {
+//          return nil
+//        }
+//
+//        // This force unwrap is safe since there must be a third element.
+//        return element
       }
     }
 
     let internalClass: InternalClass
 
-    fileprivate init(storage: CombineLatestManyStorage<Element>) {
+    fileprivate init(storage: CombineLatestManyStorage<Element, Failure>) {
       self.internalClass = InternalClass(storage: storage)
     }
 
-    public mutating func next() async throws -> [Element]? {
+    public mutating func next() async throws(Failure) -> [Element]? {
       try await self.internalClass.next()
     }
   }
