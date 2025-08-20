@@ -17,7 +17,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
     self.stateMachine = ManagedCriticalState(BoundedBufferStateMachine(base: base, limit: limit))
   }
 
-  func next() async -> Result<Base.Element, Error>? {
+  func next() async -> UnsafeTransfer<Result<Base.Element, Error>?> {
     return await withTaskCancellationHandler {
       let action: BoundedBufferStateMachine<Base>.NextAction? = self.stateMachine.withCriticalRegion {
         stateMachine in
@@ -45,14 +45,14 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
 
       case .returnResult(let producerContinuation, let result):
         producerContinuation?.resume()
-        return result
+        return UnsafeTransfer(result)
 
       case .none:
         break
       }
 
       return await withUnsafeContinuation {
-        (continuation: UnsafeContinuation<Result<Base.Element, Error>?, Never>) in
+        (continuation: UnsafeContinuation<UnsafeTransfer<Result<Base.Element, Error>?>, Never>) in
         let action = self.stateMachine.withCriticalRegion { stateMachine in
           stateMachine.nextSuspended(continuation: continuation)
         }
@@ -61,7 +61,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
           break
         case .returnResult(let producerContinuation, let result):
           producerContinuation?.resume()
-          continuation.resume(returning: result)
+          continuation.resume(returning: UnsafeTransfer(result))
         }
       }
     } onCancel: {
@@ -109,6 +109,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
           case .none:
             break
           case .resumeConsumer(let continuation, let result):
+            
             continuation.resume(returning: result)
           }
         }
@@ -120,7 +121,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
         case .none:
           break
         case .resumeConsumer(let continuation):
-          continuation?.resume(returning: nil)
+          continuation?.resume(returning: UnsafeTransfer(nil))
         }
       } catch {
         let action = self.stateMachine.withCriticalRegion { stateMachine in
@@ -130,7 +131,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
         case .none:
           break
         case .resumeConsumer(let continuation):
-          continuation?.resume(returning: .failure(error))
+          continuation?.resume(returning: UnsafeTransfer(Result<Base.Element, Error>.failure(error)))
         }
       }
     }
@@ -148,7 +149,7 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
     case .resumeProducerAndConsumer(let task, let producerContinuation, let consumerContinuation):
       task.cancel()
       producerContinuation?.resume()
-      consumerContinuation?.resume(returning: nil)
+      consumerContinuation?.resume(returning: UnsafeTransfer(nil))
     }
   }
 

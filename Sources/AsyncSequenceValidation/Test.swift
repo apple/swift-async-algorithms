@@ -122,7 +122,7 @@ extension AsyncSequenceValidationDiagram {
       }
     }
 
-    private static let _executor: AnyObject = {
+    private static let _executor: AnyObject & Sendable = {
       guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
         return ClockExecutor_Pre5_9()
       }
@@ -134,13 +134,13 @@ extension AsyncSequenceValidationDiagram {
     }
     #endif
 
-    static var clock: Clock?
+    nonisolated(unsafe) static var clock: Clock?
 
-    static var driver: TaskDriver?
+    nonisolated(unsafe) static var driver: TaskDriver?
 
-    static var currentJob: Job?
+    nonisolated(unsafe) static var currentJob: Job?
 
-    static var specificationFailures = [ExpectationFailure]()
+    nonisolated(unsafe) static var specificationFailures = [ExpectationFailure]()
   }
 
   enum ActualResult {

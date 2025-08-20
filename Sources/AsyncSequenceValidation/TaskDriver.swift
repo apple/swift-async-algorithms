@@ -50,18 +50,18 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
 #endif
 
 @available(AsyncAlgorithms 1.0, *)
-final class TaskDriver {
-  let work: (TaskDriver) -> Void
+final class TaskDriver: Sendable {
+  let work: @Sendable (TaskDriver) -> Void
   let queue: WorkQueue
-  #if canImport(Darwin) || canImport(wasi_pthread)
-  var thread: pthread_t?
+  #if canImport(Darwin)
+  nonisolated(unsafe) var thread: pthread_t?
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
-  var thread = pthread_t()
+  nonisolated(unsafe) var thread = pthread_t()
   #elseif canImport(WinSDK)
   #error("TODO: Port TaskDriver threading to windows")
   #endif
 
-  init(queue: WorkQueue, _ work: @escaping (TaskDriver) -> Void) {
+  init(queue: WorkQueue, _ work: @Sendable @escaping (TaskDriver) -> Void) {
     self.queue = queue
     self.work = work
   }

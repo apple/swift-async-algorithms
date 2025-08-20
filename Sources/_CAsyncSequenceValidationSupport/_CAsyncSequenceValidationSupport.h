@@ -241,8 +241,10 @@
 
 typedef struct _Job* JobRef;
 
+#define NONISOLATED_UNSAFE __attribute__((swift_attr("nonisolated(unsafe)")))
+
 typedef SWIFT_CC(swift) void (*swift_task_enqueueGlobal_original)(JobRef _Nonnull job);
 SWIFT_EXPORT_FROM(swift_Concurrency)
-SWIFT_CC(swift) void (* _Nullable swift_task_enqueueGlobal_hook)(
+NONISOLATED_UNSAFE SWIFT_CC(swift) void (* _Nullable swift_task_enqueueGlobal_hook)(
   JobRef _Nonnull job, swift_task_enqueueGlobal_original _Nonnull original);
 

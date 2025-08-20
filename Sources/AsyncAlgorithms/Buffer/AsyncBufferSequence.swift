@@ -121,9 +121,9 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
         self.storageType = .transparent(iterator)
         return element
       case .bounded(let storage):
-        return try await storage.next()?._rethrowGet()
+        return try await storage.next().wrapped?._rethrowGet()
       case .unbounded(let storage):
-        return try await storage.next()?._rethrowGet()
+        return try await storage.next().wrapped?._rethrowGet()
       }
     }
   }
