@@ -245,3 +245,4 @@ typedef SWIFT_CC(swift) void (*swift_task_enqueueGlobal_original)(JobRef _Nonnul
 SWIFT_EXPORT_FROM(swift_Concurrency)
 SWIFT_CC(swift) void (* _Nullable swift_task_enqueueGlobal_hook)(
   JobRef _Nonnull job, swift_task_enqueueGlobal_original _Nonnull original);
+
