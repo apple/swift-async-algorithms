@@ -245,15 +245,3 @@ typedef SWIFT_CC(swift) void (*swift_task_enqueueGlobal_original)(JobRef _Nonnul
 SWIFT_EXPORT_FROM(swift_Concurrency)
 SWIFT_CC(swift) void (* _Nullable swift_task_enqueueGlobal_hook)(
   JobRef _Nonnull job, swift_task_enqueueGlobal_original _Nonnull original);
-
-// Workaround for `macro 'pthread_join' unavailable: function like macros not supported`
-#if defined(__wasi__)
-
-#include <pthread.h>
-
-int swift_async_sequencey_pthread_join(pthread_t thread, void **value_ptr) {
-  return pthread_join(thread, value_ptr);
-}
-
-#endif
-
