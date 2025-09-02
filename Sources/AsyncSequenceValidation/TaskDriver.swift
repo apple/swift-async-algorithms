@@ -19,6 +19,8 @@ import Glibc
 import Musl
 #elseif canImport(Bionic)
 import Bionic
+#elseif canImport(wasi_pthread)
+import wasi_pthread
 #elseif canImport(WinSDK)
 #error("TODO: Port TaskDriver threading to windows")
 #else
@@ -31,7 +33,7 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw).takeRetainedValue().run()
   return nil
 }
-#elseif (canImport(Glibc) && !os(Android)) || canImport(Musl)
+#elseif (canImport(Glibc) && !os(Android)) || canImport(Musl) || canImport(wasi_pthread)
 @available(AsyncAlgorithms 1.0, *)
 func start_thread(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
   Unmanaged<TaskDriver>.fromOpaque(raw!).takeRetainedValue().run()
@@ -51,7 +53,7 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
 final class TaskDriver {
   let work: (TaskDriver) -> Void
   let queue: WorkQueue
-  #if canImport(Darwin)
+  #if canImport(Darwin) || canImport(wasi_pthread)
   var thread: pthread_t?
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   var thread = pthread_t()
@@ -65,7 +67,7 @@ final class TaskDriver {
   }
 
   func start() {
-    #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     pthread_create(
       &thread,
       nil,
@@ -85,7 +87,7 @@ final class TaskDriver {
   }
 
   func join() {
-    #if canImport(Darwin)
+    #if canImport(Darwin) || canImport(wasi_pthread)
     pthread_join(thread!, nil)
     #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
     pthread_join(thread, nil)

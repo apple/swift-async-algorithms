@@ -19,6 +19,8 @@ import Musl
 import WinSDK
 #elseif canImport(Bionic)
 import Bionic
+#elseif canImport(wasi_pthread)
+import wasi_pthread
 #else
 #error("Unsupported platform")
 #endif
@@ -26,7 +28,7 @@ import Bionic
 internal struct Lock {
   #if canImport(Darwin)
   typealias Primitive = os_unfair_lock
-  #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+  #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   typealias Primitive = pthread_mutex_t
   #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
@@ -44,7 +46,7 @@ internal struct Lock {
   fileprivate static func initialize(_ platformLock: PlatformLock) {
     #if canImport(Darwin)
     platformLock.initialize(to: os_unfair_lock())
-    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     let result = pthread_mutex_init(platformLock, nil)
     precondition(result == 0, "pthread_mutex_init failed")
     #elseif canImport(WinSDK)
@@ -55,7 +57,7 @@ internal struct Lock {
   }
 
   fileprivate static func deinitialize(_ platformLock: PlatformLock) {
-    #if canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #if canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     let result = pthread_mutex_destroy(platformLock)
     precondition(result == 0, "pthread_mutex_destroy failed")
     #endif
@@ -65,7 +67,7 @@ internal struct Lock {
   fileprivate static func lock(_ platformLock: PlatformLock) {
     #if canImport(Darwin)
     os_unfair_lock_lock(platformLock)
-    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     pthread_mutex_lock(platformLock)
     #elseif canImport(WinSDK)
     AcquireSRWLockExclusive(platformLock)
@@ -77,7 +79,7 @@ internal struct Lock {
   fileprivate static func unlock(_ platformLock: PlatformLock) {
     #if canImport(Darwin)
     os_unfair_lock_unlock(platformLock)
-    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
+    #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     let result = pthread_mutex_unlock(platformLock)
     precondition(result == 0, "pthread_mutex_unlock failed")
     #elseif canImport(WinSDK)
