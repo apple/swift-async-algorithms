@@ -16,9 +16,12 @@ let package = Package(
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"])
   ],
   targets: [
+    .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
+    .target(name: "_CPowSupport"),
     .target(
       name: "AsyncAlgorithms",
       dependencies: [
+        "_CPowSupport",
         .product(name: "OrderedCollections", package: "swift-collections"),
         .product(name: "DequeModule", package: "swift-collections"),
       ],
@@ -33,7 +36,6 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
-    .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms_XCTest",
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
