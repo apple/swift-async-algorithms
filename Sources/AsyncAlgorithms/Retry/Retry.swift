@@ -14,7 +14,7 @@ public func retry<Result, ErrorType, ClockType>(
   operation: () async throws(ErrorType) -> sending Result,
   strategy: (_ attempt: Int, ErrorType) -> RetryStrategy<ClockType.Instant.Duration> = { _, _ in .backoff(.zero) }
 ) async throws -> Result where ClockType: Clock, ErrorType: Error {
-  precondition(maxAttempts >= 0, "Must have at least one attempt")
+  precondition(maxAttempts > 0, "Must have at least one attempt")
   for attempt in 0..<maxAttempts - 1 {
     do {
       return try await operation()
