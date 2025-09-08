@@ -10,6 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
+
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
+
 import AsyncAlgorithms
 import AsyncSequenceValidation
 
@@ -57,3 +60,5 @@ final class TestTimer: XCTestCase {
     }
   }
 }
+
+#endif

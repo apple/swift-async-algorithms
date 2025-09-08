@@ -10,6 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
+
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
+
 import AsyncSequenceValidation
 import AsyncAlgorithms
 
@@ -334,3 +337,5 @@ final class TestChunk: XCTestCase {
     }
   }
 }
+
+#endif

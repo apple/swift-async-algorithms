@@ -6,8 +6,12 @@ import CompilerPluginSupport
 // Availability Macros
 
 let availabilityMacros: [SwiftSetting] = [
-  .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"),
-  .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"),
+  .enableExperimentalFeature(
+    "AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
+  ),
+  .enableExperimentalFeature(
+    "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
+  ),
 ]
 
 let package = Package(
@@ -43,7 +47,33 @@ let package = Package(
     ),
     .testTarget(
       name: "AsyncAlgorithmsTests",
-      dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
+      dependencies: [
+        .target(name: "AsyncAlgorithms"),
+        .target(name: "AsyncSequenceValidation", condition: .when(platforms: [
+          .macOS,
+          .iOS,
+          .tvOS,
+          .watchOS,
+          .visionOS,
+          .macCatalyst,
+          .android,
+          .linux,
+          .openbsd,
+          .wasi
+        ])),
+        .target(name: "AsyncAlgorithms_XCTest", condition: .when(platforms: [
+          .macOS,
+          .iOS,
+          .tvOS,
+          .watchOS,
+          .visionOS,
+          .macCatalyst,
+          .android,
+          .linux,
+          .openbsd,
+          .wasi
+        ]))
+      ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
@@ -53,7 +83,7 @@ let package = Package(
 
 if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
-    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0")
   ]
 } else {
   package.dependencies += [

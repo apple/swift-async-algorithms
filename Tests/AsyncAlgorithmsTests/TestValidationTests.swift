@@ -10,6 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
+
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
+
 import AsyncAlgorithms
 import AsyncSequenceValidation
 @testable import AsyncAlgorithms_XCTest
@@ -354,3 +357,5 @@ struct LaggingAsyncSequence<Base: AsyncSequence, C: Clock>: AsyncSequence {
     self.clock = clock
   }
 }
+
+#endif
