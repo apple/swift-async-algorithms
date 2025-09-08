@@ -109,7 +109,6 @@ final class BoundedBufferStorage<Base: AsyncSequence>: Sendable where Base: Send
           case .none:
             break
           case .resumeConsumer(let continuation, let result):
-            
             continuation.resume(returning: result)
           }
         }

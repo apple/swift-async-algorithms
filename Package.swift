@@ -14,14 +14,17 @@ let supportedTestingPlatforms: [Platform] = [
   .macCatalyst,
   .android,
   .linux,
-  .freebsd,
   .openbsd,
-  .wasi
+  .wasi,
 ]
 
 let availabilityMacros: [SwiftSetting] = [
-  .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"),
-  .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"),
+  .enableExperimentalFeature(
+    "AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
+  ),
+  .enableExperimentalFeature(
+    "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
+  ),
 ]
 
 let package = Package(
@@ -69,7 +72,7 @@ let package = Package(
 
 if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
-    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0")
   ]
 } else {
   package.dependencies += [
