@@ -76,7 +76,7 @@ let package = Package(
             .openbsd,
             .wasi,
           ])
-        )
+        ),
       ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
