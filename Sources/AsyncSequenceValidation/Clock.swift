@@ -13,7 +13,7 @@ import AsyncAlgorithms
 
 @available(AsyncAlgorithms 1.0, *)
 extension AsyncSequenceValidationDiagram {
-  public struct Clock {
+  public struct Clock: Sendable {
     let queue: WorkQueue
 
     init(queue: WorkQueue) {

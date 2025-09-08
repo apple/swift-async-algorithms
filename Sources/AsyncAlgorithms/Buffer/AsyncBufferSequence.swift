@@ -74,6 +74,14 @@ public struct AsyncBufferSequencePolicy: Sendable {
 /// An `AsyncSequence` that buffers elements in regard to a policy.
 @available(AsyncAlgorithms 1.0, *)
 public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence {
+  // Internal implementation note:
+  // This type origianlly had no requirement that the element is actually Sendable. However,
+  // that is technically an implementation detail hole in the safety of the system, it needs
+  // to specify that the element is actually Sendable since the draining mechanism passes
+  // through the isolation that is in nature sending but cannot be marked as such for the
+  // isolated next method.
+  // In practice the users of this type are safe from isolation crossing since the Element 
+  // is as sendable as it is required by the base sequences the buffer is constructed from.
   enum StorageType {
     case transparent(Base.AsyncIterator)
     case bounded(storage: BoundedBufferStorage<Base>)
@@ -121,9 +129,9 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
         self.storageType = .transparent(iterator)
         return element
       case .bounded(let storage):
-        return try await storage.next()?._rethrowGet()
+        return try await storage.next().wrapped?._rethrowGet()
       case .unbounded(let storage):
-        return try await storage.next()?._rethrowGet()
+        return try await storage.next().wrapped?._rethrowGet()
       }
     }
   }
