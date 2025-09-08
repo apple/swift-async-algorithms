@@ -53,7 +53,7 @@ func start_thread(_ raw: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
 final class TaskDriver: Sendable {
   let work: @Sendable (TaskDriver) -> Void
   let queue: WorkQueue
-  #if canImport(Darwin)
+  #if canImport(Darwin) || canImport(wasi_pthread)
   nonisolated(unsafe) var thread: pthread_t?
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   nonisolated(unsafe) var thread = pthread_t()
