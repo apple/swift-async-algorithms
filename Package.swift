@@ -5,6 +5,20 @@ import CompilerPluginSupport
 
 // Availability Macros
 
+let supportedTestingPlatforms: [Platform] = [
+  .macOS,
+  .iOS,
+  .tvOS,
+  .watchOS,
+  .visionOS,
+  .macCatalyst,
+  .android,
+  .linux,
+  .freebsd,
+  .openbsd,
+  .wasi
+]
+
 let availabilityMacros: [SwiftSetting] = [
   .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"),
   .enableExperimentalFeature("AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"),
@@ -39,14 +53,16 @@ let package = Package(
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
-      ]
+      ],
+      condition: .when(platforms: supportedTestingPlatforms)
     ),
     .testTarget(
       name: "AsyncAlgorithmsTests",
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation", "AsyncAlgorithms_XCTest"],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
-      ]
+      ],
+      condition: .when(platforms: supportedTestingPlatforms)
     ),
   ]
 )
