@@ -61,7 +61,7 @@ let package = Package(
             .android,
             .linux,
             .openbsd,
-            .wasi
+            .wasi,
           ])
         ),
         .target(
@@ -76,9 +76,9 @@ let package = Package(
             .android,
             .linux,
             .openbsd,
-            .wasi
+            .wasi,
           ])
-        )
+        ),
       ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")

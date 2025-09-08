@@ -9,7 +9,7 @@ let availabilityMacros: [SwiftSetting] = [
   ),
   .enableExperimentalFeature(
     "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
-  )
+  ),
 ]
 
 let package = Package(
@@ -59,7 +59,7 @@ let package = Package(
             .android,
             .linux,
             .openbsd,
-            .wasi
+            .wasi,
           ])
         ),
         .target(
@@ -74,14 +74,14 @@ let package = Package(
             .android,
             .linux,
             .openbsd,
-            .wasi
+            .wasi,
           ])
         )
       ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
-    )
+    ),
   ]
 )
 
