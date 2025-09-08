@@ -80,7 +80,7 @@ public struct AsyncBufferSequence<Base: AsyncSequence & Sendable>: AsyncSequence
   // to specify that the element is actually Sendable since the draining mechanism passes
   // through the isolation that is in nature sending but cannot be marked as such for the
   // isolated next method.
-  // In practice the users of this type are safe from isolation crossing since the Element 
+  // In practice the users of this type are safe from isolation crossing since the Element
   // is as sendable as it is required by the base sequences the buffer is constructed from.
   enum StorageType {
     case transparent(Base.AsyncIterator)
