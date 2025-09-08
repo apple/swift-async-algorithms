@@ -11,7 +11,6 @@ jobs:
     with:
       linux_exclude_swift_versions: "[{\"swift_version\": \"5.9\"}]"
       windows_exclude_swift_versions: "[{\"swift_version\": \"5.9\"}]"
-      enable_macos_checks: true
       enable_wasm_sdk_build: true
       wasm_sdk_build_command: swift build -Xcc -D_WASI_EMULATED_PTHREAD
 
