@@ -108,6 +108,7 @@ final class TestBuffer: XCTestCase {
     XCTAssertNil(pastFailure)
   }
 
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_given_a_base_sequence_when_bufferingOldest_then_the_policy_is_applied() async {
     validate {
       "X-12-   34-    5   |"
@@ -171,6 +172,7 @@ final class TestBuffer: XCTestCase {
       "X,,,,,,[45^]"
     }
   }
+#endif
 
   func
     test_given_a_buffered_with_unbounded_sequence_when_cancelling_consumer_then_the_iteration_finishes_and_the_base_is_cancelled()
@@ -325,6 +327,7 @@ final class TestBuffer: XCTestCase {
     await fulfillment(of: [finished], timeout: 1.0)
   }
 
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_given_a_base_sequence_when_bounded_with_limit_0_then_the_policy_is_transparent() async {
     validate {
       "X-12-   34    -5|"
@@ -332,4 +335,5 @@ final class TestBuffer: XCTestCase {
       "X-12-   34    -5|"
     }
   }
+#endif
 }

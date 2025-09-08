@@ -49,30 +49,36 @@ let package = Package(
       name: "AsyncAlgorithmsTests",
       dependencies: [
         .target(name: "AsyncAlgorithms"),
-        .target(name: "AsyncSequenceValidation", condition: .when(platforms: [
-          .macOS,
-          .iOS,
-          .tvOS,
-          .watchOS,
-          .visionOS,
-          .macCatalyst,
-          .android,
-          .linux,
-          .openbsd,
-          .wasi
-        ])),
-        .target(name: "AsyncAlgorithms_XCTest", condition: .when(platforms: [
-          .macOS,
-          .iOS,
-          .tvOS,
-          .watchOS,
-          .visionOS,
-          .macCatalyst,
-          .android,
-          .linux,
-          .openbsd,
-          .wasi
-        ]))
+        .target(
+          name: "AsyncSequenceValidation",
+          condition: .when(platforms: [
+            .macOS,
+            .iOS,
+            .tvOS,
+            .watchOS,
+            .visionOS,
+            .macCatalyst,
+            .android,
+            .linux,
+            .openbsd,
+            .wasi
+          ])
+        ),
+        .target(
+          name: "AsyncAlgorithms_XCTest",
+          condition: .when(platforms: [
+            .macOS,
+            .iOS,
+            .tvOS,
+            .watchOS,
+            .visionOS,
+            .macCatalyst,
+            .android,
+            .linux,
+            .openbsd,
+            .wasi
+          ])
+        )
       ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")

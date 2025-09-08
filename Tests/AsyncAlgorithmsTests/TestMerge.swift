@@ -170,6 +170,7 @@ final class TestMerge2: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a-c-e-g-|"
@@ -178,6 +179,7 @@ final class TestMerge2: XCTestCase {
       "abcdefgh|"
     }
   }
+#endif
 
   func test_merge_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")
@@ -508,6 +510,7 @@ final class TestMerge3: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
       "a---e---|"
@@ -517,6 +520,7 @@ final class TestMerge3: XCTestCase {
       "abcdefgh|"
     }
   }
+#endif
 
   func test_merge_finishes_when_iteration_task_is_cancelled() async {
     let source1 = Indefinite(value: "test1")

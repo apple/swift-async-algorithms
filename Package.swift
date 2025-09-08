@@ -48,7 +48,7 @@ let package = Package(
       dependencies: [
         .target(name: "AsyncAlgorithms"),
         .target(
-          name: "AsyncSequenceValidation", 
+          name: "AsyncSequenceValidation",
           condition: .when(platforms: [
             .macOS,
             .iOS,
@@ -63,7 +63,7 @@ let package = Package(
           ])
         ),
         .target(
-          name: "AsyncAlgorithms_XCTest", 
+          name: "AsyncAlgorithms_XCTest",
           condition: .when(platforms: [
             .macOS,
             .iOS,

@@ -13,6 +13,7 @@ import XCTest
 import AsyncAlgorithms
 
 final class TestDebounce: XCTestCase {
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_delayingValues() throws {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
       throw XCTSkip("Skipped due to Clock/Instant/Duration availability")
@@ -67,6 +68,7 @@ final class TestDebounce: XCTestCase {
       "----|"
     }
   }
+#endif
 
   func test_Rethrows() async throws {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
