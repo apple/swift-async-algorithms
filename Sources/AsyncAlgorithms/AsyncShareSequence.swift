@@ -16,7 +16,7 @@ import DequeModule
 
 @available(AsyncAlgorithms 1.1, *)
 extension AsyncSequence
-where Element: Sendable, Self: AsyncSequenceSendableMetatype, AsyncIterator: AsyncIteratorSendableMetatype {
+where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
   /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
   ///
   /// The `share` method transforms an async sequence into a shareable sequence that can be safely
@@ -116,7 +116,7 @@ where Element: Sendable, Self: AsyncSequenceSendableMetatype, AsyncIterator: Asy
 // async sequence that meets the sendability requirements.
 @available(AsyncAlgorithms 1.1, *)
 struct AsyncShareSequence<Base: AsyncSequence>: Sendable
-where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIterator: AsyncIteratorSendableMetatype {
+where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
   // Each iterator of the shared sequence creates its own `Side` instance, which tracks
