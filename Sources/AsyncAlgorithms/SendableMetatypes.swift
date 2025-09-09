@@ -10,9 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 #if compiler(>=6.2)
-public typealias _AsyncSequenceSendableMetatype = SendableMetatype
-public typealias _AsyncIteratorSendableMetatype = SendableMetatype
+public typealias AsyncSequenceSendableMetatype = SendableMetatype & AsyncSequence
+public typealias AsyncIteratorSendableMetatype = SendableMetatype & AsyncIteratorProtocol
 #else
-public typealias _AsyncSequenceSendableMetatype = Any
-public typealias _AsyncIteratorSendableMetatype = Any
+public typealias AsyncSequenceSendableMetatype = AsyncSequence
+public typealias AsyncIteratorSendableMetatype = AsyncIteratorProtocol
 #endif

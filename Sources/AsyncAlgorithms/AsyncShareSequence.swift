@@ -13,7 +13,7 @@ import Synchronization
 import DequeModule
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncSequence where Element: Sendable, Self: _AsyncSequenceSendableMetatype, AsyncIterator: _AsyncIteratorSendableMetatype {
+extension AsyncSequence where Element: Sendable, Self: AsyncSequenceSendableMetatype, AsyncIterator: AsyncIteratorSendableMetatype {
   /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
   ///
   /// The `share` method transforms an async sequence into a shareable sequence that can be safely
@@ -107,7 +107,7 @@ extension AsyncSequence where Element: Sendable, Self: _AsyncSequenceSendableMet
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
 @available(AsyncAlgorithms 1.1, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable, Base: _AsyncSequenceSendableMetatype, Base.AsyncIterator: _AsyncIteratorSendableMetatype {
+struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIterator: AsyncIteratorSendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
   // Each iterator of the shared sequence creates its own `Side` instance, which tracks
@@ -597,7 +597,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
           }
         }
 #else
-        task = Task.detached(name: "Share Iteration") { [factory, self] in
+        task = Task.detached { [factory, self] in
           await iterationLoop(factory: factory)
         }
 #endif
@@ -618,7 +618,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       // Using this priority escalation means that the base task can avoid being detached.
       //
       // This is disabled for now until the 9999 availability is removed from `withTaskPriorityEscalationHandler`
-#if false /*swift(>=6.2)*/
+#if false /*compiler(>=6.2)*/
       if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
         return try await withTaskPriorityEscalationHandler {
           return await nextIteration(id)
