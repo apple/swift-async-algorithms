@@ -338,15 +338,22 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
         failure = error
       }
     }
-
+    #if compiler(>=6.1)
     let state: Mutex<State>
+    #else
+    let state: ManagedCriticalState<State>
+    #endif
     let limit: Int?
 
     init(
       _ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator,
       bufferingPolicy: AsyncBufferSequencePolicy
     ) {
+      #if compiler(>=6.1)
       state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
+      #else
+      state = ManagedCriticalState(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
+      #endif
       switch bufferingPolicy.policy {
       case .bounded(let limit):
         self.limit = limit

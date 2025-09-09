@@ -10,9 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 #if compiler(>=6.2)
+@available(AsyncAlgorithms 1.1, *)
 public typealias AsyncSequenceSendableMetatype = SendableMetatype & AsyncSequence
+@available(AsyncAlgorithms 1.1, *)
 public typealias AsyncIteratorSendableMetatype = SendableMetatype & AsyncIteratorProtocol
 #else
+@available(AsyncAlgorithms 1.1, *)
 public typealias AsyncSequenceSendableMetatype = AsyncSequence
+@available(AsyncAlgorithms 1.1, *)
 public typealias AsyncIteratorSendableMetatype = AsyncIteratorProtocol
 #endif
