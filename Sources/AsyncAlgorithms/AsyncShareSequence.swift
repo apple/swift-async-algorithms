@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 import Synchronization
 import DequeModule
 
@@ -338,22 +340,15 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
         failure = error
       }
     }
-    #if compiler(>=6.1)
+
     let state: Mutex<State>
-    #else
-    let state: ManagedCriticalState<State>
-    #endif
     let limit: Int?
 
     init(
       _ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator,
       bufferingPolicy: AsyncBufferSequencePolicy
     ) {
-      #if compiler(>=6.1)
       state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
-      #else
-      state = ManagedCriticalState(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
-      #endif
       switch bufferingPolicy.policy {
       case .bounded(let limit):
         self.limit = limit
@@ -644,7 +639,7 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
       // Using this priority escalation means that the base task can avoid being detached.
       //
       // This is disabled for now until the 9999 availability is removed from `withTaskPriorityEscalationHandler`
-      #if false // TODO: replace with compiler(>=6.2)
+      #if false // TODO: remove when this is resolved
       guard #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) else {
         return try await nextIteration(id).get()
       }
@@ -727,3 +722,5 @@ extension AsyncShareSequence: AsyncSequence {
     Iterator(extent.iteration)
   }
 }
+
+#endif
