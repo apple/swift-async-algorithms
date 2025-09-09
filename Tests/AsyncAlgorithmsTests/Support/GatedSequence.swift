@@ -45,7 +45,7 @@ extension GatedSequence: AsyncSequence {
       await gate.enter()
       return element
     }
-    
+
     public mutating func next(isolation actor: isolated (any Actor)?) async throws(Never) -> Element? {
       guard gatedElements.count > 0 else {
         return nil
