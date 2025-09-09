@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if compiler(>=6.2)
+
 import XCTest
 import AsyncAlgorithms
 import Synchronization
@@ -577,3 +579,5 @@ final class TestShare: XCTestCase {
 private enum TestError: Error, Equatable {
   case failure
 }
+
+#endif
