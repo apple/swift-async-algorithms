@@ -683,6 +683,10 @@ extension AsyncShareSequence: AsyncSequence {
     init(_ iteration: Iteration) {
       side = Side(iteration)
     }
+
+    mutating func next() async rethrows -> Element? {
+      try await side.next(isolation: nil)
+    }
     
     mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
       try await side.next(isolation: actor)
