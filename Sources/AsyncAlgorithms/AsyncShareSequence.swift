@@ -639,7 +639,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       // Using this priority escalation means that the base task can avoid being detached.
       //
       // This is disabled for now until the 9999 availability is removed from `withTaskPriorityEscalationHandler`
-      #if false // TODO: remove when this is resolved
+      #if false  // TODO: remove when this is resolved
       guard #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) else {
         return try await nextIteration(id).get()
       }
