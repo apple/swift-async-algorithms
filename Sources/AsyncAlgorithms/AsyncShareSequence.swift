@@ -13,7 +13,7 @@ import Synchronization
 import DequeModule
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
+extension AsyncSequence where Element: Sendable, Self: _AsyncSequenceSendableMetatype, AsyncIterator: _AsyncIteratorSendableMetatype {
   /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
   ///
   /// The `share` method transforms an async sequence into a shareable sequence that can be safely
@@ -107,7 +107,7 @@ extension AsyncSequence where Element: Sendable, Self: SendableMetatype, AsyncIt
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
 @available(AsyncAlgorithms 1.1, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
+struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sendable, Base: _AsyncSequenceSendableMetatype, Base.AsyncIterator: _AsyncIteratorSendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
   // Each iterator of the shared sequence creates its own `Side` instance, which tracks
@@ -586,7 +586,7 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       if let factory {
         let task: Task<Void, Never>
         // for the fancy dance of availability and canImport see the comment on the next check for details
-#if canImport(_Concurrency, _version: 6.2)
+#if swift(>=6.2)
         if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
           task = Task(name: "Share Iteration") { [factory, self] in
             await iterationLoop(factory: factory)
@@ -616,7 +616,9 @@ struct AsyncShareSequence<Base: AsyncSequence>: Sendable where Base.Element: Sen
       // the _Concurrency library. This menas for Darwin based OSes we have to have a fallback at runtime,
       // and for non-darwin OSes we need to verify against the ability to import that version.
       // Using this priority escalation means that the base task can avoid being detached.
-#if canImport(_Concurrency, _version: 6.2)
+      //
+      // This is disabled for now until the 9999 availability is removed from `withTaskPriorityEscalationHandler`
+#if false /*swift(>=6.2)*/
       if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
         return try await withTaskPriorityEscalationHandler {
           return await nextIteration(id)
