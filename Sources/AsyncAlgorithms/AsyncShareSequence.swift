@@ -342,7 +342,6 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
     let state: Mutex<State>
     let limit: Int?
 
-    #if compiler(>=6.1)
     init(
       _ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator,
       bufferingPolicy: AsyncBufferSequencePolicy
@@ -355,20 +354,7 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
         self.limit = nil
       }
     }
-    #else
-    init(
-      _ iteratorFactory: @escaping @Sendable () -> Base.AsyncIterator,
-      bufferingPolicy: AsyncBufferSequencePolicy
-    ) {
-      state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
-      switch bufferingPolicy.policy {
-      case .bounded(let limit):
-        self.limit = limit
-      default:
-        self.limit = nil
-      }
-    }
-    #endif
+
     func cancel() {
       let (task, limitContinuation, demand, cancelled) = state.withLock {
         state -> (IteratingTask?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
@@ -651,7 +637,7 @@ where Base.Element: Sendable, Base: AsyncSequenceSendableMetatype, Base.AsyncIte
       // Using this priority escalation means that the base task can avoid being detached.
       //
       // This is disabled for now until the 9999 availability is removed from `withTaskPriorityEscalationHandler`
-      #if false  // replace with compiler(>=6.2)
+      #if false /*compiler(>=6.2)*/
       guard #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) else {
         return try await nextIteration(id).get()
       }
