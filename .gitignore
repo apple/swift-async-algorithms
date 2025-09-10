@@ -9,3 +9,4 @@ DerivedData/
 .netrc
 .swiftpm
 Package.resolved
+.swift-version

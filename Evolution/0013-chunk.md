@@ -1,7 +1,7 @@
 # Chunked & Timer
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-chunk.md)
+* Proposal: [SAA-0013](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0013-chunk.md)
 * Author(s): [Kevin Perry](https://github.com/kperryua), [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: [
 [By group](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncChunkedByGroupSequence.swift),
 [On projection](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncChunkedOnProjectionSequence.swift),

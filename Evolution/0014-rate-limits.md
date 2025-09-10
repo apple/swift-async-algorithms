@@ -1,8 +1,8 @@
 # Rate Limiting
 
-* Proposal: [SAA-NNNN]()
+* Proposal: [SAA-0014](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0014-rate-limits.md)
 * Authors: [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: 
 [
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncDebounceSequence.swift) |

@@ -1,7 +1,7 @@
 # Reductions
-* Proposal: [SAA-NNNN](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/NNNN-reductions.md)
+* Proposal: [SAA-0015](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0015-reductions.md)
 * Author(s): [Philippe Hausler](https://github.com/phausler)
-* Status: **Implemented**
+* Status: **Accepted**
 * Implementation: [
 [Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncExclusiveReductionsSequence.swift) |
 [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestReductions.swift)

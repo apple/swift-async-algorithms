@@ -30,6 +30,7 @@ This package has three main goals:
 - <doc:Merge>
 - <doc:Reductions>
 - <doc:RemoveDuplicates>
+- <doc:Share>
 - <doc:Throttle>
 - <doc:Timer>
 - <doc:Zip>
