@@ -1,4 +1,14 @@
 # Share
+* Proposal: [SAA-0015](https://github.com/apple/swift-async-algorithms/blob/main/Evolution/0016-share.md)
+* Author(s): [Philippe Hausler](https://github.com/phausler)
+* Status: **Accepted**
+* Implementation: [
+[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncShareSequence.swift) |
+[Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestShare.swift)
+]
+* Decision Notes:
+* Bugs:
+
 
 ## Introduction
 
