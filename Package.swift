@@ -17,11 +17,9 @@ let package = Package(
   ],
   targets: [
     .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
-    .target(name: "_CPowSupport"),
     .target(
       name: "AsyncAlgorithms",
       dependencies: [
-        "_CPowSupport",
         .product(name: "OrderedCollections", package: "swift-collections"),
         .product(name: "DequeModule", package: "swift-collections"),
       ],
