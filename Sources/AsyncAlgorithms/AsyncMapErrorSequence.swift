@@ -1,12 +1,11 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift.org open source project
+// This source file is part of the Swift Async Algorithms open source project
 //
-// Copyright (c) 2024 Apple Inc. and the Swift project authors
+// Copyright (c) 2022 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
-// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,9 @@ extension AsyncSequence {
   ///
   /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
   @available(AsyncAlgorithms 1.1, *)
-  public func mapError<MappedError: Error>(_ transform: @Sendable @escaping (Failure) async -> MappedError) -> AsyncMapErrorSequence<Self, MappedError> {
+  public func mapError<MappedError: Error>(
+    _ transform: @Sendable @escaping (Failure) async -> MappedError
+  ) -> AsyncMapErrorSequence<Self, MappedError> {
     AsyncMapErrorSequence(base: self, transform: transform)
   }
 }
@@ -45,7 +46,7 @@ public struct AsyncMapErrorSequence<Base: AsyncSequence, MappedError: Error> {
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncMapErrorSequence: AsyncSequence  {
+extension AsyncMapErrorSequence: AsyncSequence {
 
   /// The iterator that produces elements of the map sequence.
   public struct Iterator: AsyncIteratorProtocol {
@@ -85,8 +86,8 @@ extension AsyncMapErrorSequence: AsyncSequence  {
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncMapErrorSequence: Sendable where Base: Sendable { }
+extension AsyncMapErrorSequence: Sendable where Base: Sendable {}
 
 @available(*, unavailable)
-extension AsyncMapErrorSequence.Iterator: Sendable { }
+extension AsyncMapErrorSequence.Iterator: Sendable {}
 #endif

@@ -1,3 +1,14 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Async Algorithms open source project
+//
+// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+//
+//===----------------------------------------------------------------------===//
+
 import AsyncAlgorithms
 import XCTest
 
@@ -36,7 +47,8 @@ final class TestMapError: XCTestCase {
   func test_mapError_cancellation() async throws {
     let value = "test"
     let source = Indefinite(value: value).async
-    let sequence = source
+    let sequence =
+      source
       .map {
         if $0 == "just to trick compiler that this may throw" {
           throw MyAwesomeError.originalError
@@ -95,9 +107,9 @@ final class TestMapError: XCTestCase {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-private extension TestMapError {
+extension TestMapError {
 
-  enum MyAwesomeError: Error {
+  fileprivate enum MyAwesomeError: Error {
     case originalError
     case mappedError
   }
