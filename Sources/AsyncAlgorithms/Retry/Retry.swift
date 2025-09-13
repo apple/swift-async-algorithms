@@ -1,17 +1,17 @@
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 public struct RetryStrategy<Duration: DurationProtocol> {
-  enum Strategy {
+  @usableFromInline enum Strategy {
     case backoff(Duration)
     case stop
   }
-  
-  let strategy: Strategy
-  
-  public static var stop: Self {
+  @usableFromInline let strategy: Strategy
+  @usableFromInline init(strategy: Strategy) {
+    self.strategy = strategy
+  }
+  @inlinable public static var stop: Self {
     return .init(strategy: .stop)
   }
-  
-  public static func backoff(_ duration: Duration) -> Self {
+  @inlinable public static func backoff(_ duration: Duration) -> Self {
     return .init(strategy: .backoff(duration))
   }
 }

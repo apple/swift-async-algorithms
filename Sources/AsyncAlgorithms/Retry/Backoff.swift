@@ -21,6 +21,7 @@ public protocol BackoffStrategy<Duration> {
 struct ConstantBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy {
   @usableFromInline let constant: Duration
   @usableFromInline init(constant: Duration) {
+    precondition(constant >= .zero, "Constsnt must be greater than or equal to 0")
     self.constant = constant
   }
   @inlinable func nextDuration() -> Duration {
@@ -32,8 +33,10 @@ struct ConstantBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy {
 @usableFromInline
 struct LinearBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy {
   @usableFromInline var current: Duration
-  @usableFromInline var increment: Duration
+  @usableFromInline let increment: Duration
   @usableFromInline init(increment: Duration, initial: Duration) {
+    precondition(initial >= .zero, "Initial must be greater than or equal to 0")
+    precondition(increment >= .zero, "Increment must be greater than or equal to 0")
     self.current = initial
     self.increment = increment
   }
@@ -48,6 +51,8 @@ struct LinearBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy {
   @usableFromInline var current: Duration
   @usableFromInline let factor: Int
   @usableFromInline init(factor: Int, initial: Duration) {
+    precondition(initial >= .zero, "Initial must be greater than or equal to 0")
+    precondition(factor >= 1, "Factor must be greater than or equal to 1")
     self.current = initial
     self.factor = factor
   }
@@ -109,8 +114,8 @@ struct EqualJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenera
     self.generator = generator
   }
   @inlinable mutating func nextDuration() -> Base.Duration {
-    let halfBase = (base.nextDuration() / 2).attoseconds
-    return .init(attoseconds: halfBase + Int128.random(in: 0...halfBase, using: &generator))
+    let base = base.nextDuration()
+    return .init(attoseconds: Int128.random(in: (base / 2).attoseconds...base.attoseconds, using: &generator))
   }
 }
 
@@ -122,6 +127,7 @@ struct DecorrelatedJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumbe
   @usableFromInline var current: Duration?
   @usableFromInline let factor: Int
   @usableFromInline init(base: Base, generator: RNG, factor: Int) {
+    precondition(factor >= 1, "Factor must be greater than or equal to 1")
     self.base = base
     self.generator = generator
     self.factor = factor
