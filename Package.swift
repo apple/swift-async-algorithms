@@ -16,7 +16,6 @@ let package = Package(
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"])
   ],
   targets: [
-    .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms",
       dependencies: [
@@ -34,6 +33,7 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
+    .systemLibrary(name: "_CAsyncSequenceValidationSupport"),
     .target(
       name: "AsyncAlgorithms_XCTest",
       dependencies: ["AsyncAlgorithms", "AsyncSequenceValidation"],
