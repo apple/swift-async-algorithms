@@ -17,8 +17,7 @@ public struct RetryStrategy<Duration: DurationProtocol> {
 }
 
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-@inlinable
-public func retry<Result, ErrorType, ClockType>(
+@inlinable public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int = 3,
   tolerance: ClockType.Instant.Duration? = nil,
   clock: ClockType,
@@ -45,8 +44,7 @@ public func retry<Result, ErrorType, ClockType>(
 }
 
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-@inlinable
-public func retry<Result, ErrorType>(
+@inlinable public func retry<Result, ErrorType>(
   maxAttempts: Int = 3,
   tolerance: ContinuousClock.Instant.Duration? = nil,
   isolation: isolated (any Actor)? = #isolation,
