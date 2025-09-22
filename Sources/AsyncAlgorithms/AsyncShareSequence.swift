@@ -9,14 +9,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if compiler(>=6.2)
-
 import Synchronization
 import DequeModule
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncSequence
-where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
+where Element: Sendable, Self: _SendableMetatype, AsyncIterator: _SendableMetatype {
   /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
   ///
   /// The `share` method transforms an async sequence into a shareable sequence that can be safely
@@ -67,7 +65,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   ///
   public func share(
     bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)
-  ) -> some AsyncSequence<Element, Failure> & Sendable {
+  ) -> AsyncShareSequence<Self> {
     // The iterator is transferred to the isolation of the iterating task
     // this has to be done "unsafely" since we cannot annotate the transfer
     // however since iterating an AsyncSequence types twice has been defined
@@ -114,9 +112,9 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
 //
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
-@available(AsyncAlgorithms 1.1, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable
-where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
+@available(AsyncAlgorithms 1.0, *)
+public struct AsyncShareSequence<Base: AsyncSequence>: Sendable
+where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _SendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
   // Each iterator of the shared sequence creates its own `Side` instance, which tracks
@@ -135,7 +133,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
     // - `continuation`: The continuation waiting for the next element (nil if not waiting)
     // - `position`: The consumer's current position in the shared buffer
     struct State {
-      var continuation: UnsafeContinuation<Result<Element?, Failure>, Never>?
+        var continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>?
       var position = 0
 
       // Creates a new state with the position adjusted by the given offset.
@@ -162,7 +160,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       iteration.unregisterSide(id)
     }
 
-    func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+    func next(isolation actor: isolated (any Actor)?) async throws -> Base.Element? {
       try await iteration.next(isolation: actor, id: id)
     }
   }
@@ -230,9 +228,9 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       var generation = 0
       var sides = [Int: Side.State]()
       var iteratingTask: IteratingTask
-      private(set) var buffer = Deque<Element>()
+        private(set) var buffer = Deque<Base.Element>()
       private(set) var finished = false
-      private(set) var failure: Failure?
+      private(set) var failure: Error?
       var cancelled = false
       var limit: UnsafeContinuation<Bool, Never>?
       var demand: UnsafeContinuation<Void, Never>?
@@ -311,7 +309,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       //   **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
       //
       // - Parameter element: The element to add to the buffer
-      mutating func enqueue(_ element: Element) {
+        mutating func enqueue(_ element: Base.Element) {
         let count = buffer.count
 
         switch storagePolicy {
@@ -335,20 +333,20 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
         finished = true
       }
 
-      mutating func fail(_ error: Failure) {
+      mutating func fail(_ error: Error) {
         finished = true
         failure = error
       }
     }
 
-    let state: Mutex<State>
+    let state: ManagedCriticalState<State>
     let limit: Int?
 
     init(
       _ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator,
       bufferingPolicy: AsyncBufferSequencePolicy
     ) {
-      state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
+      state = ManagedCriticalState(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
       switch bufferingPolicy.policy {
       case .bounded(let limit):
         self.limit = limit
@@ -478,15 +476,15 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
     }
 
     struct Resumption {
-      let continuation: UnsafeContinuation<Result<Element?, Failure>, Never>
-      let result: Result<Element?, Failure>
+        let continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>
+        let result: Result<Base.Element?, Error>
 
       func resume() {
         continuation.resume(returning: result)
       }
     }
 
-    func emit(_ result: Result<Element?, Failure>) {
+      func emit(_ result: Result<Base.Element?, Error>) {
       let (resumptions, limitContinuation, demandContinuation, cancelled) = state.withLock {
         state -> ([Resumption], UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
         var resumptions = [Resumption]()
@@ -533,12 +531,12 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
 
     private func nextIteration(
       _ id: Int
-    ) async -> Result<AsyncShareSequence<Base>.Element?, AsyncShareSequence<Base>.Failure> {
+    ) async -> Result<Base.Element?, Error> {
       return await withTaskCancellationHandler {
         await withUnsafeContinuation { continuation in
           let (res, limitContinuation, demandContinuation, cancelled) = state.withLock {
             state -> (
-              Result<Element?, Failure>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
+                Result<Base.Element?, Error>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
             ) in
             guard let side = state.sides[id] else {
               return state.emit(.success(nil), limit: limit)
@@ -587,11 +585,11 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
           }
         }
       } catch {
-        emit(.failure(error as! Failure))
+        emit(.failure(error))
       }
     }
 
-    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Element? {
+    func next(isolation actor: isolated (any Actor)?, id: Int) async throws -> Base.Element? {
       let (factory, cancelled) = state.withLock { state -> ((@Sendable () -> sending Base.AsyncIterator)?, Bool) in
         switch state.iteratingTask {
         case .pending(let factory):
@@ -697,30 +695,29 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.0, *)
 extension AsyncShareSequence: AsyncSequence {
-  typealias Element = Base.Element
-  typealias Failure = Base.Failure
+  public typealias Element = Base.Element
+  public typealias Failure = Swift.Error
 
-  struct Iterator: AsyncIteratorProtocol {
+  public struct Iterator: AsyncIteratorProtocol {
     let side: Side
 
     init(_ iteration: Iteration) {
       side = Side(iteration)
     }
 
-    mutating func next() async rethrows -> Element? {
+    mutating public func next() async rethrows -> Element? {
       try await side.next(isolation: nil)
     }
 
-    mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
       try await side.next(isolation: actor)
     }
   }
 
-  func makeAsyncIterator() -> Iterator {
+  public func makeAsyncIterator() -> Iterator {
     Iterator(extent.iteration)
   }
 }
 
-#endif
