@@ -50,7 +50,6 @@ public protocol BackoffStrategy<Duration> {
   @usableFromInline let factor: Int
   @usableFromInline init(factor: Int, initial: Duration) {
     precondition(initial >= .zero, "Initial must be greater than or equal to 0")
-    precondition(factor >= .zero, "Factor must be greater than or equal to 0")
     self.current = initial
     self.factor = factor
   }
@@ -158,7 +157,7 @@ public enum Backoff {
 
 @available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension Backoff {
-  @inlinable public static func decorrelatedJitter<RNG: RandomNumberGenerator>(factor: Int, base: Duration, using generator: RNG) -> some BackoffStrategy<Duration> {
+  @inlinable public static func decorrelatedJitter<RNG: RandomNumberGenerator>(factor: Int, base: Duration, using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> {
     return DecorrelatedJitterBackoffStrategy(base: base, factor: factor, generator: generator)
   }
 }
