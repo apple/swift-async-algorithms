@@ -1,3 +1,4 @@
+#if compiler(>=6.2)
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 public struct RetryAction<Duration: DurationProtocol> {
   @usableFromInline enum Action {
@@ -8,14 +9,58 @@ public struct RetryAction<Duration: DurationProtocol> {
   @usableFromInline init(action: Action) {
     self.action = action
   }
+
+  /// Indicates that retrying should stop immediately and the error should be rethrown.
   @inlinable public static var stop: Self {
     return .init(action: .stop)
   }
+
+  /// Indicates that retrying should continue after waiting for the specified duration.
+  ///
+  /// - Parameter duration: The duration to wait before the next retry attempt.
+  /// - Returns: A retry action that will cause the retry operation to wait.
   @inlinable public static func backoff(_ duration: Duration) -> Self {
     return .init(action: .backoff(duration))
   }
 }
 
+/// Executes an asynchronous operation with retry logic and customizable backoff strategies.
+///
+/// This function attempts to execute the provided operation up to `maxAttempts` times.
+/// Between failed attempts, it consults the strategy function to determine whether to
+/// continue retrying with a delay or stop immediately.
+///
+/// The retry logic follows this sequence:
+/// 1. Execute the operation
+/// 2. If successful, return the result
+/// 3. If failed and this was not the final attempt:
+///    - Call the strategy closure with the error
+///      - If the strategy returns `.stop`, rethrow the error immediately
+///      - If the strategy returns `.backoff`, suspend for the given duration
+///      - Return to step 1
+/// 4. If failed on the final attempt, rethrow the error without consulting the strategy
+///
+/// - Parameters:
+///   - maxAttempts: The maximum number of attempts to make. Must be greater than 0.
+///   - tolerance: The tolerance for the sleep operation between retries.
+///   - clock: The clock to use for timing delays between retries.
+///   - isolation: The actor isolation to maintain during execution.
+///   - operation: The asynchronous operation to retry.
+///   - strategy: A closure that determines the retry action based on the error.
+///                Defaults to immediate retry with no delay.
+/// - Returns: The result of the successful operation.
+/// - Throws: The error from the operation if all retry attempts fail or if the strategy returns `.stop`.
+///
+/// ## Example
+///
+/// ```swift
+/// var backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// let result = try await retry(maxAttempts: 3, clock: ContinuousClock()) {
+///   try await someNetworkOperation()
+/// } strategy: { error in
+///   .backoff(backoff.nextDuration())
+/// }
+/// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 @inlinable public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int,
@@ -42,6 +87,42 @@ public struct RetryAction<Duration: DurationProtocol> {
   return try await operation()
 }
 
+/// Executes an asynchronous operation with retry logic and customizable backoff strategies.
+///
+/// This function attempts to execute the provided operation up to `maxAttempts` times.
+/// Between failed attempts, it consults the strategy function to determine whether to
+/// continue retrying with a delay or stop immediately.
+///
+/// The retry logic follows this sequence:
+/// 1. Execute the operation
+/// 2. If successful, return the result
+/// 3. If failed and this was not the final attempt:
+///    - Call the strategy closure with the error
+///      - If the strategy returns `.stop`, rethrow the error immediately
+///      - If the strategy returns `.backoff`, suspend for the given duration
+///      - Return to step 1
+/// 4. If failed on the final attempt, rethrow the error without consulting the strategy
+///
+/// - Parameters:
+///   - maxAttempts: The maximum number of attempts to make. Must be greater than 0.
+///   - tolerance: The tolerance for the sleep operation between retries.
+///   - isolation: The actor isolation to maintain during execution.
+///   - operation: The asynchronous operation to retry.
+///   - strategy: A closure that determines the retry action based on the error.
+///                Defaults to immediate retry with no delay.
+/// - Returns: The result of the successful operation.
+/// - Throws: The error from the operation if all retry attempts fail or if the strategy returns `.stop`.
+///
+/// ## Example
+///
+/// ```swift
+/// var backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// let result = try await retry(maxAttempts: 3) {
+///   try await someNetworkOperation()
+/// } strategy: { error in
+///   .backoff(backoff.nextDuration())
+/// }
+/// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 @inlinable public func retry<Result, ErrorType>(
   maxAttempts: Int,
@@ -58,3 +139,4 @@ public struct RetryAction<Duration: DurationProtocol> {
     strategy: strategy
   )
 }
+#endif

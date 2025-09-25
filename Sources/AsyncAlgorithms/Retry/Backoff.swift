@@ -1,15 +1,17 @@
-#if compiler(<6.2)
-@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-extension Duration {
-  @usableFromInline var attoseconds: Int128 {
-    return Int128(_low: _low, _high: _high)
-  }
-  @usableFromInline init(attoseconds: Int128) {
-    self.init(_high: attoseconds._high, low: attoseconds._low)
-  }
-}
-#endif
-
+#if compiler(>=6.2)
+/// A protocol for defining backoff strategies that generate delays between retry attempts.
+///
+/// Backoff strategies are stateful and generate progressively changing delays based on their
+/// internal algorithm. Each call to `nextDuration()` returns the delay for the next retry attempt.
+///
+/// ## Example
+///
+/// ```swift
+/// var strategy = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// strategy.nextDuration() // 100ms
+/// strategy.nextDuration() // 200ms
+/// strategy.nextDuration() // 400ms
+/// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 public protocol BackoffStrategy<Duration> {
   associatedtype Duration: DurationProtocol
@@ -135,21 +137,96 @@ public protocol BackoffStrategy<Duration> {
 
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 public enum Backoff {
+  /// Creates a constant backoff strategy that always returns the same delay.
+  ///
+  /// Formula: `f(n) = constant`
+  ///
+  /// - Parameter constant: The fixed duration to wait between retry attempts.
+  /// - Returns: A backoff strategy that always returns the constant duration.
   @inlinable public static func constant<Duration: DurationProtocol>(_ constant: Duration) -> some BackoffStrategy<Duration> {
     return ConstantBackoffStrategy(constant: constant)
   }
+
+  /// Creates a constant backoff strategy that always returns the same delay.
+  ///
+  /// Formula: `f(n) = constant`
+  ///
+  /// - Parameter constant: The fixed duration to wait between retry attempts.
+  /// - Returns: A backoff strategy that always returns the constant duration.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var backoff = Backoff.constant(.milliseconds(100))
+  /// backoff.nextDuration() // 100ms
+  /// backoff.nextDuration() // 100ms
+  /// ```
   @inlinable public static func constant(_ constant: Duration) -> some BackoffStrategy<Duration> {
     return ConstantBackoffStrategy(constant: constant)
   }
+
+  /// Creates a linear backoff strategy where delays increase by a fixed increment.
+  ///
+  /// Formula: `f(n) = initial + increment * n`
+  ///
+  /// - Parameters:
+  ///   - increment: The amount to increase the delay by on each attempt.
+  ///   - initial: The initial delay for the first retry attempt.
+  /// - Returns: A backoff strategy with linearly increasing delays.
   @inlinable public static func linear<Duration: DurationProtocol>(increment: Duration, initial: Duration) -> some BackoffStrategy<Duration> {
     return LinearBackoffStrategy(increment: increment, initial: initial)
   }
+
+  /// Creates a linear backoff strategy where delays increase by a fixed increment.
+  ///
+  /// Formula: `f(n) = initial + increment * n`
+  ///
+  /// - Parameters:
+  ///   - increment: The amount to increase the delay by on each attempt.
+  ///   - initial: The initial delay for the first retry attempt.
+  /// - Returns: A backoff strategy with linearly increasing delays.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var backoff = Backoff.linear(increment: .milliseconds(100), initial: .milliseconds(100))
+  /// backoff.nextDuration() // 100ms
+  /// backoff.nextDuration() // 200ms
+  /// backoff.nextDuration() // 300ms
+  /// ```
   @inlinable public static func linear(increment: Duration, initial: Duration) -> some BackoffStrategy<Duration> {
     return LinearBackoffStrategy(increment: increment, initial: initial)
   }
+
+  /// Creates an exponential backoff strategy where delays grow exponentially.
+  ///
+  /// Formula: `f(n) = initial * factor^n`
+  ///
+  /// - Parameters:
+  ///   - factor: The multiplication factor for each retry attempt.
+  ///   - initial: The initial delay for the first retry attempt.
+  /// - Returns: A backoff strategy with exponentially increasing delays.
   @inlinable public static func exponential<Duration: DurationProtocol>(factor: Int, initial: Duration) -> some BackoffStrategy<Duration> {
     return ExponentialBackoffStrategy(factor: factor, initial: initial)
   }
+
+  /// Creates an exponential backoff strategy where delays grow exponentially.
+  ///
+  /// Formula: `f(n) = initial * factor^n`
+  ///
+  /// - Parameters:
+  ///   - factor: The multiplication factor for each retry attempt.
+  ///   - initial: The initial delay for the first retry attempt.
+  /// - Returns: A backoff strategy with exponentially increasing delays.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+  /// backoff.nextDuration() // 100ms
+  /// backoff.nextDuration() // 200ms
+  /// backoff.nextDuration() // 400ms
+  /// ```
   @inlinable public static func exponential(factor: Int, initial: Duration) -> some BackoffStrategy<Duration> {
     return ExponentialBackoffStrategy(factor: factor, initial: initial)
   }
@@ -157,6 +234,18 @@ public enum Backoff {
 
 @available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension Backoff {
+  /// Creates a decorrelated jitter backoff strategy that uses randomized delays.
+  ///
+  /// Formula: `f(n) = random(base, f(n - 1) * factor)` where `f(0) = base`
+  ///
+  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// simultaneously, reducing server load spikes and improving system stability.
+  ///
+  /// - Parameters:
+  ///   - factor: The multiplication factor for calculating the upper bound of randomness.
+  ///   - base: The base duration used as the minimum delay and initial reference.
+  ///   - generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
+  /// - Returns: A backoff strategy with decorrelated jitter.
   @inlinable public static func decorrelatedJitter<RNG: RandomNumberGenerator>(factor: Int, base: Duration, using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> {
     return DecorrelatedJitterBackoffStrategy(base: base, factor: factor, generator: generator)
   }
@@ -164,9 +253,46 @@ extension Backoff {
 
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
 extension BackoffStrategy {
+  /// Applies a minimum duration constraint to this backoff strategy.
+  ///
+  /// Formula: `f(n) = max(minimum, g(n))` where `g(n)` is the base strategy
+  ///
+  /// This modifier ensures that no delay returned by the strategy is less than
+  /// the specified minimum duration.
+  ///
+  /// - Parameter minimum: The minimum duration to enforce.
+  /// - Returns: A backoff strategy that never returns delays shorter than the minimum.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var backoff = Backoff
+  ///   .exponential(factor: 2, initial: .milliseconds(100))
+  ///   .minimum(.milliseconds(200))
+  /// backoff.nextDuration() // 200ms (enforced minimum)
+  /// ```
   @inlinable public func minimum(_ minimum: Duration) -> some BackoffStrategy<Duration> {
     return MinimumBackoffStrategy(base: self, minimum: minimum)
   }
+
+  /// Applies a maximum duration constraint to this backoff strategy.
+  ///
+  /// Formula: `f(n) = min(maximum, g(n))` where `g(n)` is the base strategy
+  ///
+  /// This modifier ensures that no delay returned by the strategy exceeds
+  /// the specified maximum duration, effectively capping exponential growth.
+  ///
+  /// - Parameter maximum: The maximum duration to enforce.
+  /// - Returns: A backoff strategy that never returns delays longer than the maximum.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var backoff = Backoff
+  ///   .exponential(factor: 2, initial: .milliseconds(100))
+  ///   .maximum(.seconds(5))
+  /// // Delays will cap at 5 seconds instead of growing indefinitely
+  /// ```
   @inlinable public func maximum(_ maximum: Duration) -> some BackoffStrategy<Duration> {
     return MaximumBackoffStrategy(base: self, maximum: maximum)
   }
@@ -174,10 +300,30 @@ extension BackoffStrategy {
 
 @available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension BackoffStrategy where Duration == Swift.Duration {
+  /// Applies full jitter to this backoff strategy.
+  ///
+  /// Formula: `f(n) = random(0, g(n))` where `g(n)` is the base strategy
+  ///
+  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// simultaneously, reducing server load spikes and improving system stability.
+  ///
+  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
+  /// - Returns: A backoff strategy with full jitter applied.
   @inlinable public func fullJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> {
     return FullJitterBackoffStrategy(base: self, generator: generator)
   }
+
+  /// Applies equal jitter to this backoff strategy.
+  ///
+  /// Formula: `f(n) = random(g(n) / 2, g(n))` where `g(n)` is the base strategy
+  ///
+  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// simultaneously, reducing server load spikes and improving system stability.
+  ///
+  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
+  /// - Returns: A backoff strategy with equal jitter applied.
   @inlinable public func equalJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> {
     return EqualJitterBackoffStrategy(base: self, generator: generator)
   }
 }
+#endif
