@@ -14,7 +14,7 @@ import DequeModule
 @available(AsyncAlgorithms 1.0, *)
 struct UnboundedBufferStateMachine<Base: AsyncSequence> {
   typealias Element = Base.Element
-  typealias SuspendedConsumer = UnsafeContinuation<Result<Element, Error>?, Never>
+  typealias SuspendedConsumer = UnsafeContinuation<UnsafeTransfer<Result<Element, Error>?>, Never>
 
   enum Policy {
     case unlimited
@@ -73,7 +73,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
     case none
     case resumeConsumer(
       continuation: SuspendedConsumer,
-      result: Result<Element, Error>
+      result: UnsafeTransfer<Result<Element, Error>?>
     )
   }
 
@@ -108,7 +108,7 @@ struct UnboundedBufferStateMachine<Base: AsyncSequence> {
       self.state = .buffering(task: task, buffer: buffer, suspendedConsumer: nil)
       return .resumeConsumer(
         continuation: suspendedConsumer,
-        result: .success(element)
+        result: UnsafeTransfer(.success(element))
       )
 
     case .modifying:

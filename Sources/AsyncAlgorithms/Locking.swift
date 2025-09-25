@@ -153,6 +153,10 @@ struct ManagedCriticalState<State> {
       return try critical(&header.pointee)
     }
   }
+
+  func withLock<R>(_ critical: (inout State) throws -> R) rethrows -> R {
+    return try withCriticalRegion(critical)
+  }
 }
 
 extension ManagedCriticalState: @unchecked Sendable where State: Sendable {}

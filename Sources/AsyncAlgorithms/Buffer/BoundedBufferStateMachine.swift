@@ -15,7 +15,7 @@ import DequeModule
 struct BoundedBufferStateMachine<Base: AsyncSequence> {
   typealias Element = Base.Element
   typealias SuspendedProducer = UnsafeContinuation<Void, Never>
-  typealias SuspendedConsumer = UnsafeContinuation<Result<Base.Element, Error>?, Never>
+  typealias SuspendedConsumer = UnsafeContinuation<UnsafeTransfer<Result<Base.Element, Error>?>, Never>
 
   // We are using UnsafeTransfer here since we have to get the elements from the task
   // into the consumer task. This is a transfer but we cannot prove this to the compiler at this point
@@ -137,7 +137,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
 
   enum ElementProducedAction {
     case none
-    case resumeConsumer(continuation: SuspendedConsumer, result: Result<Element, Error>)
+    case resumeConsumer(continuation: SuspendedConsumer, result: UnsafeTransfer<Result<Base.Element, Error>?>)
   }
 
   mutating func elementProduced(element: Element) -> ElementProducedAction {
@@ -161,7 +161,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
       // we have an awaiting consumer, we can resume it with the element and exit
       precondition(buffer.isEmpty, "Invalid state. The buffer should be empty.")
       self.state = .buffering(task: task, buffer: buffer, suspendedProducer: nil, suspendedConsumer: nil)
-      return .resumeConsumer(continuation: suspendedConsumer, result: .success(element))
+      return .resumeConsumer(continuation: suspendedConsumer, result: UnsafeTransfer(.success(element)))
 
     case .buffering(_, _, .some, _):
       preconditionFailure("Invalid state. There should not be a suspended producer.")
@@ -177,7 +177,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
   enum FinishAction {
     case none
     case resumeConsumer(
-      continuation: UnsafeContinuation<Result<Base.Element, Error>?, Never>?
+      continuation: UnsafeContinuation<UnsafeTransfer<Result<Base.Element, Error>?>, Never>?
     )
   }
 
@@ -295,7 +295,7 @@ struct BoundedBufferStateMachine<Base: AsyncSequence> {
     case resumeProducerAndConsumer(
       task: Task<Void, Never>,
       producerContinuation: UnsafeContinuation<Void, Never>?,
-      consumerContinuation: UnsafeContinuation<Result<Base.Element, Error>?, Never>?
+      consumerContinuation: UnsafeContinuation<UnsafeTransfer<Result<Base.Element, Error>?>, Never>?
     )
   }
 

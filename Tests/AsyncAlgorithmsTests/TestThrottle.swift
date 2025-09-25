@@ -13,6 +13,7 @@ import XCTest
 import AsyncAlgorithms
 
 final class TestThrottle: XCTestCase {
+  #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_rate_0() throws {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
       throw XCTSkip("Skipped due to Clock/Instant/Duration availability")
@@ -188,4 +189,5 @@ final class TestThrottle: XCTestCase {
       "a--d--g--j--[l|]"
     }
   }
+  #endif
 }
