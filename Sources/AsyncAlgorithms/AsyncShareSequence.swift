@@ -33,7 +33,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   /// ## Example Usage
   ///
   /// ```swift
-  /// let numbers = [1, 2, 3, 4, 5].share.map {
+  /// let numbers = [1, 2, 3, 4, 5].async.map {
   ///  try? await Task.sleep(for: .seconds(1))
   ///  return $0
   /// }
