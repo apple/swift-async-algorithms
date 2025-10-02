@@ -1,8 +1,12 @@
 #if compiler(>=6.2)
 /// A protocol for defining backoff strategies that generate delays between retry attempts.
 ///
-/// Backoff strategies are stateful and generate progressively changing delays based on their
-/// internal algorithm. Each call to `nextDuration()` returns the delay for the next retry attempt.
+/// Each call to `nextDuration()` returns the delay for the next retry attempt. Strategies are
+/// naturally stateful. For instance, they may track the number of invocations or the previously
+/// returned duration to calculate the next delay.
+///
+/// - Precondition: Strategies should only increase or stay the same over time, never decrease.
+///   Decreasing delays may cause issues with modifiers like jitter which expect non-decreasing values.
 ///
 /// ## Example
 ///
@@ -141,6 +145,8 @@ public enum Backoff {
   ///
   /// Formula: `f(n) = constant`
   ///
+  /// - Precondition: `constant` must be greater than or equal to zero.
+  ///
   /// - Parameter constant: The fixed duration to wait between retry attempts.
   /// - Returns: A backoff strategy that always returns the constant duration.
   @inlinable public static func constant<Duration: DurationProtocol>(_ constant: Duration) -> some BackoffStrategy<Duration> {
@@ -150,6 +156,8 @@ public enum Backoff {
   /// Creates a constant backoff strategy that always returns the same delay.
   ///
   /// Formula: `f(n) = constant`
+  ///
+  /// - Precondition: `constant` must be greater than or equal to zero.
   ///
   /// - Parameter constant: The fixed duration to wait between retry attempts.
   /// - Returns: A backoff strategy that always returns the constant duration.
@@ -169,6 +177,8 @@ public enum Backoff {
   ///
   /// Formula: `f(n) = initial + increment * n`
   ///
+  /// - Precondition: `initial` and `increment` must be greater than or equal to zero.
+  ///
   /// - Parameters:
   ///   - increment: The amount to increase the delay by on each attempt.
   ///   - initial: The initial delay for the first retry attempt.
@@ -180,6 +190,8 @@ public enum Backoff {
   /// Creates a linear backoff strategy where delays increase by a fixed increment.
   ///
   /// Formula: `f(n) = initial + increment * n`
+  ///
+  /// - Precondition: `initial` and `increment` must be greater than or equal to zero.
   ///
   /// - Parameters:
   ///   - increment: The amount to increase the delay by on each attempt.
@@ -202,6 +214,8 @@ public enum Backoff {
   ///
   /// Formula: `f(n) = initial * factor^n`
   ///
+  /// - Precondition: `initial` must be greater than or equal to zero.
+  ///
   /// - Parameters:
   ///   - factor: The multiplication factor for each retry attempt.
   ///   - initial: The initial delay for the first retry attempt.
@@ -213,6 +227,8 @@ public enum Backoff {
   /// Creates an exponential backoff strategy where delays grow exponentially.
   ///
   /// Formula: `f(n) = initial * factor^n`
+  ///
+  /// - Precondition: `initial` must be greater than or equal to zero.
   ///
   /// - Parameters:
   ///   - factor: The multiplication factor for each retry attempt.
@@ -238,8 +254,10 @@ extension Backoff {
   ///
   /// Formula: `f(n) = random(base, f(n - 1) * factor)` where `f(0) = base`
   ///
-  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// Jitter prevents the thundering herd problem where multiple clients retry
   /// simultaneously, reducing server load spikes and improving system stability.
+  ///
+  /// - Precondition: `factor` must be greater than or equal to 1, and `base` must be greater than or equal to zero.
   ///
   /// - Parameters:
   ///   - factor: The multiplication factor for calculating the upper bound of randomness.
@@ -304,7 +322,7 @@ extension BackoffStrategy where Duration == Swift.Duration {
   ///
   /// Formula: `f(n) = random(0, g(n))` where `g(n)` is the base strategy
   ///
-  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// Jitter prevents the thundering herd problem where multiple clients retry
   /// simultaneously, reducing server load spikes and improving system stability.
   ///
   /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
@@ -317,7 +335,7 @@ extension BackoffStrategy where Duration == Swift.Duration {
   ///
   /// Formula: `f(n) = random(g(n) / 2, g(n))` where `g(n)` is the base strategy
   ///
-  /// Jitter prevents the "thundering herd" problem where multiple clients retry
+  /// Jitter prevents the thundering herd problem where multiple clients retry
   /// simultaneously, reducing server load spikes and improving system stability.
   ///
   /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.

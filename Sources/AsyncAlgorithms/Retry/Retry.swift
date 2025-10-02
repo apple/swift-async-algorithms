@@ -18,7 +18,6 @@ public struct RetryAction<Duration: DurationProtocol> {
   /// Indicates that retrying should continue after waiting for the specified duration.
   ///
   /// - Parameter duration: The duration to wait before the next retry attempt.
-  /// - Returns: A retry action that will cause the retry operation to wait.
   @inlinable public static func backoff(_ duration: Duration) -> Self {
     return .init(action: .backoff(duration))
   }
@@ -26,9 +25,8 @@ public struct RetryAction<Duration: DurationProtocol> {
 
 /// Executes an asynchronous operation with retry logic and customizable backoff strategies.
 ///
-/// This function attempts to execute the provided operation up to `maxAttempts` times.
-/// Between failed attempts, it consults the strategy function to determine whether to
-/// continue retrying with a delay or stop immediately.
+/// This function executes an asynchronous operation up to a specified number of attempts,
+/// with customizable delays and error-based retry decisions between attempts.
 ///
 /// The retry logic follows this sequence:
 /// 1. Execute the operation
@@ -40,8 +38,23 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///      - Return to step 1
 /// 4. If failed on the final attempt, rethrow the error without consulting the strategy
 ///
+/// Given this sequence, there are four termination conditions (when retrying will be stopped):
+/// - The operation completes without throwing an error
+/// - The operation has been attempted `maxAttempts` times
+/// - The strategy closure returns `.stop`
+/// - The clock throws
+///
+/// ## Cancellation
+///
+/// `retry` does not introduce special cancellation handling. If your code cooperatively
+/// cancels by throwing, ensure your strategy returns `.stop` for that error. Otherwise,
+/// retries continue unless the clock throws on cancellation (which, at the time of writing,
+/// both `ContinuousClock` and `SuspendingClock` do).
+///
+/// - Precondition: `maxAttempts` must be greater than 0.
+///
 /// - Parameters:
-///   - maxAttempts: The maximum number of attempts to make. Must be greater than 0.
+///   - maxAttempts: The maximum number of attempts to make.
 ///   - tolerance: The tolerance for the sleep operation between retries.
 ///   - clock: The clock to use for timing delays between retries.
 ///   - isolation: The actor isolation to maintain during execution.
@@ -58,7 +71,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// let result = try await retry(maxAttempts: 3, clock: ContinuousClock()) {
 ///   try await someNetworkOperation()
 /// } strategy: { error in
-///   .backoff(backoff.nextDuration())
+///   return .backoff(backoff.nextDuration())
 /// }
 /// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
@@ -89,9 +102,8 @@ public struct RetryAction<Duration: DurationProtocol> {
 
 /// Executes an asynchronous operation with retry logic and customizable backoff strategies.
 ///
-/// This function attempts to execute the provided operation up to `maxAttempts` times.
-/// Between failed attempts, it consults the strategy function to determine whether to
-/// continue retrying with a delay or stop immediately.
+/// This function executes an asynchronous operation up to a specified number of attempts,
+/// with customizable delays and error-based retry decisions between attempts.
 ///
 /// The retry logic follows this sequence:
 /// 1. Execute the operation
@@ -103,8 +115,23 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///      - Return to step 1
 /// 4. If failed on the final attempt, rethrow the error without consulting the strategy
 ///
+/// Given this sequence, there are four termination conditions (when retrying will be stopped):
+/// - The operation completes without throwing an error
+/// - The operation has been attempted `maxAttempts` times
+/// - The strategy closure returns `.stop`
+/// - The clock throws
+///
+/// ## Cancellation
+///
+/// `retry` does not introduce special cancellation handling. If your code cooperatively
+/// cancels by throwing, ensure your strategy returns `.stop` for that error. Otherwise,
+/// retries continue unless the clock throws on cancellation (which, at the time of writing,
+/// both `ContinuousClock` and `SuspendingClock` do).
+///
+/// - Precondition: `maxAttempts` must be greater than 0.
+///
 /// - Parameters:
-///   - maxAttempts: The maximum number of attempts to make. Must be greater than 0.
+///   - maxAttempts: The maximum number of attempts to make.
 ///   - tolerance: The tolerance for the sleep operation between retries.
 ///   - isolation: The actor isolation to maintain during execution.
 ///   - operation: The asynchronous operation to retry.
@@ -120,7 +147,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// let result = try await retry(maxAttempts: 3) {
 ///   try await someNetworkOperation()
 /// } strategy: { error in
-///   .backoff(backoff.nextDuration())
+///   return .backoff(backoff.nextDuration())
 /// }
 /// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
