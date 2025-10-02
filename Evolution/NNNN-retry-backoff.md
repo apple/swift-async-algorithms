@@ -9,7 +9,7 @@
 
 This proposal introduces a `retry` function and a suite of backoff strategies for Swift Async Algorithms, enabling robust retries of failed asynchronous operations with customizable delays and error-driven decisions.
 
-Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/)
+Swift forums thread: [Discussion thread topic for that proposal](https://forums.swift.org/t/pitch-retry-backoff/82483)
 
 ## Motivation
 
