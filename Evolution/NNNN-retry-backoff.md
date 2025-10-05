@@ -23,11 +23,10 @@ This proposal introduces a retry function that executes an asynchronous operatio
 
 ```swift
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-public func retry<Result, ErrorType, ClockType>(
+nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int,
   tolerance: ClockType.Instant.Duration? = nil,
   clock: ClockType = ContinuousClock(),
-  isolation: isolated (any Actor)? = #isolation,
   operation: () async throws(ErrorType) -> Result,
   strategy: (ErrorType) -> RetryAction<ClockType.Instant.Duration> = { _ in .backoff(.zero) }
 ) async throws -> Result where ClockType: Clock, ErrorType: Error

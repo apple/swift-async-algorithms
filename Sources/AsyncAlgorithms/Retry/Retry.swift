@@ -75,11 +75,10 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// }
 /// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-@inlinable public func retry<Result, ErrorType, ClockType>(
+@inlinable nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int,
   tolerance: ClockType.Instant.Duration? = nil,
   clock: ClockType,
-  isolation: isolated (any Actor)? = #isolation,
   operation: () async throws(ErrorType) -> Result,
   strategy: (ErrorType) -> RetryAction<ClockType.Instant.Duration> = { _ in .backoff(.zero) }
 ) async throws -> Result where ClockType: Clock, ErrorType: Error {
@@ -151,10 +150,9 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// }
 /// ```
 @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-@inlinable public func retry<Result, ErrorType>(
+@inlinable nonisolated(nonsending) public func retry<Result, ErrorType>(
   maxAttempts: Int,
   tolerance: ContinuousClock.Instant.Duration? = nil,
-  isolation: isolated (any Actor)? = #isolation,
   operation: () async throws(ErrorType) -> Result,
   strategy: (ErrorType) -> RetryAction<ContinuousClock.Instant.Duration> = { _ in .backoff(.zero) }
 ) async throws -> Result where ErrorType: Error {

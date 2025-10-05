@@ -5,7 +5,7 @@ import Testing
     
   @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
   @Test func constantBackoff() {
-    var strategy = Backoff.constant(Duration.milliseconds(5))
+    var strategy = Backoff.constant(.milliseconds(5))
     #expect(strategy.nextDuration() == .milliseconds(5))
     #expect(strategy.nextDuration() == .milliseconds(5))
   }
