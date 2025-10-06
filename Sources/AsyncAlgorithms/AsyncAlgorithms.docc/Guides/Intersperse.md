@@ -2,8 +2,8 @@
 
 Places a given value in between each element of the asynchronous sequence.
 
-[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncInterspersedSequence.swift) | 
- [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/TestInterspersed.swift)]
+[[Source](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/Interspersed/AsyncInterspersedSequence.swift) | 
+ [Tests](https://github.com/apple/swift-async-algorithms/blob/main/Tests/AsyncAlgorithmsTests/Interspersed/TestInterspersed.swift)]
 
 ```swift
 let numbers = [1, 2, 3].async.interspersed(with: 0)
