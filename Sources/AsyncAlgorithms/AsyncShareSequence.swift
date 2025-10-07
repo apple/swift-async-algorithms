@@ -309,7 +309,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
       //   **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
       //
       // - Parameter element: The element to add to the buffer
-        mutating func enqueue(_ element: Base.Element) {
+      mutating func enqueue(_ element: Base.Element) {
         let count = buffer.count
 
         switch storagePolicy {
