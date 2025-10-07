@@ -590,44 +590,44 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
     }
 
     func next(isolation actor: isolated (any Actor)?, id: Int) async throws -> Base.Element? {
-        let iteratingTask = state.withLock { state -> IteratingTask in
-          defer {
-            if case .pending = state.iteratingTask {
-              state.iteratingTask = .starting
-            }
+      let iteratingTask = state.withLock { state -> IteratingTask in
+        defer {
+          if case .pending = state.iteratingTask {
+            state.iteratingTask = .starting
           }
-          return state.iteratingTask
         }
-        
-        if case .cancelled = iteratingTask { return nil }
-        
-        if case .pending(let factory) = iteratingTask {
-            let task: Task<Void, Never>
-            // for the fancy dance of availability and canImport see the comment on the next check for details
-            #if swift(>=6.2)
-            if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
-              task = Task(name: "Share Iteration") { [factory, self] in
-                await iterationLoop(factory: factory)
-              }
-            } else {
-              task = Task.detached(name: "Share Iteration") { [factory, self] in
-                await iterationLoop(factory: factory)
-              }
-            }
-            #else
-            task = Task.detached { [factory, self] in
-              await iterationLoop(factory: factory)
-            }
-            #endif
-            // Known Issue: there is a very small race where the task may not get a priority escalation during startup
-            // this unfortuantely cannot be avoided since the task should ideally not be formed within the critical
-            // region of the state. Since that could lead to potential deadlocks in low-core-count systems.
-            // That window is relatively small and can be revisited if a suitable proof of safe behavior can be
-            // determined.
-            state.withLock { state in
-              precondition(state.iteratingTask.isStarting)
-              state.iteratingTask = .running(task)
-            }
+        return state.iteratingTask
+      }
+
+      if case .cancelled = iteratingTask { return nil }
+
+      if case .pending(let factory) = iteratingTask {
+        let task: Task<Void, Never>
+        // for the fancy dance of availability and canImport see the comment on the next check for details
+        #if swift(>=6.2)
+        if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
+          task = Task(name: "Share Iteration") { [factory, self] in
+            await iterationLoop(factory: factory)
+          }
+        } else {
+          task = Task.detached(name: "Share Iteration") { [factory, self] in
+            await iterationLoop(factory: factory)
+          }
+        }
+        #else
+        task = Task.detached { [factory, self] in
+          await iterationLoop(factory: factory)
+        }
+        #endif
+        // Known Issue: there is a very small race where the task may not get a priority escalation during startup
+        // this unfortuantely cannot be avoided since the task should ideally not be formed within the critical
+        // region of the state. Since that could lead to potential deadlocks in low-core-count systems.
+        // That window is relatively small and can be revisited if a suitable proof of safe behavior can be
+        // determined.
+        state.withLock { state in
+          precondition(state.iteratingTask.isStarting)
+          state.iteratingTask = .running(task)
+        }
       }
 
       // withTaskPriorityEscalationHandler is only available for the '26 releases and the 6.2 version of
@@ -656,7 +656,6 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
       #else
       return try await nextIteration(id).get()
       #endif
-
     }
   }
 

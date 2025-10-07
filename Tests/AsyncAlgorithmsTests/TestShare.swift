@@ -98,7 +98,7 @@ final class TestShare: XCTestCase {
         results1.withLock { $0.append(value) }
       }
       // Delay to allow consumer 2 to get ahead
-        try? await Task.sleep(nanoseconds: 10_000_000)
+      try? await Task.sleep(nanoseconds: 10_000_000)
       // Continue reading
       while let value = try await iterator.next(isolation: nil) {
         results1.withLock { $0.append(value) }
