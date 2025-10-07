@@ -133,7 +133,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
     // - `continuation`: The continuation waiting for the next element (nil if not waiting)
     // - `position`: The consumer's current position in the shared buffer
     struct State {
-        var continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>?
+      var continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>?
       var position = 0
 
       // Creates a new state with the position adjusted by the given offset.
