@@ -536,7 +536,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
         await withUnsafeContinuation { continuation in
           let (res, limitContinuation, demandContinuation, cancelled) = state.withLock {
             state -> (
-                Result<Base.Element?, Error>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
+              Result<Base.Element?, Error>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
             ) in
             guard let side = state.sides[id] else {
               return state.emit(.success(nil), limit: limit)
