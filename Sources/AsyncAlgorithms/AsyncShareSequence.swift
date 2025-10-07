@@ -228,7 +228,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
       var generation = 0
       var sides = [Int: Side.State]()
       var iteratingTask: IteratingTask
-        private(set) var buffer = Deque<Base.Element>()
+      private(set) var buffer = Deque<Base.Element>()
       private(set) var finished = false
       private(set) var failure: Error?
       var cancelled = false
