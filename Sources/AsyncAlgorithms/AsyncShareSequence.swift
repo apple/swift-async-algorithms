@@ -476,8 +476,8 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
     }
 
     struct Resumption {
-        let continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>
-        let result: Result<Base.Element?, Error>
+      let continuation: UnsafeContinuation<Result<Base.Element?, Error>, Never>
+      let result: Result<Base.Element?, Error>
 
       func resume() {
         continuation.resume(returning: result)
