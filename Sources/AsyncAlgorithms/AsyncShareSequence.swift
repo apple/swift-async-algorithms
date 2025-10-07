@@ -484,7 +484,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
       }
     }
 
-      func emit(_ result: Result<Base.Element?, Error>) {
+    func emit(_ result: Result<Base.Element?, Error>) {
       let (resumptions, limitContinuation, demandContinuation, cancelled) = state.withLock {
         state -> ([Resumption], UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
         var resumptions = [Resumption]()
