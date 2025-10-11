@@ -9,13 +9,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if compiler(>=6.2)
+#if compiler(>=6.0)
 
 import XCTest
 import AsyncAlgorithms
 import Synchronization
 
-@available(macOS 15.0, *)
+@available(AsyncAlgorithms 1.1, *)
 final class TestShare: XCTestCase {
 
   // MARK: - Basic Functionality Tests
@@ -31,7 +31,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate1.open()
       await gate2.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results.append(value)
       }
       return results
@@ -42,13 +42,13 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results.append(value)
       }
       return results
     }
-    let results1 = try await consumer1.value
-    let results2 = try await consumer2.value
+    let results1 = await consumer1.value
+    let results2 = await consumer2.value
 
     XCTAssertEqual(results1, [1, 2, 3, 4, 5])
     XCTAssertEqual(results2, [1, 2, 3, 4, 5])
@@ -94,13 +94,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Consumer 1 reads first element
-      if let value = try await iterator.next(isolation: nil) {
+      if let value = await iterator.next(isolation: nil) {
         results1.withLock { $0.append(value) }
       }
       // Delay to allow consumer 2 to get ahead
       try? await Task.sleep(nanoseconds: 10_000_000)
       // Continue reading
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results1.withLock { $0.append(value) }
       }
     }
@@ -110,7 +110,7 @@ final class TestShare: XCTestCase {
       gate2.open()
       await gate1.enter()
       // Consumer 2 reads all elements quickly
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results2.withLock { $0.append(value) }
       }
     }
@@ -122,8 +122,8 @@ final class TestShare: XCTestCase {
     gated.advance()  // 4
     gated.advance()  // 5
 
-    try await consumer1.value
-    try await consumer2.value
+    await consumer1.value
+    await consumer2.value
 
     // Both consumers should receive all elements
     XCTAssertEqual(results1.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
@@ -143,7 +143,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results1.withLock { $0.append(value) }
         // Add some delay to consumer 1
         try? await Task.sleep(nanoseconds: 1_000_000)
@@ -154,13 +154,13 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate1.open()
       await gate2.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         results2.withLock { $0.append(value) }
       }
     }
 
-    try await consumer1.value
-    try await consumer2.value
+    await consumer1.value
+    await consumer2.value
 
     XCTAssertEqual(results1.withLock { $0 }, [1, 2, 3, 4, 5])
     XCTAssertEqual(results2.withLock { $0 }, [1, 2, 3, 4, 5])
@@ -179,7 +179,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         fastResults.withLock { $0.append(value) }
       }
     }
@@ -189,13 +189,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Read first element immediately
-      if let value = try await iterator.next(isolation: nil) {
+      if let value = await iterator.next(isolation: nil) {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
       try? await Task.sleep(nanoseconds: 50_000_000)
       // Continue reading remaining elements
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         slowResults.withLock { $0.append(value) }
       }
     }
@@ -211,8 +211,8 @@ final class TestShare: XCTestCase {
     try? await Task.sleep(nanoseconds: 5_000_000)
     gated.advance()  // 5
 
-    try await fastConsumer.value
-    try await slowConsumer.value
+    await fastConsumer.value
+    await slowConsumer.value
 
     let slowResultsArray = slowResults.withLock { $0 }
 
@@ -251,7 +251,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         fastResults.withLock { $0.append(value) }
       }
     }
@@ -261,13 +261,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Read first element immediately
-      if let value = try await iterator.next(isolation: nil) {
+      if let value = await iterator.next(isolation: nil) {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
       try? await Task.sleep(nanoseconds: 50_000_000)
       // Continue reading remaining elements
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         slowResults.withLock { $0.append(value) }
       }
     }
@@ -283,8 +283,8 @@ final class TestShare: XCTestCase {
     try? await Task.sleep(nanoseconds: 5_000_000)
     gated.advance()  // 5
 
-    try await fastConsumer.value
-    try await slowConsumer.value
+    await fastConsumer.value
+    await slowConsumer.value
 
     let slowResultsArray = slowResults.withLock { $0 }
 
@@ -397,11 +397,11 @@ final class TestShare: XCTestCase {
 
     let task = Task {
       var iterator = shared.makeAsyncIterator()
-      if try await iterator.next(isolation: nil) != nil {
+      if await iterator.next(isolation: nil) != nil {
         iterated.fulfill()
       }
       // Task will be cancelled here, so iteration should stop
-      while try await iterator.next(isolation: nil) != nil {
+      while await iterator.next(isolation: nil) != nil {
         // Continue iterating until cancelled
       }
       finished.fulfill()
@@ -480,7 +480,7 @@ final class TestShare: XCTestCase {
     // Start early consumer
     let earlyConsumer = Task {
       var iterator = shared.makeAsyncIterator()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         earlyResults.withLock { $0.append(value) }
       }
     }
@@ -495,7 +495,7 @@ final class TestShare: XCTestCase {
     // Start late consumer
     let lateConsumer = Task {
       var iterator = shared.makeAsyncIterator()
-      while let value = try await iterator.next(isolation: nil) {
+      while let value = await iterator.next(isolation: nil) {
         lateResults.withLock { $0.append(value) }
       }
     }
@@ -505,8 +505,8 @@ final class TestShare: XCTestCase {
     gated.advance()  // 4
     gated.advance()  // 5
 
-    try await earlyConsumer.value
-    try await lateConsumer.value
+    await earlyConsumer.value
+    await lateConsumer.value
 
     // Early consumer gets all elements
     XCTAssertEqual(earlyResults.withLock { $0 }, [1, 2, 3, 4, 5])
@@ -522,11 +522,11 @@ final class TestShare: XCTestCase {
     var iterator2 = shared.makeAsyncIterator()
 
     // Both iterators should independently get the same elements
-    let value1a = try await iterator1.next(isolation: nil)
-    let value2a = try await iterator2.next(isolation: nil)
+    let value1a = await iterator1.next(isolation: nil)
+    let value2a = await iterator2.next(isolation: nil)
 
-    let value1b = try await iterator1.next(isolation: nil)
-    let value2b = try await iterator2.next(isolation: nil)
+    let value1b = await iterator1.next(isolation: nil)
+    let value2b = await iterator2.next(isolation: nil)
 
     XCTAssertEqual(value1a, 1)
     XCTAssertEqual(value2a, 1)
@@ -549,7 +549,7 @@ final class TestShare: XCTestCase {
 
     // Create a new iterator after the sequence finished
     var newIterator = shared.makeAsyncIterator()
-    let value = try await newIterator.next(isolation: nil)
+    let value = await newIterator.next(isolation: nil)
     XCTAssertNil(value)  // Should return nil since source is exhausted
   }
 
