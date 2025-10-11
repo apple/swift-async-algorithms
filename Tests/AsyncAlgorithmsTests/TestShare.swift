@@ -31,7 +31,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate1.open()
       await gate2.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results.append(value)
       }
       return results
@@ -42,7 +42,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results.append(value)
       }
       return results
@@ -94,13 +94,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Consumer 1 reads first element
-      if let value = await iterator.next(isolation: nil) {
+      if let value = await iterator.next() {
         results1.withLock { $0.append(value) }
       }
       // Delay to allow consumer 2 to get ahead
       try? await Task.sleep(nanoseconds: 10_000_000)
       // Continue reading
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results1.withLock { $0.append(value) }
       }
     }
@@ -110,7 +110,7 @@ final class TestShare: XCTestCase {
       gate2.open()
       await gate1.enter()
       // Consumer 2 reads all elements quickly
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results2.withLock { $0.append(value) }
       }
     }
@@ -143,7 +143,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results1.withLock { $0.append(value) }
         // Add some delay to consumer 1
         try? await Task.sleep(nanoseconds: 1_000_000)
@@ -154,7 +154,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate1.open()
       await gate2.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         results2.withLock { $0.append(value) }
       }
     }
@@ -179,7 +179,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         fastResults.withLock { $0.append(value) }
       }
     }
@@ -189,13 +189,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Read first element immediately
-      if let value = await iterator.next(isolation: nil) {
+      if let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
       try? await Task.sleep(nanoseconds: 50_000_000)
       // Continue reading remaining elements
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
       }
     }
@@ -251,7 +251,7 @@ final class TestShare: XCTestCase {
       var iterator = shared.makeAsyncIterator()
       gate2.open()
       await gate1.enter()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         fastResults.withLock { $0.append(value) }
       }
     }
@@ -261,13 +261,13 @@ final class TestShare: XCTestCase {
       gate1.open()
       await gate2.enter()
       // Read first element immediately
-      if let value = await iterator.next(isolation: nil) {
+      if let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
       try? await Task.sleep(nanoseconds: 50_000_000)
       // Continue reading remaining elements
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
       }
     }
@@ -397,11 +397,11 @@ final class TestShare: XCTestCase {
 
     let task = Task {
       var iterator = shared.makeAsyncIterator()
-      if await iterator.next(isolation: nil) != nil {
+      if await iterator.next() != nil {
         iterated.fulfill()
       }
       // Task will be cancelled here, so iteration should stop
-      while await iterator.next(isolation: nil) != nil {
+      while await iterator.next() != nil {
         // Continue iterating until cancelled
       }
       finished.fulfill()
@@ -480,7 +480,7 @@ final class TestShare: XCTestCase {
     // Start early consumer
     let earlyConsumer = Task {
       var iterator = shared.makeAsyncIterator()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         earlyResults.withLock { $0.append(value) }
       }
     }
@@ -495,7 +495,7 @@ final class TestShare: XCTestCase {
     // Start late consumer
     let lateConsumer = Task {
       var iterator = shared.makeAsyncIterator()
-      while let value = await iterator.next(isolation: nil) {
+      while let value = await iterator.next() {
         lateResults.withLock { $0.append(value) }
       }
     }
@@ -522,11 +522,11 @@ final class TestShare: XCTestCase {
     var iterator2 = shared.makeAsyncIterator()
 
     // Both iterators should independently get the same elements
-    let value1a = await iterator1.next(isolation: nil)
-    let value2a = await iterator2.next(isolation: nil)
+    let value1a = await iterator1.next()
+    let value2a = await iterator2.next()
 
-    let value1b = await iterator1.next(isolation: nil)
-    let value2b = await iterator2.next(isolation: nil)
+    let value1b = await iterator1.next()
+    let value2b = await iterator2.next()
 
     XCTAssertEqual(value1a, 1)
     XCTAssertEqual(value2a, 1)
@@ -549,7 +549,7 @@ final class TestShare: XCTestCase {
 
     // Create a new iterator after the sequence finished
     var newIterator = shared.makeAsyncIterator()
-    let value = await newIterator.next(isolation: nil)
+    let value = await newIterator.next()
     XCTAssertNil(value)  // Should return nil since source is exhausted
   }
 
@@ -572,6 +572,37 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results1, [1, 2, 3, 4, 5])
     XCTAssertEqual(results2, [])  // Should be empty since source is exhausted
   }
+  
+  @available(AsyncAlgorithms 1.1, *)
+  func test_share_rethrows_failure_type_on_backported() async {
+    let shared = AsyncThrowingStream<Void, Error> {
+      $0.finish(throwing: TestError.failure)
+    }.share()
+    do {
+      for try await _ in shared {
+        XCTFail("Expected to not get here")
+      }
+    } catch {
+      XCTAssertEqual(error as? TestError, .failure)
+    }
+  }
+  
+  func test_share_rethrows_failure_type_without_falling_back_to_any_error() async {
+    if #available(AsyncAlgorithms 1.2, *) {
+      // Ensure - at compile time - that error is effectively a TestError
+      let shared: some AsyncSequence<Void, TestError> = AlwaysFailingSequence().share()
+    do {
+      for try await _ in shared {
+        XCTFail("Expected to not get here")
+      }
+    } catch {
+     
+      XCTAssertEqual(error, TestError.failure)
+      }
+    } else {
+      // not available
+    }
+  }
 }
 
 // MARK: - Helper Types
@@ -580,4 +611,21 @@ private enum TestError: Error, Equatable {
   case failure
 }
 
+@available(AsyncAlgorithms 1.2, *)
+/// A sequence used to properly test concrete error on 1.2
+private struct AlwaysFailingSequence: AsyncSequence, Sendable {
+  init() {}
+  
+  func makeAsyncIterator() -> AsyncIterator { AsyncIterator() }
+  
+  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
+    
+    func next() async throws(TestError) -> Void? {
+      throw TestError.failure
+    }
+    mutating func next(completion: @escaping (Result<Element?, TestError>) -> Void) async throws(TestError) -> Element? {
+      throw TestError.failure
+    }
+  }
+}
 #endif

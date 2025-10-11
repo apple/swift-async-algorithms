@@ -19,11 +19,11 @@
 ///
 /// Example:
 /// ```swift
-/// class MySequence: AsyncSequence, FailableAsyncSequence { ... }
+/// class MySequence: AsyncSequence, AsyncFailureBackportable { ... }
 ///
 /// ```
 @available(AsyncAlgorithms 1.1, *)
-public protocol FailableAsyncSequence {
-  typealias _Failure = Failure
+public protocol AsyncFailureBackportable {
+  typealias BackportableFailure = Failure
   associatedtype Failure: Error
 }
