@@ -8,6 +8,7 @@
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
+#if compiler(>=6.2)
 
 import Synchronization
 import DequeModule
@@ -133,7 +134,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
     // - `continuation`: The continuation waiting for the next element (nil if not waiting)
     // - `position`: The consumer's current position in the shared buffer
     struct State {
-      var continuation: UnsafeContinuation<Result<Base.Element?, _Failure>, Never>?
+      var continuation: UnsafeContinuation<Result<Base.Element?, Failure>, Never>?
       var position = 0
 
       // Creates a new state with the position adjusted by the given offset.
@@ -585,11 +586,11 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
           }
         }
       } catch {
-        emit(.failure(error))
+        emit(.failure(error as! Failure))
       }
     }
 
-    func next(isolation actor: isolated (any Actor)?, id: Int) async rethrows -> Base.Element? {
+    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Base.Element? {
       let iteratingTask = state.withLock { state -> IteratingTask in
         defer {
           if case .pending = state.iteratingTask {
@@ -694,23 +695,22 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncShareSequence: AsyncSequence, FailableAsyncSequence {
+extension AsyncShareSequence: AsyncSequence, AsyncFailureBackportable {
   public typealias Element = Base.Element
-
-  public struct Iterator: AsyncIteratorProtocol {
+  public struct Iterator: AsyncIteratorProtocol, _SendableMetatype {
     let side: Side
 
     init(_ iteration: Iteration) {
       side = Side(iteration)
     }
-
+    
     mutating public func next() async rethrows -> Element? {
       try await side.next(isolation: nil)
     }
-
-    mutating public func next(isolation actor: isolated (any Actor)?) async rethrows -> Element? {
-      try await side.next(isolation: actor)
-    }
+  
+//    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Self.BackportableFailure) -> Element? {
+//      try await side.next(isolation: actor)
+//    }
   }
 
   public func makeAsyncIterator() -> Iterator {
@@ -718,3 +718,10 @@ extension AsyncShareSequence: AsyncSequence, FailableAsyncSequence {
   }
 }
 
+@available(AsyncAlgorithms 1.2, *)
+extension AsyncShareSequence.Iterator {
+  mutating public func next(isolation actor: isolated (any Actor)?) async throws(Base.Failure) -> Base.Element? {
+    try await side.next(isolation: actor)
+  }
+}
+#endif
