@@ -573,7 +573,6 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results2, [])  // Should be empty since source is exhausted
   }
   
-  @available(AsyncAlgorithms 1.1, *)
   func test_share_rethrows_failure_type_on_backported() async {
     let shared = AsyncThrowingStream<Void, Error> {
       $0.finish(throwing: TestError.failure)
@@ -589,8 +588,6 @@ final class TestShare: XCTestCase {
   
   func test_share_rethrows_failure_type_without_falling_back_to_any_error() async {
     if #available(AsyncAlgorithms 1.2, *) {
-      
- 
       // Ensure - at compile time - that error is effectively a TestError
       let shared: some AsyncSequence<Void, TestError> = FailingSequence(TestError.failure).share()
       do {
