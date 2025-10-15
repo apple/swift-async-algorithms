@@ -129,6 +129,10 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
   //   **Usage**: Tracks buffer position and manages async continuations
   //   **Cleanup**: Automatically unregisters and cancels pending operations on deinit
   final class Side {
+    // Due to a runtime crash in 1.0 compatible versions, it's not possible to handle
+    // a generic failure constrained to Base.Failure. We handle inner failure with a `any Error`
+    // and force unwrap it to the generic 1.2 generic type on the outside Iterator.
+    typealias Failure = any Error
     // Tracks the state of a single consumer's iteration.
     //
     // - `continuation`: The continuation waiting for the next element (nil if not waiting)
@@ -180,6 +184,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
   // All operations are synchronized using a `Mutex` to ensure thread-safe access
   // to the shared state across multiple concurrent consumers.
   final class Iteration: Sendable {
+    typealias Failure = Side.Failure
     // Represents the state of the background task that consumes the source sequence.
     //
     // The iteration task goes through several states during its lifecycle:
@@ -586,7 +591,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
           }
         }
       } catch {
-        emit(.failure(error as! Failure))
+        emit(.failure(error))
       }
     }
 
@@ -695,8 +700,10 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension AsyncShareSequence: AsyncSequence, AsyncFailureBackportable {
+extension AsyncShareSequence: AsyncSequence {
   public typealias Element = Base.Element
+  @available(AsyncAlgorithms 1.2, *)
+  public typealias Failure = Base.Failure
   public struct Iterator: AsyncIteratorProtocol, _SendableMetatype {
     let side: Side
 
@@ -707,10 +714,18 @@ extension AsyncShareSequence: AsyncSequence, AsyncFailureBackportable {
     mutating public func next() async rethrows -> Element? {
       try await side.next(isolation: nil)
     }
-  
-//    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Self.BackportableFailure) -> Element? {
-//      try await side.next(isolation: actor)
-//    }
+    
+    @available(AsyncAlgorithms 1.2, *)
+    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+      do {
+        return try await side.next(isolation: actor)
+      } catch {
+        // It's guaranteed to match `Failure` but we are keeping the internal `Side` and `Iteration`
+        // constrained to `any Error` to prevent a compiler bug visible at runtime
+        // on pre 1.2 operating systems
+        throw error as! Failure
+      }
+    }
   }
 
   public func makeAsyncIterator() -> Iterator {
@@ -718,10 +733,4 @@ extension AsyncShareSequence: AsyncSequence, AsyncFailureBackportable {
   }
 }
 
-@available(AsyncAlgorithms 1.2, *)
-extension AsyncShareSequence.Iterator {
-  mutating public func next(isolation actor: isolated (any Actor)?) async throws(Base.Failure) -> Base.Element? {
-    try await side.next(isolation: actor)
-  }
-}
 #endif

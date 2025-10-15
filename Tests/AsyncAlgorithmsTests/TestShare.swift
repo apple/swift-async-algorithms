@@ -589,18 +589,19 @@ final class TestShare: XCTestCase {
   
   func test_share_rethrows_failure_type_without_falling_back_to_any_error() async {
     if #available(AsyncAlgorithms 1.2, *) {
+      
+ 
       // Ensure - at compile time - that error is effectively a TestError
-      let shared: some AsyncSequence<Void, TestError> = AlwaysFailingSequence().share()
-    do {
-      for try await _ in shared {
-        XCTFail("Expected to not get here")
-      }
-    } catch {
-     
-      XCTAssertEqual(error, TestError.failure)
+      let shared: some AsyncSequence<Void, TestError> = FailingSequence(TestError.failure).share()
+      do {
+        for try await _ in shared {
+          XCTFail("Expected to not get here")
+        }
+      } catch {
+        XCTAssertEqual(error, TestError.failure)
       }
     } else {
-      // not available
+      _ = XCTSkip("This test is not available before 1.2")
     }
   }
 }
@@ -611,21 +612,4 @@ private enum TestError: Error, Equatable {
   case failure
 }
 
-@available(AsyncAlgorithms 1.2, *)
-/// A sequence used to properly test concrete error on 1.2
-private struct AlwaysFailingSequence: AsyncSequence, Sendable {
-  init() {}
-  
-  func makeAsyncIterator() -> AsyncIterator { AsyncIterator() }
-  
-  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
-    
-    func next() async throws(TestError) -> Void? {
-      throw TestError.failure
-    }
-    mutating func next(completion: @escaping (Result<Element?, TestError>) -> Void) async throws(TestError) -> Element? {
-      throw TestError.failure
-    }
-  }
-}
 #endif
