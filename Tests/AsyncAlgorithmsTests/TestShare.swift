@@ -598,7 +598,7 @@ final class TestShare: XCTestCase {
         XCTAssertEqual(error, TestError.failure)
       }
     } else {
-      _ = XCTSkip("This test is not available before 1.2")
+      throw XCTSkip("This test is not available before 1.2")
     }
   }
 }
