@@ -1,9 +1,13 @@
+//===----------------------------------------------------------------------===//
 //
-//  FailingSequence.swift
-//  swift-async-algorithms
+// This source file is part of the Swift Async Algorithms open source project
 //
-//  Created by Stefano Mondino on 15/10/25.
+// Copyright (c) 2025 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
+// See https://swift.org/LICENSE.txt for license information
+//
+//===----------------------------------------------------------------------===//
 
 @available(AsyncAlgorithms 1.2, *)
 struct FailingSequence<Failure: Error>: AsyncSequence, Sendable {
