@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Async Algorithms open source project
 //
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Copyright (c) 2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -130,7 +130,7 @@ where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _Send
   //   **Cleanup**: Automatically unregisters and cancels pending operations on deinit
   final class Side {
     // Due to a runtime crash in 1.0 compatible versions, it's not possible to handle
-    // a generic failure constrained to Base.Failure. We handle inner failure with a `any Error`
+    // a generic failure constrained to Base.Failure. We handle inner failure with a `any Error`
     // and force unwrap it to the generic 1.2 generic type on the outside Iterator.
     typealias Failure = any Error
     // Tracks the state of a single consumer's iteration.

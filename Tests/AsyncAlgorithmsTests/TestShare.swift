@@ -98,7 +98,7 @@ final class TestShare: XCTestCase {
         results1.withLock { $0.append(value) }
       }
       // Delay to allow consumer 2 to get ahead
-      try? await Task.sleep(nanoseconds: 10_000_000)
+      try? await Task.sleep(milliseconds: 10)
       // Continue reading
       while let value = await iterator.next() {
         results1.withLock { $0.append(value) }
@@ -146,7 +146,7 @@ final class TestShare: XCTestCase {
       while let value = await iterator.next() {
         results1.withLock { $0.append(value) }
         // Add some delay to consumer 1
-        try? await Task.sleep(nanoseconds: 1_000_000)
+        try? await Task.sleep(milliseconds: 1)
       }
     }
 
@@ -193,7 +193,7 @@ final class TestShare: XCTestCase {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
-      try? await Task.sleep(nanoseconds: 50_000_000)
+      try? await Task.sleep(milliseconds: 50)
       // Continue reading remaining elements
       while let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
@@ -202,13 +202,13 @@ final class TestShare: XCTestCase {
 
     // Release all elements quickly to test buffer overflow behavior
     gated.advance()  // 1
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 2
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 3
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 4
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 5
 
     await fastConsumer.value
@@ -265,7 +265,7 @@ final class TestShare: XCTestCase {
         slowResults.withLock { $0.append(value) }
       }
       // Add significant delay to let buffer fill up and potentially overflow
-      try? await Task.sleep(nanoseconds: 50_000_000)
+      try? await Task.sleep(milliseconds: 50)
       // Continue reading remaining elements
       while let value = await iterator.next() {
         slowResults.withLock { $0.append(value) }
@@ -274,13 +274,13 @@ final class TestShare: XCTestCase {
 
     // Release all elements quickly to test buffer overflow behavior
     gated.advance()  // 1
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 2
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 3
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 4
-    try? await Task.sleep(nanoseconds: 5_000_000)
+    try? await Task.sleep(milliseconds: 5)
     gated.advance()  // 5
 
     await fastConsumer.value
@@ -490,7 +490,7 @@ final class TestShare: XCTestCase {
     gated.advance()  // 2
 
     // Give early consumer time to consume
-    try? await Task.sleep(nanoseconds: 10_000_000)
+    try? await Task.sleep(milliseconds: 10)
 
     // Start late consumer
     let lateConsumer = Task {
@@ -587,18 +587,18 @@ final class TestShare: XCTestCase {
   }
   
   func test_share_rethrows_failure_type_without_falling_back_to_any_error() async {
-    if #available(AsyncAlgorithms 1.2, *) {
-      // Ensure - at compile time - that error is effectively a TestError
-      let shared: some AsyncSequence<Void, TestError> = FailingSequence(TestError.failure).share()
-      do {
-        for try await _ in shared {
-          XCTFail("Expected to not get here")
-        }
-      } catch {
-        XCTAssertEqual(error, TestError.failure)
+    guard #available(AsyncAlgorithms 1.2, *) else {
+      _ = XCTSkip("This test is not available before 1.2")
+      return
+    }
+    // Ensure - at compile time - that error is effectively a TestError
+    let shared: some AsyncSequence<Void, TestError> = FailingSequence(TestError.failure).share()
+    do {
+      for try await _ in shared {
+        XCTFail("Expected to not get here")
       }
-    } else {
-      throw XCTSkip("This test is not available before 1.2")
+    } catch {
+      XCTAssertEqual(error, TestError.failure)
     }
   }
 }
