@@ -80,10 +80,10 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///     case .produceMore:
 ///        // Trigger more production in the underlying system
 ///
-///     case .enqueueCallback(let callbackToken):
+///     case .enqueueCallback(let callbackHandle):
 ///         // There are enough values in the channel already. We need to enqueue
 ///         // a callback to get notified when we should produce more.
-///         source.enqueueCallback(token: callbackToken, onProduceMore: { result in
+///         callbackHandle.enqueueCallback(onProduceMore: { result in
 ///             switch result {
 ///             case .success:
 ///                 // Trigger more production in the underlying system
@@ -99,7 +99,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///
 /// ### Multiple producers
 ///
-/// To support multiple producers the source offers a ``Source/copy()`` method to produce a new source.
+/// To support multiple producers the source offers a ``Source/makeAdditionalSource()()`` method to produce a new source.
 ///
 /// ### Terminating the production of values
 ///
@@ -137,7 +137,16 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   @frozen
   public struct ChannelAndStream: ~Copyable {
     /// The channel.
-    public var channel: MultiProducerSingleConsumerAsyncChannel
+    @usableFromInline
+    var channel: MultiProducerSingleConsumerAsyncChannel?
+    
+    /// Takes and returns the channel.
+    ///
+    /// - Important: If this is called more than once it will result in a runtime crash.
+    @inlinable
+    public mutating func takeChannel() -> sending MultiProducerSingleConsumerAsyncChannel {
+      return self.channel.takeSending()!
+    }
     /// The source.
     public var source: Source
 
@@ -145,7 +154,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
       channel: consuming MultiProducerSingleConsumerAsyncChannel,
       source: consuming Source
     ) {
-      self.channel = channel
+      self.channel = .some(channel)
       self.source = source
     }
   }
@@ -248,33 +257,59 @@ extension MultiProducerSingleConsumerAsyncChannel {
           )
         )
       }
-
-      /// An unbounded backpressure strategy.
-      ///
-      /// - Important: Only use this strategy if the production of elements is limited through some other mean. Otherwise
-      /// an unbounded backpressure strategy can result in infinite memory usage and cause
-      /// your process to run out of memory.
-      public static func unbounded() -> BackpressureStrategy {
-        .init(
-          internalBackpressureStrategy: .unbounded(.init())
-        )
-      }
     }
 
     /// A type that indicates the result of sending elements to the source.
     public enum SendResult: ~Copyable, Sendable {
-      /// An opaque token that is returned when the channel's backpressure strategy indicated that production should
-      /// be suspended. Use this token to enqueue a callback by  calling the ``MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)`` method.
+      /// A handle that is returned when the channel's backpressure strategy indicated that production should
+      /// be suspended. Use this handle to enqueue a callback by  calling the ``CallbackHandle/enqueueCallback(onProduceMore:)`` method.
       ///
-      /// - Important: This token must only be passed once to ``MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)``
-      ///  and ``MultiProducerSingleConsumerAsyncChannel/Source/cancelCallback(callbackToken:)``.
-      public struct CallbackToken: Sendable, Hashable {
+      /// - Important: ``CallbackHandle/enqueueCallback(onProduceMore:)`` and ``CallbackHandle/cancelCallback()`` must
+      /// only be called once.
+      public struct CallbackHandle: Sendable, Hashable {
         @usableFromInline
         let _id: UInt64
+        
+        @usableFromInline
+        let _storage: _Storage
 
         @usableFromInline
-        init(id: UInt64) {
+        init(id: UInt64, storage: _Storage) {
           self._id = id
+          self._storage = storage
+        }
+        
+        /// Enqueues a callback that will be invoked once more elements should be produced.
+        ///
+        /// - Important: Calling enqueue more than once is **not allowed**.
+        ///
+        /// - Parameters:
+        ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
+        @inlinable
+        public mutating func enqueueCallback(
+          onProduceMore: sending @escaping (Result<Void, Error>) -> Void
+        ) {
+          self._storage.enqueueProducer(callbackToken: self._id, onProduceMore: onProduceMore)
+        }
+        
+        /// Cancel an enqueued callback.
+        ///
+        /// - Note: This methods supports being called before ``enqueueCallback(onProduceMore:)`` is called.
+        ///
+        /// - Important: Calling enqueue more than once is **not allowed**.
+        @inlinable
+        public mutating func cancelCallback() {
+          self._storage.cancelProducer(callbackToken: self._id)
+        }
+        
+        @inlinable
+        public static func == (lhs: Self, rhs: Self) -> Bool {
+          lhs._id == rhs._id
+        }
+        
+        @inlinable
+        public func hash(into hasher: inout Hasher) {
+          hasher.combine(self._id)
         }
       }
 
@@ -282,9 +317,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
       case produceMore
 
       /// Indicates that a callback should be enqueued.
-      ///
-      /// The associated token should be passed to the ````MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)```` method.
-      case enqueueCallback(CallbackToken)
+      case enqueueCallback(CallbackHandle)
     }
 
     @usableFromInline
@@ -320,7 +353,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     /// The channel will only automatically be finished if all existing sources have been deinited.
     ///
     /// - Returns: A new source for sending elements to the channel.
-    public mutating func copy() -> sending Self {
+    public mutating func makeAdditionalSource() -> sending Self {
       .init(storage: self._storage)
     }
 
@@ -352,36 +385,6 @@ extension MultiProducerSingleConsumerAsyncChannel {
       try self._storage.send(contentsOf: CollectionOfOne(element))
     }
 
-    /// Enqueues a callback that will be invoked once more elements should be produced.
-    ///
-    /// Call this method after ``send(contentsOf:)-65yju`` or ``send(_:)`` returned ``SendResult/enqueueCallback(_:)``.
-    ///
-    /// - Important: Enqueueing the same token multiple times is **not allowed**.
-    ///
-    /// - Parameters:
-    ///   - callbackToken: The callback token.
-    ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
-    @inlinable
-    public mutating func enqueueCallback(
-      callbackToken: consuming SendResult.CallbackToken,
-      onProduceMore: sending @escaping (Result<Void, Error>) -> Void
-    ) {
-      self._storage.enqueueProducer(callbackToken: callbackToken._id, onProduceMore: onProduceMore)
-    }
-
-    /// Cancel an enqueued callback.
-    ///
-    /// Call this method to cancel a callback enqueued by the ``enqueueCallback(callbackToken:onProduceMore:)`` method.
-    ///
-    /// - Note: This methods supports being called before ``enqueueCallback(callbackToken:onProduceMore:)`` is called and
-    /// will mark the passed `callbackToken` as cancelled.
-    ///
-    /// - Parameter callbackToken: The callback token.
-    @inlinable
-    public mutating func cancelCallback(callbackToken: consuming SendResult.CallbackToken) {
-      self._storage.cancelProducer(callbackToken: callbackToken._id)
-    }
-
     /// Send new elements to the channel and provide a callback which will be invoked once more elements should be produced.
     ///
     /// If there is a task consuming the channel and awaiting the next element then the task will get resumed with the
@@ -404,8 +407,8 @@ extension MultiProducerSingleConsumerAsyncChannel {
         case .produceMore:
           onProduceMore(Result<Void, Error>.success(()))
 
-        case .enqueueCallback(let callbackToken):
-          self.enqueueCallback(callbackToken: callbackToken, onProduceMore: onProduceMore)
+        case .enqueueCallback(var callbackHandle):
+          callbackHandle.enqueueCallback(onProduceMore: onProduceMore)
         }
       } catch {
         onProduceMore(.failure(error))
@@ -434,8 +437,8 @@ extension MultiProducerSingleConsumerAsyncChannel {
         case .produceMore:
           onProduceMore(Result<Void, Error>.success(()))
 
-        case .enqueueCallback(let callbackToken):
-          self.enqueueCallback(callbackToken: callbackToken, onProduceMore: onProduceMore)
+        case .enqueueCallback(var callbackHandle):
+          callbackHandle.enqueueCallback(onProduceMore: onProduceMore)
         }
       } catch {
         onProduceMore(.failure(error))
@@ -498,8 +501,8 @@ extension MultiProducerSingleConsumerAsyncChannel {
       case .produceMore:
         return ()
 
-      case .enqueueCallback(let callbackToken):
-        let id = callbackToken._id
+      case .enqueueCallback(let callbackHandle):
+        let id = callbackHandle._id
         let storage = self._storage
         try await withTaskCancellationHandler {
           try await withUnsafeThrowingContinuation { continuation in
@@ -577,7 +580,7 @@ extension MultiProducerSingleConsumerAsyncChannel where Element: Copyable {
   ///
   /// - Important: The returned asynchronous sequence only supports a single iterator to be created and
   /// will fatal error at runtime on subsequent calls to `makeAsyncIterator`.
-  public consuming func asyncSequence() -> some (AsyncSequence<Element, Failure> & Sendable) {
+  public consuming func elements() -> some (AsyncSequence<Element, Failure> & Sendable) {
     ChannelAsyncSequence(_backing: .init(storage: self.storage))
   }
 }

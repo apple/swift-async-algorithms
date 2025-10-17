@@ -174,10 +174,10 @@ do {
     case .produceMore:
        // Trigger more production in the underlying system
     
-    case .enqueueCallback(let callbackToken):
+    case .enqueueCallback(let callbackHandle):
         // There are enough values in the channel already. We need to enqueue
         // a callback to get notified when we should produce more.
-        source.enqueueCallback(token: callbackToken, onProduceMore: { result in
+        callbackHandle.enqueueCallback(onProduceMore: { result in
             switch result {
             case .success:
                 // Trigger more production in the underlying system
@@ -195,8 +195,8 @@ The above API offers the most control and highest performance when bridging a
 synchronous producer to a `MultiProducerSingleConsumerAsyncChannel`. First, you have
 to send values using the `send(contentsOf:)` which returns a `SendResult`. The
 result either indicates that more values should be produced or that a callback
-should be enqueued by calling the `enqueueCallback(callbackToken:
-onProduceMore:)` method. This callback is invoked once the backpressure strategy
+should be enqueued by calling the `enqueueCallback(onProduceMore:)` method.
+This callback is invoked once the backpressure strategy
 decided that more values should be produced. This API aims to offer the most
 flexibility with the greatest performance. The callback only has to be allocated
 in the case where the producer needs to pause production.
@@ -238,7 +238,7 @@ let channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
 )
 var channel = consume channelAndSource.channel
 var source1 = consume channelAndSource.source
-var source2 = source1.copy()
+var source2 = source1.makeAdditionalSource()
 
 group.addTask {
     try await source1.send(1)
@@ -373,7 +373,7 @@ let channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
 )
 var channel = consume channelAndSource.channel
 var source1 = consume channelAndSource.source
-var source2 = source1.copy()
+var source2 = source1.makeAdditionalSource()
 source1.setOnTerminationCallback { print("Terminated") }
 
 _ = try await source1.send(1)
@@ -459,10 +459,10 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///     case .produceMore:
 ///        // Trigger more production in the underlying system
 ///
-///     case .enqueueCallback(let callbackToken):
+///     case .enqueueCallback(let callbackHandle):
 ///         // There are enough values in the channel already. We need to enqueue
 ///         // a callback to get notified when we should produce more.
-///         source.enqueueCallback(token: callbackToken, onProduceMore: { result in
+///         callbackHandle.enqueueCallback(onProduceMore: { result in
 ///             switch result {
 ///             case .success:
 ///                 // Trigger more production in the underlying system
@@ -478,7 +478,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///
 /// ### Multiple producers
 ///
-/// To support multiple producers the source offers a ``Source/copy()`` method to produce a new source.
+/// To support multiple producers the source offers a ``Source/makeAdditionalSource()`` method to produce a new source.
 ///
 /// ### Terminating the production of values
 ///
@@ -582,20 +582,37 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
         /// A type that indicates the result of sending elements to the source.
         public enum SendResult: ~Copyable, Sendable {
-            /// An opaque token that is returned when the channel's backpressure strategy indicated that production should
-            /// be suspended. Use this token to enqueue a callback by  calling the ``MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)`` method.
+            /// A handle that is returned when the channel's backpressure strategy indicated that production should
+            /// be suspended. Use this handle to enqueue a callback by  calling the ``CallbackHandle/enqueueCallback(onProduceMore:)`` method.
             ///
-            /// - Important: This token must only be passed once to ``MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)``
-            ///  and ``MultiProducerSingleConsumerAsyncChannel/Source/cancelCallback(callbackToken:)``.
-            public struct CallbackToken: Sendable, Hashable { }
+            /// - Important: ``CallbackHandle/enqueueCallback(onProduceMore:)`` and ``CallbackHandle/cancelCallback()`` must
+            /// only be called once.
+            public struct CallbackHandle: Sendable, Hashable {
+                /// Enqueues a callback that will be invoked once more elements should be produced.
+                ///
+                /// - Important: Calling enqueue more than once is **not allowed**.
+                ///
+                /// - Parameters:
+                ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
+                @inlinable
+                public mutating func enqueueCallback(
+                  onProduceMore: sending @escaping (Result<Void, Error>) -> Void
+                )
+                
+                /// Cancel an enqueued callback.
+                ///
+                /// - Note: This methods supports being called before ``enqueueCallback(onProduceMore:)`` is called.
+                ///
+                /// - Important: Calling enqueue more than once is **not allowed**.
+                @inlinable
+                public mutating func cancelCallback()
+            }
 
             /// Indicates that more elements should be produced and send to the source.
             case produceMore
 
             /// Indicates that a callback should be enqueued.
-            ///
-            /// The associated token should be passed to the ````MultiProducerSingleConsumerAsyncChannel/Source/enqueueCallback(callbackToken:onProduceMore:)```` method.
-            case enqueueCallback(CallbackToken)
+            case enqueueCallback(CallbackHandle)
         }
 
         /// A callback to invoke when the channel finished.
@@ -608,7 +625,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
         /// The channel will only automatically be finished if all existing sources have been deinited.
         ///
         /// - Returns: A new source for sending elements to the channel.
-        public mutating func copy() -> Source
+        public mutating func makeAdditionalSource() -> Source
 
         /// Sends new elements to the channel.
         ///
@@ -631,32 +648,6 @@ extension MultiProducerSingleConsumerAsyncChannel {
         /// - Parameter element: The element to send to the channel.
         /// - Returns: The result that indicates if more elements should be produced at this time.
         public mutating func send(_ element: sending consuming Element) throws -> SendResult
-
-        /// Enqueues a callback that will be invoked once more elements should be produced.
-        ///
-        /// Call this method after ``send(contentsOf:)-5honm`` or ``send(_:)-3jxzb`` returned ``SendResult/enqueueCallback(_:)``.
-        ///
-        /// - Important: Enqueueing the same token multiple times is **not allowed**.
-        ///
-        /// - Parameters:
-        ///   - callbackToken: The callback token.
-        ///   - onProduceMore: The callback which gets invoked once more elements should be produced.
-        public mutating func enqueueCallback(
-            callbackToken: consuming SendResult.CallbackToken,
-            onProduceMore: sending @escaping (Result<Void, Error>
-        ) -> Void)
-
-        /// Cancel an enqueued callback.
-        ///
-        /// Call this method to cancel a callback enqueued by the ``enqueueCallback(callbackToken:onProduceMore:)`` method.
-        ///
-        /// - Note: This methods supports being called before ``enqueueCallback(callbackToken:onProduceMore:)`` is called and
-        /// will mark the passed `callbackToken` as cancelled.
-        ///
-        /// - Parameter callbackToken: The callback token.
-        public mutating func cancelCallback(
-            callbackToken: consuming SendResult.CallbackToken
-        )
 
         /// Send new elements to the channel and provide a callback which will be invoked once more elements should be produced.
         ///

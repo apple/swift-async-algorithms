@@ -78,38 +78,14 @@ extension MultiProducerSingleConsumerAsyncChannel {
       }
     }
 
-    @usableFromInline
-    struct _Unbounded: Sendable, CustomStringConvertible {
-      @usableFromInline
-      var description: String {
-        "unbounded"
-      }
-
-      init() {}
-
-      @inlinable
-      mutating func didSend(elements: Deque<SendableConsumeOnceBox<Element>>.SubSequence) -> Bool {
-        true
-      }
-
-      @inlinable
-      mutating func didConsume(element: SendableConsumeOnceBox<Element>) -> Bool {
-        true
-      }
-    }
-
     /// A watermark based strategy.
     case watermark(_Watermark)
-    /// An unbounded based strategy.
-    case unbounded(_Unbounded)
 
     @usableFromInline
     var description: String {
       switch consume self {
       case .watermark(let strategy):
         return strategy.description
-      case .unbounded(let unbounded):
-        return unbounded.description
       }
     }
 
@@ -120,10 +96,6 @@ extension MultiProducerSingleConsumerAsyncChannel {
         let result = strategy.didSend(elements: elements)
         self = .watermark(strategy)
         return result
-      case .unbounded(var strategy):
-        let result = strategy.didSend(elements: elements)
-        self = .unbounded(strategy)
-        return result
       }
     }
 
@@ -133,10 +105,6 @@ extension MultiProducerSingleConsumerAsyncChannel {
       case .watermark(var strategy):
         let result = strategy.didConsume(element: element)
         self = .watermark(strategy)
-        return result
-      case .unbounded(var strategy):
-        let result = strategy.didConsume(element: element)
-        self = .unbounded(strategy)
         return result
       }
     }
@@ -304,7 +272,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
         return .produceMore
 
       case .returnEnqueue(let callbackToken):
-        return .enqueueCallback(.init(id: callbackToken))
+        return .enqueueCallback(.init(id: callbackToken, storage: self))
 
       case .resumeConsumerAndReturnProduceMore(let continuation, let element):
         continuation.resume(returning: element.take())
@@ -312,7 +280,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
       case .resumeConsumerAndReturnEnqueue(let continuation, let element, let callbackToken):
         continuation.resume(returning: element.take())
-        return .enqueueCallback(.init(id: callbackToken))
+        return .enqueueCallback(.init(id: callbackToken, storage: self))
 
       case .throwFinishedError:
         throw MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()
@@ -995,33 +963,6 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       )
       /// Indicates that the producer has been finished.
       case throwFinishedError
-
-//      @inlinable
-//      init(
-//        callbackToken: UInt64?,
-//        continuation: (UnsafeContinuation<Element?, Error>, SendableConsumeOnceBox<Element>)? = nil
-//      ) {
-//        switch (callbackToken, continuationAndElement) {
-//        case (.none, .none):
-//          self = .returnProduceMore
-//
-//        case (.some(let callbackToken), .none):
-//          self = .returnEnqueue(callbackToken: callbackToken)
-//
-//        case (.none, .some((let continuation, let element))):
-//          self = .resumeConsumerAndReturnProduceMore(
-//            continuation: continuation,
-//            element: SendableConsumeOnceBox(wrapped: element)
-//          )
-//
-//        case (.some(let callbackToken), .some((let continuation, let element))):
-//          self = .resumeConsumerAndReturnEnqueue(
-//            continuation: continuation,
-//            element: SendableConsumeOnceBox(wrapped: element),
-//            callbackToken: callbackToken
-//          )
-//        }
-//      }
     }
 
     @inlinable
