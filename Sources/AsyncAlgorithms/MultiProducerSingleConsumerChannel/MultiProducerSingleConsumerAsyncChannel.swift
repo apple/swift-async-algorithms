@@ -33,7 +33,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 /// ## Using a MultiProducerSingleConsumerAsyncChannel
 ///
 /// To use a ``MultiProducerSingleConsumerAsyncChannel`` you have to create a new channel with its source first by calling
-/// the ``MultiProducerSingleConsumerAsyncChannel/makeChannel(of:throwing:BackpressureStrategy:)`` method.
+/// the ``MultiProducerSingleConsumerAsyncChannel/makeChannel(of:throwing:backpressureStrategy:)`` method.
 /// Afterwards, you can pass the source to the producer and the channel to the consumer.
 ///
 /// ```
@@ -49,8 +49,8 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///
 /// ### Asynchronous producing
 ///
-/// Values can be send to the source from asynchronous contexts using ``MultiProducerSingleConsumerAsyncChannel/Source/send(_:)-8eo96``
-/// and ``MultiProducerSingleConsumerAsyncChannel/Source/send(contentsOf:)``. Backpressure results in calls
+/// Values can be send to the source from asynchronous contexts using ``MultiProducerSingleConsumerAsyncChannel/Source/send(contentsOf:)-1h7t9``
+/// and ``MultiProducerSingleConsumerAsyncChannel/Source/send(_:)->()``. Backpressure results in calls
 /// to the `send` methods to be suspended. Once more elements should be produced the `send` methods will be resumed.
 ///
 /// ```
@@ -99,7 +99,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 ///
 /// ### Multiple producers
 ///
-/// To support multiple producers the source offers a ``Source/makeAdditionalSource()()`` method to produce a new source.
+/// To support multiple producers the source offers a ``Source/makeAdditionalSource()`` method to produce a new source.
 ///
 /// ### Terminating the production of values
 ///
@@ -139,7 +139,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
     /// The channel.
     @usableFromInline
     var channel: MultiProducerSingleConsumerAsyncChannel?
-    
+
     /// Takes and returns the channel.
     ///
     /// - Important: If this is called more than once it will result in a runtime crash.
@@ -269,7 +269,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
       public struct CallbackHandle: Sendable, Hashable {
         @usableFromInline
         let _id: UInt64
-        
+
         @usableFromInline
         let _storage: _Storage
 
@@ -278,7 +278,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
           self._id = id
           self._storage = storage
         }
-        
+
         /// Enqueues a callback that will be invoked once more elements should be produced.
         ///
         /// - Important: Calling enqueue more than once is **not allowed**.
@@ -291,7 +291,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
         ) {
           self._storage.enqueueProducer(callbackToken: self._id, onProduceMore: onProduceMore)
         }
-        
+
         /// Cancel an enqueued callback.
         ///
         /// - Note: This methods supports being called before ``enqueueCallback(onProduceMore:)`` is called.
@@ -301,12 +301,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
         public mutating func cancelCallback() {
           self._storage.cancelProducer(callbackToken: self._id)
         }
-        
+
         @inlinable
         public static func == (lhs: Self, rhs: Self) -> Bool {
           lhs._id == rhs._id
         }
-        
+
         @inlinable
         public func hash(into hasher: inout Hasher) {
           hasher.combine(self._id)
@@ -322,7 +322,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
     @usableFromInline
     let _storage: _Storage
-    
+
     @usableFromInline
     let _id: UInt64
 

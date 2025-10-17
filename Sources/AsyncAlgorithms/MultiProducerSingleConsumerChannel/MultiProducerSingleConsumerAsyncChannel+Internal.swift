@@ -124,7 +124,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     ) {
       self._stateMachine = Mutex<_StateMachine>(_StateMachine(backpressureStrategy: backpressureStrategy))
     }
-    
+
     func setOnTerminationCallback(
       sourceID: UInt64,
       callback: (@Sendable () -> Void)?
@@ -132,7 +132,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
       let action = self._stateMachine.withLock {
         $0.setOnTerminationCallback(sourceID: sourceID, callback: callback)
       }
-      
+
       switch action {
       case .callOnTermination(let onTermination):
         onTermination()
@@ -540,7 +540,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
     init(state: consuming _State) {
       self._state = state
     }
-    
+
     /// Actions returned by `sourceDeinitialized()`.
     @usableFromInline
     enum SetOnTerminationCallback {
@@ -565,10 +565,10 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         } else {
           channeling.onTerminations.removeAll(where: { $0.0 == sourceID })
         }
-        
+
         self = .init(state: .channeling(channeling))
         return .none
-        
+
       case .sourceFinished(var sourceFinished):
         if let callback {
           if let index = sourceFinished.onTerminations.firstIndex(where: { $0.0 == sourceID }) {
@@ -579,18 +579,17 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         } else {
           sourceFinished.onTerminations.removeAll(where: { $0.0 == sourceID })
         }
-        
+
         self = .init(state: .sourceFinished(sourceFinished))
         return .none
 
       case .finished(let finished):
         self = .init(state: .finished(finished))
-        
-        if let callback {
-          return .callOnTermination(callback)
-        } else {
+
+        guard let callback else {
           return .none
         }
+        return .callOnTermination(callback)
       }
     }
 
@@ -610,7 +609,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
       case .finished(let finished):
         self = .init(state: .finished(finished))
-        return .max // We use max to indicate that this is finished
+        return .max  // We use max to indicate that this is finished
       }
     }
 
@@ -992,22 +991,20 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
           self = .init(state: .channeling(channeling))
 
-          if let callbackToken {
-            return .returnEnqueue(callbackToken: callbackToken)
-          } else {
+          guard let callbackToken else {
             return .returnProduceMore
           }
+          return .returnEnqueue(callbackToken: callbackToken)
         }
         guard let element = channeling.buffer.popFirst() else {
           // We got a send of an empty sequence. We just tolerate this.
           let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
           self = .init(state: .channeling(channeling))
 
-          if let callbackToken {
-            return .returnEnqueue(callbackToken: callbackToken)
-          } else {
+          guard let callbackToken else {
             return .returnProduceMore
           }
+          return .returnEnqueue(callbackToken: callbackToken)
         }
         // This is actually safe but we can't express it right now.
         // The element is taken from the deque once we and initally send it into
@@ -1022,18 +1019,17 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
         self = .init(state: .channeling(channeling))
 
-        if let callbackToken {
-          return .resumeConsumerAndReturnEnqueue(
-              continuation: consumerContinuation,
-              element: disconnectedElement,
-              callbackToken: callbackToken
-            )
-        } else {
+        guard let callbackToken else {
           return .resumeConsumerAndReturnProduceMore(
-              continuation: consumerContinuation,
-              element: disconnectedElement
-            )
+            continuation: consumerContinuation,
+            element: disconnectedElement
+          )
         }
+        return .resumeConsumerAndReturnEnqueue(
+          continuation: consumerContinuation,
+          element: disconnectedElement,
+          callbackToken: callbackToken
+        )
 
       case .sourceFinished(let sourceFinished):
         // If the source has finished we are dropping the elements.
@@ -1391,7 +1387,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
           return .none
         }
-        
+
         // We have an element to fulfil the demand right away.
         let shouldProduceMore = channeling.backpressureStrategy.didConsume(element: element)
         channeling.hasOutstandingDemand = shouldProduceMore
@@ -1551,7 +1547,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
       /// The next callback token.
       @usableFromInline
       var nextCallbackTokenID: UInt64
-      
+
       /// The source ID.
       @usableFromInline
       var _nextSourceID: UInt64
@@ -1596,7 +1592,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
         self.nextCallbackTokenID += 1
         return id
       }
-      
+
       /// Generates the next source ID.
       @inlinable
       mutating func nextSourceID() -> UInt64 {
@@ -1627,7 +1623,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
       /// The onTermination callbacks.
       @usableFromInline
       var onTerminations: _TinyArray<(UInt64, @Sendable () -> Void)>
-      
+
       /// The source ID.
       @usableFromInline
       var _nextSourceID: UInt64
@@ -1652,7 +1648,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
         self.onTerminations = onTerminations
         self._nextSourceID = nextSourceID
       }
-      
+
       /// Generates the next source ID.
       @inlinable
       mutating func nextSourceID() -> UInt64 {
@@ -1737,12 +1733,12 @@ extension Optional where Wrapped: ~Copyable {
 struct SendableConsumeOnceBox<Wrapped> {
   @usableFromInline
   var wrapped: Optional<Wrapped>
-  
+
   @inlinable
   init(wrapped: consuming sending Wrapped) {
     self.wrapped = .some(wrapped)
   }
-  
+
   @inlinable
   consuming func take() -> sending Wrapped {
     return self.wrapped.takeSending()!

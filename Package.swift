@@ -51,13 +51,6 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
-    .executableTarget(
-      name: "Example",
-      dependencies: ["AsyncAlgorithms"],
-      swiftSettings: [
-        .enableExperimentalFeature("StrictConcurrency=complete")
-      ]
-    ),
     .testTarget(
       name: "AsyncAlgorithmsTests",
       dependencies: [
