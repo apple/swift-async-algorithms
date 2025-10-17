@@ -15,6 +15,7 @@
 ///
 /// This error is thrown when the channel is already finished when
 /// trying to send new elements to the source.
+@available(AsyncAlgorithms 1.1, *)
 public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error {
   @usableFromInline
   init() {}
@@ -114,7 +115,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 /// When the consumer stops consumption by either deiniting the channel or the task calling ``next(isolation:)``
 /// getting cancelled, the source will get notified about the termination if a termination callback has been set
 /// before by calling ``Source/setOnTerminationCallback(_:)``.
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: ~Copyable {
   /// The backing storage.
   @usableFromInline
@@ -204,7 +205,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   }
 }
 
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   /// A struct to send values to the channel.
   ///
@@ -546,7 +547,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel where Element: Copyable {
   struct ChannelAsyncSequence: AsyncSequence {
     @usableFromInline
@@ -581,7 +582,7 @@ extension MultiProducerSingleConsumerAsyncChannel where Element: Copyable {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence where Element: Copyable {
   struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -627,7 +628,7 @@ extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence where Ele
     }
   }
 }
-//
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence: Sendable {}
 #endif

@@ -13,7 +13,7 @@
 import DequeModule
 import Synchronization
 
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
@@ -48,10 +48,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
       }
 
       @inlinable
-      mutating func didSend(elements: Deque<Element>.SubSequence) -> Bool {
+      mutating func didSend(elements: Deque<SendableConsumeOnceBox<Element>>.SubSequence) -> Bool {
         if let waterLevelForElement = self._waterLevelForElement {
           for element in elements {
-            self._currentWatermark += waterLevelForElement(element)
+            // This force-unwrap is safe since the element must not be taken
+            // from the box yet
+            self._currentWatermark += waterLevelForElement(element.wrapped!)
           }
         } else {
           self._currentWatermark += elements.count
@@ -62,9 +64,11 @@ extension MultiProducerSingleConsumerAsyncChannel {
       }
 
       @inlinable
-      mutating func didConsume(element: Element) -> Bool {
+      mutating func didConsume(element: SendableConsumeOnceBox<Element>) -> Bool {
         if let waterLevelForElement = self._waterLevelForElement {
-          self._currentWatermark -= waterLevelForElement(element)
+          // This force-unwrap is safe since the element must not be taken
+          // from the box yet
+          self._currentWatermark -= waterLevelForElement(element.wrapped!)
         } else {
           self._currentWatermark -= 1
         }
@@ -84,12 +88,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
       init() {}
 
       @inlinable
-      mutating func didSend(elements: Deque<Element>.SubSequence) -> Bool {
+      mutating func didSend(elements: Deque<SendableConsumeOnceBox<Element>>.SubSequence) -> Bool {
         true
       }
 
       @inlinable
-      mutating func didConsume(element: Element) -> Bool {
+      mutating func didConsume(element: SendableConsumeOnceBox<Element>) -> Bool {
         true
       }
     }
@@ -110,7 +114,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     }
 
     @inlinable
-    mutating func didSend(elements: Deque<Element>.SubSequence) -> Bool {
+    mutating func didSend(elements: Deque<SendableConsumeOnceBox<Element>>.SubSequence) -> Bool {
       switch consume self {
       case .watermark(var strategy):
         let result = strategy.didSend(elements: elements)
@@ -124,7 +128,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     }
 
     @inlinable
-    mutating func didConsume(element: Element) -> Bool {
+    mutating func didConsume(element: SendableConsumeOnceBox<Element>) -> Bool {
       switch consume self {
       case .watermark(var strategy):
         let result = strategy.didConsume(element: element)
@@ -139,7 +143,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   final class _Storage: Sendable {
@@ -287,11 +291,15 @@ extension MultiProducerSingleConsumerAsyncChannel {
     func send(
       contentsOf sequence: sending some Sequence<Element>
     ) throws -> MultiProducerSingleConsumerAsyncChannel<Element, Failure>.Source.SendResult {
+      // We need to move the value into an optional since we don't have call-once
+      // closures in the Swift yet.
+      var optionalSequence = Optional(sequence)
       let action = self._stateMachine.withLock {
-        $0.send(sequence)
+        let sequence = optionalSequence.takeSending()!
+        return $0.send(sequence)
       }
 
-      switch action {
+      switch consume action {
       case .returnProduceMore:
         return .produceMore
 
@@ -299,11 +307,11 @@ extension MultiProducerSingleConsumerAsyncChannel {
         return .enqueueCallback(.init(id: callbackToken))
 
       case .resumeConsumerAndReturnProduceMore(let continuation, let element):
-        continuation.resume(returning: element)
+        continuation.resume(returning: element.take())
         return .produceMore
 
       case .resumeConsumerAndReturnEnqueue(let continuation, let element, let callbackToken):
-        continuation.resume(returning: element)
+        continuation.resume(returning: element.take())
         return .enqueueCallback(.init(id: callbackToken))
 
       case .throwFinishedError:
@@ -337,8 +345,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
       callbackToken: UInt64,
       onProduceMore: sending @escaping (Result<Void, Error>) -> Void
     ) {
+      // We need to move the value into an optional since we don't have call-once
+      // closures in the Swift yet.
+      var optionalOnProduceMore = Optional(onProduceMore)
       let action = self._stateMachine.withLock {
-        $0.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
+        let onProduceMore = optionalOnProduceMore.takeSending()!
+        return $0.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
       }
 
       switch action {
@@ -418,7 +430,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
       switch action {
       case .returnElement(let element):
-        return element
+        return element.take()
 
       case .returnElementAndResumeProducers(let element, let producerContinuations):
         for producerContinuation in producerContinuations {
@@ -430,7 +442,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
           }
         }
 
-        return element
+        return element.take()
 
       case .returnFailureAndCallOnTerminations(let failure, let onTerminations):
         onTerminations.forEach { $0.1() }
@@ -458,16 +470,16 @@ extension MultiProducerSingleConsumerAsyncChannel {
             $0.suspendNext(continuation: continuation)
           }
 
-          switch action {
+          switch consume action {
           case .resumeConsumerWithElement(let continuation, let element):
-            continuation.resume(returning: element)
+            continuation.resume(returning: element.take())
 
           case .resumeConsumerWithElementAndProducers(
             let continuation,
             let element,
             let producerContinuations
           ):
-            continuation.resume(returning: element)
+            continuation.resume(returning: element.take())
             for producerContinuation in producerContinuations {
               switch producerContinuation {
               case .closure(let onProduceMore):
@@ -963,7 +975,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `send()`.
     @usableFromInline
-    enum SendAction {
+    enum SendAction: ~Copyable {
       /// Indicates that the producer should be notified to produce more.
       case returnProduceMore
       /// Indicates that the producer should be suspended to stop producing.
@@ -973,52 +985,62 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       /// Indicates that the consumer should be resumed and the producer should be notified to produce more.
       case resumeConsumerAndReturnProduceMore(
         continuation: UnsafeContinuation<Element?, Error>,
-        element: Element
+        element: SendableConsumeOnceBox<Element>
       )
       /// Indicates that the consumer should be resumed and the producer should be suspended.
       case resumeConsumerAndReturnEnqueue(
         continuation: UnsafeContinuation<Element?, Error>,
-        element: Element,
+        element: SendableConsumeOnceBox<Element>,
         callbackToken: UInt64
       )
       /// Indicates that the producer has been finished.
       case throwFinishedError
 
-      @inlinable
-      init(
-        callbackToken: UInt64?,
-        continuationAndElement: (UnsafeContinuation<Element?, Error>, Element)? = nil
-      ) {
-        switch (callbackToken, continuationAndElement) {
-        case (.none, .none):
-          self = .returnProduceMore
-
-        case (.some(let callbackToken), .none):
-          self = .returnEnqueue(callbackToken: callbackToken)
-
-        case (.none, .some((let continuation, let element))):
-          self = .resumeConsumerAndReturnProduceMore(
-            continuation: continuation,
-            element: element
-          )
-
-        case (.some(let callbackToken), .some((let continuation, let element))):
-          self = .resumeConsumerAndReturnEnqueue(
-            continuation: continuation,
-            element: element,
-            callbackToken: callbackToken
-          )
-        }
-      }
+//      @inlinable
+//      init(
+//        callbackToken: UInt64?,
+//        continuation: (UnsafeContinuation<Element?, Error>, SendableConsumeOnceBox<Element>)? = nil
+//      ) {
+//        switch (callbackToken, continuationAndElement) {
+//        case (.none, .none):
+//          self = .returnProduceMore
+//
+//        case (.some(let callbackToken), .none):
+//          self = .returnEnqueue(callbackToken: callbackToken)
+//
+//        case (.none, .some((let continuation, let element))):
+//          self = .resumeConsumerAndReturnProduceMore(
+//            continuation: continuation,
+//            element: SendableConsumeOnceBox(wrapped: element)
+//          )
+//
+//        case (.some(let callbackToken), .some((let continuation, let element))):
+//          self = .resumeConsumerAndReturnEnqueue(
+//            continuation: continuation,
+//            element: SendableConsumeOnceBox(wrapped: element),
+//            callbackToken: callbackToken
+//          )
+//        }
+//      }
     }
 
     @inlinable
-    mutating func send(_ sequence: sending some Sequence<Element>) -> SendAction {
+    mutating func send(_ sequence: sending some Sequence<Element>) -> sending SendAction {
       switch consume self._state {
       case .channeling(var channeling):
         // We have an element and can resume the continuation
         let bufferEndIndexBeforeAppend = channeling.buffer.endIndex
-        channeling.buffer.append(contentsOf: sequence)
+        channeling.buffer
+          .append(
+            contentsOf: sequence.map { element in
+              // This is actually safe but there is no way for us to express this
+              // The sequence is send to us so all elements must be
+              // in a disconnected region. We just need to extract them once from
+              // the sequence.
+              nonisolated(unsafe) let disconnectedElement = element
+              return SendableConsumeOnceBox(wrapped: disconnectedElement)
+            }
+          )
         var shouldProduceMore = channeling.backpressureStrategy.didSend(
           elements: channeling.buffer[bufferEndIndexBeforeAppend...]
         )
@@ -1029,17 +1051,27 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
           self = .init(state: .channeling(channeling))
 
-          return .init(
-            callbackToken: callbackToken
-          )
+          if let callbackToken {
+            return .returnEnqueue(callbackToken: callbackToken)
+          } else {
+            return .returnProduceMore
+          }
         }
         guard let element = channeling.buffer.popFirst() else {
           // We got a send of an empty sequence. We just tolerate this.
           let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
           self = .init(state: .channeling(channeling))
 
-          return .init(callbackToken: callbackToken)
+          if let callbackToken {
+            return .returnEnqueue(callbackToken: callbackToken)
+          } else {
+            return .returnProduceMore
+          }
         }
+        // This is actually safe but we can't express it right now.
+        // The element is taken from the deque once we and initally send it into
+        // the Deque.
+        nonisolated(unsafe) let disconnectedElement = element
         // We need to tell the back pressure strategy that we consumed
         shouldProduceMore = channeling.backpressureStrategy.didConsume(element: element)
         channeling.hasOutstandingDemand = shouldProduceMore
@@ -1049,10 +1081,18 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         let callbackToken = shouldProduceMore ? nil : channeling.nextCallbackToken()
         self = .init(state: .channeling(channeling))
 
-        return .init(
-          callbackToken: callbackToken,
-          continuationAndElement: (consumerContinuation, element)
-        )
+        if let callbackToken {
+          return .resumeConsumerAndReturnEnqueue(
+              continuation: consumerContinuation,
+              element: disconnectedElement,
+              callbackToken: callbackToken
+            )
+        } else {
+          return .resumeConsumerAndReturnProduceMore(
+              continuation: consumerContinuation,
+              element: disconnectedElement
+            )
+        }
 
       case .sourceFinished(let sourceFinished):
         // If the source has finished we are dropping the elements.
@@ -1291,10 +1331,10 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
     @usableFromInline
     enum NextAction {
       /// Indicates that the element should be returned to the caller.
-      case returnElement(Element)
+      case returnElement(SendableConsumeOnceBox<Element>)
       /// Indicates that the element should be returned to the caller and that all producers should be called.
       case returnElementAndResumeProducers(
-        Element,
+        SendableConsumeOnceBox<Element>,
         _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
       )
       /// Indicates that the `Failure` should be returned to the caller and that `onTermination`s should be called.
@@ -1374,13 +1414,13 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `suspendNext()`.
     @usableFromInline
-    enum SuspendNextAction {
+    enum SuspendNextAction: ~Copyable {
       /// Indicates that the consumer should be resumed.
-      case resumeConsumerWithElement(UnsafeContinuation<Element?, Error>, Element)
+      case resumeConsumerWithElement(UnsafeContinuation<Element?, Error>, SendableConsumeOnceBox<Element>)
       /// Indicates that the consumer and all producers should be resumed.
       case resumeConsumerWithElementAndProducers(
         UnsafeContinuation<Element?, Error>,
-        Element,
+        SendableConsumeOnceBox<Element>,
         _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
       )
       /// Indicates that the consumer should be resumed with the failure and that `onTermination`s should be called.
@@ -1410,8 +1450,8 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
           return .none
         }
+        
         // We have an element to fulfil the demand right away.
-
         let shouldProduceMore = channeling.backpressureStrategy.didConsume(element: element)
         channeling.hasOutstandingDemand = shouldProduceMore
 
@@ -1426,7 +1466,11 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         channeling.suspendedProducers.removeAll(keepingCapacity: true)
         self = .init(state: .channeling(channeling))
 
-        return .resumeConsumerWithElementAndProducers(continuation, element, producers)
+        return .resumeConsumerWithElementAndProducers(
+          continuation,
+          element,
+          producers
+        )
 
       case .sourceFinished(var sourceFinished):
         // Check if we have an element left in the buffer and return it
@@ -1541,7 +1585,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
 
       /// The buffer of elements.
       @usableFromInline
-      var buffer: Deque<Element>
+      var buffer: Deque<SendableConsumeOnceBox<Element>>
 
       /// The optional consumer continuation.
       @usableFromInline
@@ -1581,7 +1625,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
         iteratorInitialized: Bool,
         sequenceInitialized: Bool,
         onTerminations: _TinyArray<(UInt64, @Sendable () -> Void)> = .init(),
-        buffer: Deque<Element>,
+        buffer: Deque<SendableConsumeOnceBox<Element>>,
         consumerContinuation: UnsafeContinuation<Element?, Error>? = nil,
         producerContinuations: Deque<(UInt64, _MultiProducerSingleConsumerSuspendedProducer)>,
         cancelledAsyncProducers: Deque<UInt64>,
@@ -1633,7 +1677,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
 
       /// The buffer of elements.
       @usableFromInline
-      var buffer: Deque<Element>
+      var buffer: Deque<SendableConsumeOnceBox<Element>>
 
       /// The failure that should be thrown after the last element has been consumed.
       @usableFromInline
@@ -1655,7 +1699,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
       init(
         iteratorInitialized: Bool,
         sequenceInitialized: Bool,
-        buffer: Deque<Element>,
+        buffer: Deque<SendableConsumeOnceBox<Element>>,
         failure: Failure? = nil,
         onTerminations: _TinyArray<(UInt64, @Sendable () -> Void)> = .init(),
         nextSourceID: UInt64
@@ -1732,9 +1776,35 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
   }
 }
 
+@available(AsyncAlgorithms 1.1, *)
 @usableFromInline
 enum _MultiProducerSingleConsumerSuspendedProducer {
   case closure((Result<Void, Error>) -> Void)
   case continuation(UnsafeContinuation<Void, Error>)
+}
+
+extension Optional where Wrapped: ~Copyable {
+  @usableFromInline
+  mutating func takeSending() -> sending Self {
+    let result = consume self
+    self = nil
+    return result
+  }
+}
+
+@usableFromInline
+struct SendableConsumeOnceBox<Wrapped> {
+  @usableFromInline
+  var wrapped: Optional<Wrapped>
+  
+  @inlinable
+  init(wrapped: consuming sending Wrapped) {
+    self.wrapped = .some(wrapped)
+  }
+  
+  @inlinable
+  consuming func take() -> sending Wrapped {
+    return self.wrapped.takeSending()!
+  }
 }
 #endif
