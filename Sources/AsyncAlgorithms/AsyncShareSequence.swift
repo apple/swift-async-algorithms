@@ -8,7 +8,6 @@
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
-#if compiler(>=6.2)
 
 import Synchronization
 import DequeModule
@@ -733,4 +732,3 @@ extension AsyncShareSequence: AsyncSequence {
   }
 }
 
-#endif

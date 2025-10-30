@@ -10,7 +10,10 @@ let availabilityMacros: [SwiftSetting] = [
     "AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
   ),
   .enableExperimentalFeature(
-    "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
+    "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, visionOS 1.0"
+  ),
+  .enableExperimentalFeature(
+    "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
   ),
 ]
 
