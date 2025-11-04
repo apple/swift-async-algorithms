@@ -345,7 +345,6 @@ struct CombineLatestManyStateMachine<Element: Sendable, Failure: Error>: Sendabl
       let emptyUpstreamFinished = upstreams[baseIndex].element == nil
       upstreams[baseIndex].isFinished = true
       
-      // Implementing this for the two arities without variadic generics is a bit awkward sadly.
       if emptyUpstreamFinished {
         // All upstreams finished
         self.state = .finished

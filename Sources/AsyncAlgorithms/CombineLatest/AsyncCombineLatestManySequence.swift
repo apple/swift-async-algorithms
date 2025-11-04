@@ -63,8 +63,6 @@ public struct AsyncCombineLatestManySequence<Element: Sendable, Failure: Error>:
         guard let element = try await self.storage.next() else {
           return nil
         }
-
-        // This force unwrap is safe since there must be a third element.
         return element
       }
     }
