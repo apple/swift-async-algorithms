@@ -312,7 +312,7 @@ struct CombineLatestManyStateMachine<Element: Sendable, Failure: Error>: Sendabl
       // One of the upstreams finished.
 
       self.state = .modifying
-      upstreams[0].isFinished = true
+      upstreams[baseIndex].isFinished = true
       
       if upstreams.allSatisfy(\.isFinished) {
         // All upstreams finished we can transition to either finished or upstreamsFinished now
