@@ -267,7 +267,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
         return $0.send(sequence)
       }
 
-      switch consume action {
+      switch action {
       case .returnProduceMore:
         return .produceMore
 
@@ -438,7 +438,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
             $0.suspendNext(continuation: continuation)
           }
 
-          switch consume action {
+          switch action {
           case .resumeConsumerWithElement(let continuation, let element):
             continuation.resume(returning: element.take())
 
