@@ -2,4 +2,3 @@ version: 1
 builder:
   configs:
     - documentation_targets: [AsyncAlgorithms]
-      swift_version: 5.8
