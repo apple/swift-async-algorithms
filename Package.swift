@@ -6,9 +6,13 @@ import CompilerPluginSupport
 let AsyncAlgorithms_v1_0 = "AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0"
 #if compiler(>=6.0) && swift(>=6.0)  // 5.10 doesnt support visionOS availability
 let AsyncAlgorithms_v1_1 =
-  "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
+  "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, visionOS 1.0"
+let AsyncAlgorithms_v1_2 =
+  "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
 #else
-let AsyncAlgorithms_v1_1 = "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
+let AsyncAlgorithms_v1_1 = "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0"
+let AsyncAlgorithms_v1_2 =
+  "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
 #endif
 
 let availabilityMacros: [SwiftSetting] = [
@@ -18,6 +22,9 @@ let availabilityMacros: [SwiftSetting] = [
   .enableExperimentalFeature(
     AsyncAlgorithms_v1_1
   ),
+  .enableExperimentalFeature(
+    AsyncAlgorithms_v1_2
+  )
 ]
 
 let package = Package(
