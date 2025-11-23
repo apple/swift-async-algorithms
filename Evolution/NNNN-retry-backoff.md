@@ -22,7 +22,7 @@ Providing a standard `retry` function and reusable backoff strategies in Swift A
 This proposal introduces a retry function that executes an asynchronous operation up to a specified number of attempts, with customizable delays and error-based retry decisions between attempts.
 
 ```swift
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int,
   tolerance: ClockType.Instant.Duration? = nil,
@@ -33,59 +33,51 @@ nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
 ```
 
 ```swift
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
-public enum RetryAction<Duration: DurationProtocol> {
-  case backoff(Duration)
-  case stop
+@available(AsyncAlgorithms 1.1, *)
+public struct RetryAction<Duration: DurationProtocol> {
+  public static var stop: Self
+  public static func backoff(_ duration: Duration) -> Self
 }
 ```
 
-Additionally, this proposal includes a suite of backoff strategies that can be used to generate delays between retry attempts. The core strategies provide different patterns for calculating delays: constant intervals, linear growth, exponential growth, and decorrelated jitter.
+Additionally, this proposal includes a suite of backoff strategies that can be used to generate delays between retry attempts. The core strategies provide different patterns for calculating delays: constant intervals, linear growth, and exponential growth.
 
 ```swift
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 public enum Backoff {
   public static func constant<Duration: DurationProtocol>(_ constant: Duration) -> some BackoffStrategy<Duration>
   public static func constant(_ constant: Duration) -> some BackoffStrategy<Duration>
-  public static func linear<Duration: DurationProtocol>(increment: Duration, initial: Duration) -> some BackoffStrategy<Duration>
   public static func linear(increment: Duration, initial: Duration) -> some BackoffStrategy<Duration>
-  public static func exponential<Duration: DurationProtocol>(factor: Int, initial: Duration) -> some BackoffStrategy<Duration>
-  public static func exponential(factor: Int, initial: Duration) -> some BackoffStrategy<Duration>
-}
-@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-extension Backoff {
-  public static func decorrelatedJitter<RNG: RandomNumberGenerator>(factor: Int, base: Duration, using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration>
+  public static func exponential(factor: Int128, initial: Duration) -> some BackoffStrategy<Duration>
 }
 ```
 
 These strategies can be modified to enforce minimum or maximum delays, or to add jitter for preventing the thundering herd problem.
 
 ```swift
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension BackoffStrategy {
   public func minimum(_ minimum: Duration) -> some BackoffStrategy<Duration>
   public func maximum(_ maximum: Duration) -> some BackoffStrategy<Duration>
 }
-@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+@available(AsyncAlgorithms 1.1, *)
 extension BackoffStrategy where Duration == Swift.Duration {
   public func fullJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration>
   public func equalJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration>
 }
 ```
 
-Constant, linear, and exponential backoff provide overloads for both `Duration` and `DurationProtocol`. This matches the `retry` overloads where the default clock is `ContinuousClock` whose duration type is `Duration`.
-
-Jitter variants currently require `Duration` rather than a generic `DurationProtocol`, because only `Duration` exposes a numeric representation suitable for randomization (see [SE-0457](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0457-duration-attosecond-represenation.md)).
-
-Each of those strategies conforms to the `BackoffStrategy` protocol:
+`BackoffStrategy` is a protocol with an associated type `Duration` which is required to conform to `DurationProtocol`:
 
 ```swift
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 public protocol BackoffStrategy<Duration> {
   associatedtype Duration: DurationProtocol
   mutating func nextDuration() -> Duration
 }
 ```
+
+Linear, exponential, and jitter backoff require the use of `Swift.Duration` rather than any type conforming to `DurationProtocol` due to limitations of `DurationProtocol` to do more complex mathematical operations, such as adding or multiplying with reporting overflows or generating random values. Constant, minimum and maximum are able to use `DurationProtocol`.
 
 ## Detailed design
 
@@ -123,7 +115,7 @@ var backoff = Backoff
 
 #### Custom backoff
 
-Adopters may choose to create their own strategies. There is no requirement to conform to `BackoffStrategy`, since retry and backoff are decoupled; however, to use the provided modifiers (`minimum`, `maximum`, `jitter`), a strategy must conform.
+Adopters may choose to create their own strategies. There is no requirement to conform to `BackoffStrategy`, since retry and backoff are decoupled; however, to use the provided modifiers (`minimum`, `maximum`, `fullJitter`, `equalJitter`), a strategy must conform.
 
 Each call to `nextDuration()` returns the delay for the next retry attempt. Strategies are naturally stateful. For instance, they may track the number of invocations or the previously returned duration to calculate the next delay.
 
@@ -134,7 +126,6 @@ As previously mentioned this proposal introduces several common backoff strategi
 - **Constant**: $f(n) = constant$
 - **Linear**: $f(n) = initial + increment * n$
 - **Exponential**: $f(n) = initial * factor ^ n$
-- **Decorrelated Jitter**: $f(n) = random(base, f(n - 1) * factor)$ where $f(0) = base$
 - **Minimum**: $f(n) = max(minimum, g(n))$ where $g(n)$ is the base strategy
 - **Maximum**: $f(n) = min(maximum, g(n))$ where $g(n)$ is the base strategy
 - **Full Jitter**: $f(n) = random(0, g(n))$ where $g(n)$ is the base strategy

@@ -1,5 +1,5 @@
 #if compiler(>=6.2)
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 public struct RetryAction<Duration: DurationProtocol> {
   @usableFromInline enum Action {
     case backoff(Duration)
@@ -74,7 +74,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///   return .backoff(backoff.nextDuration())
 /// }
 /// ```
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 @inlinable nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
   maxAttempts: Int,
   tolerance: ClockType.Instant.Duration? = nil,
@@ -149,7 +149,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///   return .backoff(backoff.nextDuration())
 /// }
 /// ```
-@available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+@available(AsyncAlgorithms 1.1, *)
 @inlinable nonisolated(nonsending) public func retry<Result, ErrorType>(
   maxAttempts: Int,
   tolerance: ContinuousClock.Instant.Duration? = nil,

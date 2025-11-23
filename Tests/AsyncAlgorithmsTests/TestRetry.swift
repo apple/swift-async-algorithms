@@ -3,7 +3,7 @@ import Testing
 
 @Suite struct RetryTests {
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func singleAttempt() async throws {
     var operationAttempts = 0
     var strategyAttempts = 0
@@ -20,7 +20,7 @@ import Testing
     #expect(strategyAttempts == 0)
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func customCancellation() async throws {
     struct CustomCancellationError: Error {}
     let task = Task {
@@ -43,7 +43,7 @@ import Testing
     }
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func defaultCancellation() async throws {
     let task = Task {
       try await retry(maxAttempts: 3) {
@@ -56,7 +56,7 @@ import Testing
     }
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func successOnFirstAttempt() async throws {
     func doesNotActuallyThrow() throws { }
     var operationAttempts = 0
@@ -72,7 +72,7 @@ import Testing
     #expect(strategyAttempts == 0)
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func successOnSecondAttempt() async throws {
     var operationAttempts = 0
     var strategyAttempts = 0
@@ -89,7 +89,7 @@ import Testing
     #expect(strategyAttempts == 1)
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func maxAttemptsExceeded() async throws {
     var operationAttempts = 0
     var strategyAttempts = 0
@@ -106,7 +106,7 @@ import Testing
     #expect(strategyAttempts == 2)
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func nonRetryableError() async throws {
     struct RetryableError: Error {}
     struct NonRetryableError: Error {}
@@ -131,7 +131,7 @@ import Testing
     #expect(strategyAttempts == 2)
   }
   
-  @available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, watchOS 9.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @MainActor @Test func customClock() async throws {
     let clock = ManualClock()
     let (stream, continuation) = AsyncStream<Void>.makeStream()
@@ -160,7 +160,7 @@ import Testing
   }
   
   #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst)) || os(Linux) || os(FreeBSD) || os(OpenBSD) || os(Windows)
-  @available(macCatalyst 16.0, macOS 13.0, *)
+  @available(AsyncAlgorithms 1.1, *)
   @Test func zeroAttempts() async {
     await #expect(processExitsWith: .failure) {
       try await retry(maxAttempts: 0) { }
