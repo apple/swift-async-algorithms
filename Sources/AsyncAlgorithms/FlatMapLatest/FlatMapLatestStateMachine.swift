@@ -114,14 +114,10 @@ struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSeq
         outerFinished: outerFinished
       )
       
-      // If we have an inner task waiting, resume it to produce more
+      // Resume waiting tasks to produce elements for downstream demand
       if let innerCont = innerCont {
         return .resumeInnerContinuation(innerCont)
       }
-      // If we have an outer task waiting (and no inner task, or we want to race?), resume it
-      // Actually we want to race. But here we just signal demand.
-      // If inner task exists, we prioritize it? Or we signal both?
-      // In this simple model, we signal whoever is waiting.
       if let outerCont = outerCont {
         return .resumeOuterContinuation(outerCont)
       }
@@ -214,24 +210,9 @@ struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSeq
     switch state {
     case .running(let outerTask, let outerCont, _, let innerCont, let downstreamCont, let buffer, let currentGen, let outerFinished):
       if generation != currentGen {
-        // This task is already stale (outer produced another one while we were starting)
-        // We should cancel it immediately?
-        // Or just let it run and it will be ignored?
-        // Better to not store it.
+        // Stale task from previous generation, ignore it
         return
       }
-      
-      // If there was a previous inner task that wasn't cancelled yet (e.g. from the transition),
-      // we should have cancelled it in `outerElementProduced`.
-      // But wait, I didn't return a cancel action there.
-      
-      // FIX: `outerElementProduced` should have returned an action that cancels the old task.
-      // Since I can't easily change the return type structure in this thought stream without rewriting,
-      // I will assume `startInnerTask` implies cancellation of the *current* inner task in Storage?
-      // No, Storage doesn't know what the "current" one is before I update the state.
-      
-      // Let's fix `outerElementProduced` logic in the code I write.
-      // I will make `startInnerTask` take the *old* task to cancel.
       
       state = .running(
         outerTask: outerTask,
@@ -352,11 +333,8 @@ struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSeq
           generation: currentGen,
           outerFinished: outerFinished
         )
-        // If we have downstream demand, we should ensure outer is running?
-        // It should be running if it's not suspended.
-        // If it IS suspended, we should resume it?
+        // Resume outer sequence if downstream is waiting for more elements
         if downstreamCont != nil, let outerCont = outerCont {
-           // We resume outer to produce next inner
            state = .running(
              outerTask: outerTask,
              outerContinuation: nil, // Consumed
@@ -390,10 +368,6 @@ struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSeq
       if let downstreamCont = downstreamCont {
         return .resumeDownstream(downstreamCont, .failure(error))
       } else {
-        // We need to store the error? Or just cancel everything.
-        // If we cancel everything, the next `next()` will see finished?
-        // We should probably store the failure if buffer is empty.
-        // But for simplicity, let's just finish.
         return action
       }
       
@@ -453,11 +427,7 @@ struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSeq
       let action: Action = .cancelTasks(outerTask, innerTask, outerCont, innerCont)
       
       if let downstreamCont = downstreamCont {
-        return .resumeDownstream(downstreamCont, .success(nil)) // Or nil? Usually cancellation results in nil or throwing CancellationError?
-        // If the downstream task is cancelled, resuming it with nil is fine, or throwing.
-        // But `withTaskCancellationHandler` usually handles the downstream cancellation.
-        // This method is called when the downstream task is cancelled.
-        // So we just need to clean up.
+        return .resumeDownstream(downstreamCont, .success(nil))
       }
       return action
       
