@@ -91,7 +91,7 @@ final class TestFlatMapLatest: XCTestCase {
     XCTAssertTrue(results.contains(30), "Should contain 30 (from final sequence)")
   }
   func test_outer_throwing() async throws {
-    let source = AsyncStream<Int> { continuation in
+    let source = AsyncThrowingStream<Int, Error> { continuation in
       Task {
         for value in [1, 2, 3] {
           if value == 2 {
