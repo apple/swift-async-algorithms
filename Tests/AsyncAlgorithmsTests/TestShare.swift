@@ -129,6 +129,42 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results1.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
     XCTAssertEqual(results2.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
   }
+  
+  func test_share_with_no_buffering() async {
+    let shared = [1, 2, 3, 4, 5].async.share(bufferingPolicy: .bounded(0))
+
+    let results1 = Mutex([Int]())
+    let results2 = Mutex([Int]())
+
+    let consumer1 = Task {
+      // Consumer 1 reads first element
+      for await value in shared {
+        results1.withLock { $0.append(value) }
+        // Delay to allow consumer 2 to get ahead
+        try? await Task.sleep(for: .milliseconds(10))
+      }
+    }
+
+    let consumer2 = Task {
+      // Consumer 2 reads all elements quickly
+      for await value in shared {
+        results2.withLock { $0.append(value) }
+      }
+    }
+
+    await consumer1.value
+    await consumer2.value
+
+    // Both consumers should receive all elements
+    XCTAssertEqual(results1.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
+    XCTAssertEqual(results2.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
+  }
+  
+  func test_share_with_no_buffering_multiple() async {
+    for _ in 0..<10 {
+      await test_share_with_no_buffering()
+    }
+  }
 
   func test_share_with_unbounded_buffering() async {
     let source = [1, 2, 3, 4, 5]
