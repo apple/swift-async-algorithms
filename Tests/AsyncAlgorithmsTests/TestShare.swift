@@ -132,26 +132,39 @@ final class TestShare: XCTestCase {
   
   func test_share_with_no_buffering() async {
     let shared = [1, 2, 3, 4, 5].async.share(bufferingPolicy: .bounded(0))
+    
+    let expectation1 = XCTestExpectation(description: "Consumer 1 finished looping")
+    let expectation2 = XCTestExpectation(description: "Consumer 2 finished looping")
 
     let results1 = Mutex([Int]())
     let results2 = Mutex([Int]())
+    let gate1 = Gate()
+    let gate2 = Gate()
 
     let consumer1 = Task {
-      // Consumer 1 reads first element
-      for await value in shared {
+      var iterator = shared.makeAsyncIterator()
+      gate2.open()
+      await gate1.enter()
+      while let value = await iterator.next(isolation: nil) {
         results1.withLock { $0.append(value) }
-        // Delay to allow consumer 2 to get ahead
-        try? await Task.sleep(for: .milliseconds(10))
+        // Add some delay to consumer 1
+        try? await Task.sleep(for: .milliseconds(1))
       }
+      expectation1.fulfill()
     }
 
     let consumer2 = Task {
-      // Consumer 2 reads all elements quickly
-      for await value in shared {
+      var iterator = shared.makeAsyncIterator()
+      gate1.open()
+      await gate2.enter()
+      while let value = await iterator.next(isolation: nil) {
         results2.withLock { $0.append(value) }
       }
+      expectation2.fulfill()
     }
-
+    
+    await fulfillment(of: [expectation1, expectation2], timeout: 5)
+    
     await consumer1.value
     await consumer2.value
 
