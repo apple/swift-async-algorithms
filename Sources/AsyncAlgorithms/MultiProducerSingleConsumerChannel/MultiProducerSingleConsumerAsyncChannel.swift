@@ -15,7 +15,7 @@
 ///
 /// This error is thrown when the channel is already finished when
 /// trying to send new elements to the source.
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error {
   @usableFromInline
   init() {}
@@ -115,7 +115,7 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 /// When the consumer stops consumption by either deiniting the channel or the task calling ``next(isolation:)``
 /// getting cancelled, the source will get notified about the termination if a termination callback has been set
 /// before by calling ``Source/setOnTerminationCallback(_:)``.
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: ~Copyable {
   /// The backing storage.
   @usableFromInline
@@ -214,7 +214,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   /// A struct to send values to the channel.
   ///
@@ -640,7 +640,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel where Element: Copyable {
   struct ChannelAsyncSequence: AsyncSequence {
     @usableFromInline
@@ -675,7 +675,7 @@ extension MultiProducerSingleConsumerAsyncChannel where Element: Copyable {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence where Element: Copyable {
   struct Iterator: AsyncIteratorProtocol {
     @usableFromInline
@@ -722,6 +722,6 @@ extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence where Ele
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence: Sendable {}
 #endif
