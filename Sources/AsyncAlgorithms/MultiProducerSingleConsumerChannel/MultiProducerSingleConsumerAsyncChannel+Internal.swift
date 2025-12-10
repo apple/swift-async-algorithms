@@ -13,7 +13,7 @@
 import DequeModule
 import Synchronization
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
@@ -111,7 +111,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   final class _Storage: Sendable {
@@ -1713,7 +1713,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 @usableFromInline
 enum _MultiProducerSingleConsumerSuspendedProducer {
   case closure((Result<Void, Error>) -> Void)
