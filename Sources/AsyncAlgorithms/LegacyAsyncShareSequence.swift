@@ -2,25 +2,24 @@
 //
 // This source file is part of the Swift Async Algorithms open source project
 //
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Copyright (c) 2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
 //
 //===----------------------------------------------------------------------===//
 
-#if compiler(>=6.2)
-
 import Synchronization
 import DequeModule
 
-@available(AsyncAlgorithms 1.2, *)
+@available(AsyncAlgorithms 1.1, *)
 extension AsyncSequence
-where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype {
-  /// Creates a shared async sequence that allows multiple concurrent iterations over a single source.
+where Element: Sendable, Self: _SendableMetatype, AsyncIterator: _SendableMetatype {
+  /// A backported version of the `share` operator creating a shared async sequence
+  /// that allows multiple concurrent iterations over a single source.
   ///
-  /// The `share` method transforms an async sequence into a shareable sequence that can be safely
-  /// iterated by multiple concurrent tasks. This is useful when you want to broadcast elements from
+  /// The `legacyShare` method transforms an async sequence into a shareable sequence that can be
+  /// safely iterated by multiple concurrent tasks. This is useful when you want to broadcast elements from
   /// a single source to multiple consumers without duplicating work or creating separate iterations.
   ///
   /// Each element from the source sequence is delivered to all active iterators.
@@ -30,6 +29,9 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   /// The base sequence is iterated in it's own task to ensure that cancellation is not polluted from
   /// one side of iteration to another.
   ///
+  /// > Note: the `.share` operator should be always used instead of this one whenever possible.
+  ///  This backport is available when targeting "legacy" operating systems where such operator is not available.
+  ///
   /// ## Example Usage
   ///
   /// ```swift
@@ -38,7 +40,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   ///  return $0
   /// }
   ///
-  /// let shared = numbers.share()
+  /// let shared = numbers.legacyShare()
   ///
   /// // Multiple tasks can iterate concurrently
   /// let consumer1 = Task {
@@ -65,9 +67,11 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   ///
   /// - Returns: A sendable async sequence that can be safely shared across multiple concurrent tasks.
   ///
-  public func share(
+  ///
+  public func legacyShare(
     bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)
-  ) -> some AsyncSequence<Element, Failure> & Sendable {
+  ) -> LegacyAsyncShareSequence<Self> {
+  
     // The iterator is transferred to the isolation of the iterating task
     // this has to be done "unsafely" since we cannot annotate the transfer
     // however since iterating an AsyncSequence types twice has been defined
@@ -82,7 +86,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
     // distinct problem here and the compiler just needs to be informed
     // that the diagnostic is overly pessimistic.
     nonisolated(unsafe) let iterator = makeAsyncIterator()
-    return AsyncShareSequence<Self>(
+    return LegacyAsyncShareSequence<Self>(
       {
         iterator
       },
@@ -114,9 +118,9 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
 //
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
-@available(AsyncAlgorithms 1.2, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable
-where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
+@available(AsyncAlgorithms 1.1, *)
+public struct LegacyAsyncShareSequence<Base: AsyncSequence>: Sendable
+where Base.Element: Sendable, Base: _SendableMetatype, Base.AsyncIterator: _SendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
   // Each iterator of the shared sequence creates its own `Side` instance, which tracks
@@ -130,12 +134,16 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
   //   **Usage**: Tracks buffer position and manages async continuations
   //   **Cleanup**: Automatically unregisters and cancels pending operations on deinit
   final class Side {
+    // Due to a runtime crash in 1.0 compatible versions, it's not possible to handle
+    // a generic failure constrained to Base.Failure. We handle inner failure with a `any Error`
+    // and force unwrap it to the generic 1.2 generic type on the outside Iterator.
+    typealias Failure = any Error
     // Tracks the state of a single consumer's iteration.
     //
     // - `continuation`: The continuation waiting for the next element (nil if not waiting)
     // - `position`: The consumer's current position in the shared buffer
     struct State {
-      var continuation: UnsafeContinuation<Result<Element?, Failure>, Never>?
+      var continuation: UnsafeContinuation<Result<Base.Element?, Failure>, Never>?
       var position = 0
 
       // Creates a new state with the position adjusted by the given offset.
@@ -162,7 +170,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       iteration.unregisterSide(id)
     }
 
-    func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+    func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Base.Element? {
       try await iteration.next(isolation: actor, id: id)
     }
   }
@@ -181,6 +189,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
   // All operations are synchronized using a `Mutex` to ensure thread-safe access
   // to the shared state across multiple concurrent consumers.
   final class Iteration: Sendable {
+    typealias Failure = Side.Failure
     // Represents the state of the background task that consumes the source sequence.
     //
     // The iteration task goes through several states during its lifecycle:
@@ -230,7 +239,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       var generation = 0
       var sides = [Int: Side.State]()
       var iteratingTask: IteratingTask
-      private(set) var buffer = Deque<Element>()
+      private(set) var buffer = Deque<Base.Element>()
       private(set) var finished = false
       private(set) var failure: Failure?
       var cancelled = false
@@ -311,7 +320,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       //   **Buffering Newest**: Appends if under the limit, otherwise removes the oldest and appends
       //
       // - Parameter element: The element to add to the buffer
-      mutating func enqueue(_ element: Element) {
+      mutating func enqueue(_ element: Base.Element) {
         let count = buffer.count
 
         switch storagePolicy {
@@ -341,14 +350,14 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       }
     }
 
-    let state: Mutex<State>
+    let state: ManagedCriticalState<State>
     let limit: Int?
 
     init(
       _ iteratorFactory: @escaping @Sendable () -> sending Base.AsyncIterator,
       bufferingPolicy: AsyncBufferSequencePolicy
     ) {
-      state = Mutex(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
+      state = ManagedCriticalState(State(iteratorFactory, bufferingPolicy: bufferingPolicy))
       switch bufferingPolicy.policy {
       case .bounded(let limit):
         self.limit = limit
@@ -478,15 +487,15 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
     }
 
     struct Resumption {
-      let continuation: UnsafeContinuation<Result<Element?, Failure>, Never>
-      let result: Result<Element?, Failure>
+      let continuation: UnsafeContinuation<Result<Base.Element?, Failure>, Never>
+      let result: Result<Base.Element?, Failure>
 
       func resume() {
         continuation.resume(returning: result)
       }
     }
 
-    func emit(_ result: Result<Element?, Failure>) {
+    func emit(_ result: Result<Base.Element?, Failure>) {
       let (resumptions, limitContinuation, demandContinuation, cancelled) = state.withLock {
         state -> ([Resumption], UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool) in
         var resumptions = [Resumption]()
@@ -533,12 +542,12 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
 
     private func nextIteration(
       _ id: Int
-    ) async -> Result<AsyncShareSequence<Base>.Element?, AsyncShareSequence<Base>.Failure> {
+    ) async -> Result<Base.Element?, Failure> {
       return await withTaskCancellationHandler {
         await withUnsafeContinuation { continuation in
           let (res, limitContinuation, demandContinuation, cancelled) = state.withLock {
             state -> (
-              Result<Element?, Failure>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
+              Result<Base.Element?, Failure>?, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?, Bool
             ) in
             guard let side = state.sides[id] else {
               return state.emit(.success(nil), limit: limit)
@@ -587,24 +596,23 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
           }
         }
       } catch {
-        emit(.failure(error as! Failure))
+        emit(.failure(error))
       }
     }
 
-    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Element? {
-      let (factory, cancelled) = state.withLock { state -> ((@Sendable () -> sending Base.AsyncIterator)?, Bool) in
-        switch state.iteratingTask {
-        case .pending(let factory):
-          state.iteratingTask = .starting
-          return (factory, false)
-        case .cancelled:
-          return (nil, true)
-        default:
-          return (nil, false)
+    func next(isolation actor: isolated (any Actor)?, id: Int) async throws(Failure) -> Base.Element? {
+      let iteratingTask = state.withLock { state -> IteratingTask in
+        defer {
+          if case .pending = state.iteratingTask {
+            state.iteratingTask = .starting
+          }
         }
+        return state.iteratingTask
       }
-      if cancelled { return nil }
-      if let factory {
+
+      if case .cancelled = iteratingTask { return nil }
+
+      if case .pending(let factory) = iteratingTask {
         let task: Task<Void, Never>
         // for the fancy dance of availability and canImport see the comment on the next check for details
         #if swift(>=6.2)
@@ -659,7 +667,6 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       #else
       return try await nextIteration(id).get()
       #endif
-
     }
   }
 
@@ -697,30 +704,37 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
   }
 }
 
-@available(AsyncAlgorithms 1.2, *)
-extension AsyncShareSequence: AsyncSequence {
-  typealias Element = Base.Element
-  typealias Failure = Base.Failure
-
-  struct Iterator: AsyncIteratorProtocol {
+@available(AsyncAlgorithms 1.1, *)
+extension LegacyAsyncShareSequence: AsyncSequence {
+  public typealias Element = Base.Element
+  @available(AsyncAlgorithms 1.2, *)
+  public typealias Failure = Base.Failure
+  public struct Iterator: AsyncIteratorProtocol, _SendableMetatype {
     let side: Side
 
     init(_ iteration: Iteration) {
       side = Side(iteration)
     }
-
-    mutating func next() async rethrows -> Element? {
+    
+    mutating public func next() async rethrows -> Element? {
       try await side.next(isolation: nil)
     }
-
-    mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
-      try await side.next(isolation: actor)
+    
+    @available(AsyncAlgorithms 1.2, *)
+    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+      do {
+        return try await side.next(isolation: actor)
+      } catch {
+        // It's guaranteed to match `Failure` but we are keeping the internal `Side` and `Iteration`
+        // constrained to `any Error` to prevent a compiler bug visible at runtime
+        // on pre 1.2 operating systems
+        throw error as! Failure
+      }
     }
   }
 
-  func makeAsyncIterator() -> Iterator {
+  public func makeAsyncIterator() -> Iterator {
     Iterator(extent.iteration)
   }
 }
 
-#endif
