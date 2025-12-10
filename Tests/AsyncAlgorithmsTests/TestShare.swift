@@ -586,7 +586,6 @@ final class TestShare: XCTestCase {
   
   func test_share_rethrows_failure_type_without_falling_back_to_any_error() async {
     guard #available(AsyncAlgorithms 1.2, *) else {
-      _ = XCTSkip("This test is not available before 1.2")
       return
     }
     // Ensure - at compile time - that error is effectively a TestError
