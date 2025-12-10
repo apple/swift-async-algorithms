@@ -426,7 +426,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       if let limit {
         let cancelled = await withUnsafeContinuation { (continuation: UnsafeContinuation<Bool, Never>) in
           let (resume, cancelled) = state.withLock { state -> (UnsafeContinuation<Bool, Never>?, Bool) in
-            guard state.buffer.count >= limit else {
+            guard limit > 0, state.buffer.count >= limit else {
               assert(state.limit == nil)
               guard case .cancelled = state.iteratingTask else {
                 return (continuation, false)
