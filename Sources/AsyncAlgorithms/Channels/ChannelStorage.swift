@@ -24,7 +24,10 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     }
   }
 
-  func send(element: Element) async {
+  func send(
+    isolation: isolated (any Actor)? = #isolation,
+    element: Element
+  ) async {
     // check if a suspension is needed
     let action = self.stateMachine.withCriticalRegion { stateMachine in
       stateMachine.send()
@@ -44,6 +47,8 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     await withTaskCancellationHandler {
       // a suspension is needed
       await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
+        // ensure isolated param is transitively captured so we don't hop executors unnecessarily
+        assert(isolation === #isolation)
         let action = self.stateMachine.withCriticalRegion { stateMachine in
           stateMachine.sendSuspended(continuation: continuation, element: element, producerID: producerID)
         }
@@ -90,7 +95,9 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
     }
   }
 
-  func next() async throws -> Element? {
+  func next(
+    isolation: isolated (any Actor)? = #isolation
+  ) async throws -> Element? {
     let action = self.stateMachine.withCriticalRegion { stateMachine in
       stateMachine.next()
     }
@@ -108,6 +115,8 @@ struct ChannelStorage<Element: Sendable, Failure: Error>: Sendable {
 
     return try await withTaskCancellationHandler {
       try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Element?, any Error>) in
+        // ensure isolated param is transitively captured so we don't hop executors unnecessarily
+        assert(isolation === #isolation)
         let action = self.stateMachine.withCriticalRegion { stateMachine in
           stateMachine.nextSuspended(
             continuation: continuation,

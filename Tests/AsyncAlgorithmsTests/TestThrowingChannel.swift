@@ -311,4 +311,36 @@ final class TestThrowingChannel: XCTestCase {
     let collected2 = try await task2.value
     XCTAssertEqual(collected2, 1)
   }
+
+  @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+  @MainActor
+  func test_asyncThrowingChannel_preserves_order_when_isolated() async throws {
+    // Given: an AsyncChannel
+    let sut = AsyncThrowingChannel<Int, Error>()
+
+    let iterationRange = 1...10
+    var taskSendOrder = [Int]()
+    var channelIterationOrder = [Int]()
+
+    // When: Consuming from one isolated task
+    let consumingTask = Task { @MainActor in
+      for try await value in sut {
+        channelIterationOrder.append(value)
+        if value == iterationRange.upperBound { break }
+      }
+    }
+
+    // When: Producing from several other similarly-isolated tasks
+    for element in iterationRange {
+      Task { @MainActor in
+        taskSendOrder.append(element)
+        await sut.send(element)
+      }
+    }
+
+    try await consumingTask.value
+
+    // Then: Elements are received in the order that the producer tasks were started.
+    XCTAssertEqual(channelIterationOrder, taskSendOrder)
+  }
 }

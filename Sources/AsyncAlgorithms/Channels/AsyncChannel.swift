@@ -35,7 +35,10 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
   /// If the channel is already finished then this returns immediately.
   /// If the task is cancelled, this function will resume without sending the element.
   /// Other sending operations from other tasks will remain active.
-  public func send(_ element: Element) async {
+  public func send(
+    isolation: isolated (any Actor)? = #isolation,
+    _ element: Element
+  ) async {
     await self.storage.send(element: element)
   }
 
@@ -55,7 +58,15 @@ public final class AsyncChannel<Element: Sendable>: AsyncSequence, Sendable {
     public mutating func next() async -> Element? {
       // Although the storage can throw, its usage in the context of an `AsyncChannel` guarantees it cannot.
       // There is no public way of sending a failure to it.
-      try! await self.storage.next()
+      try! await self.storage.next(isolation: nil)
+    }
+
+    public mutating func next(
+      isolation actor: isolated (any Actor)?
+    ) async -> Element? {
+      // Although the storage can throw, its usage in the context of an `AsyncChannel` guarantees it cannot.
+      // There is no public way of sending a failure to it.
+      try! await self.storage.next(isolation: actor)
     }
   }
 }
