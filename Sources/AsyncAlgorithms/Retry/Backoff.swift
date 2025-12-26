@@ -15,70 +15,108 @@
 /// ```
 @available(AsyncAlgorithms 1.1, *)
 public protocol BackoffStrategy<Duration> {
+  associatedtype Iterator: BackoffIterator
+  associatedtype Duration: DurationProtocol where Duration == Iterator.Duration
+  func makeIterator() -> Iterator
+}
+
+@available(AsyncAlgorithms 1.1, *)
+public protocol BackoffIterator {
   associatedtype Duration: DurationProtocol
   mutating func nextDuration() -> Duration
 }
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct ConstantBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy {
-  @usableFromInline let constant: Duration
+@usableFromInline struct ConstantBackoffStrategy<Duration: DurationProtocol>: BackoffStrategy, Sendable {
+  let constant: Duration
   @usableFromInline init(constant: Duration) {
     precondition(constant >= .zero, "Constant must be greater than or equal to 0")
     self.constant = constant
   }
-  @inlinable func nextDuration() -> Duration {
-    return constant
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(constant: constant)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    let constant: Duration
+    init(constant: Duration) {
+      self.constant = constant
+    }
+    @usableFromInline func nextDuration() -> Duration {
+      return constant
+    }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct LinearBackoffStrategy: BackoffStrategy {
-  @usableFromInline var current: Duration
-  @usableFromInline let increment: Duration
-  @usableFromInline var hasOverflown = false
+@usableFromInline struct LinearBackoffStrategy: BackoffStrategy, Sendable {
+  let current: Duration
+  let increment: Duration
   @usableFromInline init(increment: Duration, initial: Duration) {
     precondition(initial >= .zero, "Initial must be greater than or equal to 0")
     precondition(increment >= .zero, "Increment must be greater than or equal to 0")
     self.current = initial
     self.increment = increment
   }
-  @inlinable mutating func nextDuration() -> Duration {
-    if hasOverflown {
-      return Duration(attoseconds: .max)
-    } else {
-      let (next, hasOverflown) = current.attoseconds.addingReportingOverflow(increment.attoseconds)
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(current: current, increment: increment)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    var current: Duration
+    let increment: Duration
+    var hasOverflown = false
+    init(current: Duration, increment: Duration) {
+      self.current = current
+      self.increment = increment
+    }
+    @usableFromInline mutating func nextDuration() -> Duration {
       if hasOverflown {
-        self.hasOverflown = true
-        return nextDuration()
+        return Duration(attoseconds: .max)
       } else {
-        defer { current = Duration(attoseconds: next) }
-        return current
+        let (next, hasOverflown) = current.attoseconds.addingReportingOverflow(increment.attoseconds)
+        if hasOverflown {
+          self.hasOverflown = true
+          return nextDuration()
+        } else {
+          defer { current = Duration(attoseconds: next) }
+          return current
+        }
       }
     }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct ExponentialBackoffStrategy: BackoffStrategy {
-  @usableFromInline var current: Duration
-  @usableFromInline let factor: Int128
-  @usableFromInline var hasOverflown = false
+@usableFromInline struct ExponentialBackoffStrategy: BackoffStrategy, Sendable {
+  let current: Duration
+  let factor: Int128
   @usableFromInline init(factor: Int128, initial: Duration) {
     precondition(initial >= .zero, "Initial must be greater than or equal to 0")
     self.current = initial
     self.factor = factor
   }
-  @inlinable mutating func nextDuration() -> Duration {
-    if hasOverflown {
-      return Duration(attoseconds: .max)
-    } else {
-      let (next, hasOverflown) = current.attoseconds.multipliedReportingOverflow(by: factor)
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(current: current, factor: factor)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    var current: Duration
+    let factor: Int128
+    var hasOverflown = false
+    init(current: Duration, factor: Int128) {
+      self.current = current
+      self.factor = factor
+    }
+    @usableFromInline mutating func nextDuration() -> Duration {
       if hasOverflown {
-        self.hasOverflown = true
-        return nextDuration()
+        return Duration(attoseconds: .max)
       } else {
-        defer { current = Duration(attoseconds: next) }
-        return current
+        let (next, hasOverflown) = current.attoseconds.multipliedReportingOverflow(by: factor)
+        if hasOverflown {
+          self.hasOverflown = true
+          return nextDuration()
+        } else {
+          defer { current = Duration(attoseconds: next) }
+          return current
+        }
       }
     }
   }
@@ -86,56 +124,72 @@ public protocol BackoffStrategy<Duration> {
 
 @available(AsyncAlgorithms 1.1, *)
 @usableFromInline struct MinimumBackoffStrategy<Base: BackoffStrategy>: BackoffStrategy {
-  @usableFromInline var base: Base
-  @usableFromInline let minimum: Base.Duration
+  let base: Base
+  let minimum: Base.Duration
   @usableFromInline init(base: Base, minimum: Base.Duration) {
     self.base = base
     self.minimum = minimum
   }
-  @inlinable mutating func nextDuration() -> Base.Duration {
-    return max(minimum, base.nextDuration())
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(base: base.makeIterator(), minimum: minimum)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    var base: Base.Iterator
+    let minimum: Base.Duration
+    @usableFromInline mutating func nextDuration() -> Base.Duration {
+      return max(minimum, base.nextDuration())
+    }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
+extension MinimumBackoffStrategy: Sendable where Base: Sendable { }
+
+@available(AsyncAlgorithms 1.1, *)
 @usableFromInline struct MaximumBackoffStrategy<Base: BackoffStrategy>: BackoffStrategy {
-  @usableFromInline var base: Base
-  @usableFromInline let maximum: Base.Duration
+  let base: Base
+  let maximum: Base.Duration
   @usableFromInline init(base: Base, maximum: Base.Duration) {
     self.base = base
     self.maximum = maximum
   }
-  @inlinable mutating func nextDuration() -> Base.Duration {
-    return min(maximum, base.nextDuration())
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(base: base.makeIterator(), maximum: maximum)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    var base: Base.Iterator
+    let maximum: Base.Duration
+    @usableFromInline mutating func nextDuration() -> Base.Duration {
+      return min(maximum, base.nextDuration())
+    }
   }
 }
+
+@available(AsyncAlgorithms 1.1, *)
+extension MaximumBackoffStrategy: Sendable where Base: Sendable { }
 
 @available(AsyncAlgorithms 1.1, *)
 @usableFromInline struct FullJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenerator>: BackoffStrategy where Base.Duration == Swift.Duration {
-  @usableFromInline var base: Base
-  @usableFromInline var generator: RNG
+  let base: Base
+  let generator: RNG
   @usableFromInline init(base: Base, generator: RNG) {
     self.base = base
     self.generator = generator
   }
-  @inlinable mutating func nextDuration() -> Base.Duration {
-    return .init(attoseconds: Int128.random(in: 0...base.nextDuration().attoseconds, using: &generator))
+  @usableFromInline func makeIterator() -> Iterator {
+    return Iterator(base: base.makeIterator(), generator: generator)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    var base: Base.Iterator
+    var generator: RNG
+    @usableFromInline mutating func nextDuration() -> Base.Duration {
+      return .init(attoseconds: Int128.random(in: 0...base.nextDuration().attoseconds, using: &generator))
+    }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct EqualJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenerator>: BackoffStrategy where Base.Duration == Swift.Duration {
-  @usableFromInline var base: Base
-  @usableFromInline var generator: RNG
-  @usableFromInline init(base: Base, generator: RNG) {
-    self.base = base
-    self.generator = generator
-  }
-  @inlinable mutating func nextDuration() -> Base.Duration {
-    let base = base.nextDuration()
-    return .init(attoseconds: Int128.random(in: (base / 2).attoseconds...base.attoseconds, using: &generator))
-  }
-}
+extension FullJitterBackoffStrategy: Sendable where Base: Sendable, RNG: Sendable { }
 
 @available(AsyncAlgorithms 1.1, *)
 public enum Backoff {
@@ -275,19 +329,6 @@ extension BackoffStrategy {
   /// - Returns: A backoff strategy with full jitter applied.
   @inlinable public func fullJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
     return FullJitterBackoffStrategy(base: self, generator: generator)
-  }
-
-  /// Applies equal jitter to this backoff strategy.
-  ///
-  /// Formula: `f(n) = random(g(n) / 2, g(n))` where `g(n)` is the base strategy
-  ///
-  /// Jitter prevents the thundering herd problem where multiple clients retry
-  /// simultaneously, reducing server load spikes and improving system stability.
-  ///
-  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
-  /// - Returns: A backoff strategy with equal jitter applied.
-  @inlinable public func equalJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
-    return EqualJitterBackoffStrategy(base: self, generator: generator)
   }
 }
 #endif
