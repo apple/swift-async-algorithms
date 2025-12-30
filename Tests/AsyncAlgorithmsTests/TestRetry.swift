@@ -2,7 +2,7 @@
 import Testing
 
 @Suite struct RetryTests {
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func singleAttempt() async throws {
     var operationAttempts = 0
@@ -19,7 +19,7 @@ import Testing
     #expect(operationAttempts == 1)
     #expect(strategyAttempts == 0)
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func customCancellation() async throws {
     struct CustomCancellationError: Error {}
@@ -30,11 +30,10 @@ import Testing
         }
         throw Failure()
       } strategy: { error in
-        if error is CustomCancellationError {
-          return .stop
-        } else {
+        guard error is CustomCancellationError else {
           return .backoff(.zero)
         }
+        return .stop
       }
     }
     task.cancel()
@@ -42,7 +41,7 @@ import Testing
       try await task.value
     }
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func defaultCancellation() async throws {
     let task = Task {
@@ -55,10 +54,10 @@ import Testing
       try await task.value
     }
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func successOnFirstAttempt() async throws {
-    func doesNotActuallyThrow() throws { }
+    func doesNotActuallyThrow() throws {}
     var operationAttempts = 0
     var strategyAttempts = 0
     try await retry(maxAttempts: 3) {
@@ -71,7 +70,7 @@ import Testing
     #expect(operationAttempts == 1)
     #expect(strategyAttempts == 0)
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func successOnSecondAttempt() async throws {
     var operationAttempts = 0
@@ -88,7 +87,7 @@ import Testing
     #expect(operationAttempts == 2)
     #expect(strategyAttempts == 1)
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func maxAttemptsExceeded() async throws {
     var operationAttempts = 0
@@ -105,7 +104,7 @@ import Testing
     #expect(operationAttempts == 3)
     #expect(strategyAttempts == 2)
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func nonRetryableError() async throws {
     struct RetryableError: Error {}
@@ -130,7 +129,7 @@ import Testing
     #expect(operationAttempts == 2)
     #expect(strategyAttempts == 2)
   }
-  
+
   @available(AsyncAlgorithms 1.1, *)
   @MainActor @Test func customClock() async throws {
     let clock = ManualClock()
@@ -158,12 +157,12 @@ import Testing
       try await task.value
     }
   }
-  
+
   #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst)) || os(Linux) || os(FreeBSD) || os(OpenBSD) || os(Windows)
   @available(AsyncAlgorithms 1.1, *)
   @Test func zeroAttempts() async {
     await #expect(processExitsWith: .failure) {
-      try await retry(maxAttempts: 0) { }
+      try await retry(maxAttempts: 0) {}
     }
   }
   #endif

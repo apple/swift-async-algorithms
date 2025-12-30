@@ -57,7 +57,6 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///   - maxAttempts: The maximum number of attempts to make.
 ///   - tolerance: The tolerance for the sleep operation between retries.
 ///   - clock: The clock to use for timing delays between retries.
-///   - isolation: The actor isolation to maintain during execution.
 ///   - operation: The asynchronous operation to retry.
 ///   - strategy: A closure that determines the retry action based on the error.
 ///                Defaults to immediate retry with no delay.
@@ -67,11 +66,12 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// ## Example
 ///
 /// ```swift
-/// var backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// let backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// var iterator = backoff.makeIterator()
 /// let result = try await retry(maxAttempts: 3, clock: ContinuousClock()) {
 ///   try await someNetworkOperation()
 /// } strategy: { error in
-///   return .backoff(backoff.nextDuration())
+///   return .backoff(iterator.nextDuration())
 /// }
 /// ```
 @available(AsyncAlgorithms 1.1, *)
@@ -132,7 +132,6 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// - Parameters:
 ///   - maxAttempts: The maximum number of attempts to make.
 ///   - tolerance: The tolerance for the sleep operation between retries.
-///   - isolation: The actor isolation to maintain during execution.
 ///   - operation: The asynchronous operation to retry.
 ///   - strategy: A closure that determines the retry action based on the error.
 ///                Defaults to immediate retry with no delay.
@@ -142,11 +141,12 @@ public struct RetryAction<Duration: DurationProtocol> {
 /// ## Example
 ///
 /// ```swift
-/// var backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// let backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
+/// var iterator = backoff.makeIterator()
 /// let result = try await retry(maxAttempts: 3) {
 ///   try await someNetworkOperation()
 /// } strategy: { error in
-///   return .backoff(backoff.nextDuration())
+///   return .backoff(iterator.nextDuration())
 /// }
 /// ```
 @available(AsyncAlgorithms 1.1, *)
