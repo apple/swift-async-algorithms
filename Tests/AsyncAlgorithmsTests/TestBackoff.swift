@@ -1,6 +1,7 @@
 import AsyncAlgorithms
 import Testing
 
+#if compiler(>=6.2)
 @Suite struct BackoffTests {
 
   @available(AsyncAlgorithms 1.1, *)
@@ -134,3 +135,4 @@ import Testing
   }
   #endif
 }
+#endif

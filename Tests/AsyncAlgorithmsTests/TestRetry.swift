@@ -1,6 +1,7 @@
 @testable import AsyncAlgorithms
 import Testing
 
+#if compiler(>=6.2)
 @Suite struct RetryTests {
 
   @available(AsyncAlgorithms 1.1, *)
@@ -167,3 +168,4 @@ import Testing
   }
   #endif
 }
+#endif

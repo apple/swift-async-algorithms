@@ -49,7 +49,7 @@ public protocol BackoffIterator {
     @usableFromInline init(constant: Duration) {
       self.constant = constant
     }
-    @inlinable func nextDuration() -> Duration {
+    @inlinable @inline(__always) func nextDuration() -> Duration {
       return constant
     }
   }
@@ -76,17 +76,18 @@ public protocol BackoffIterator {
       self.current = current
       self.increment = increment
     }
-    @inlinable mutating func nextDuration() -> Duration {
+    @inlinable @inline(__always) mutating func nextDuration() -> Duration {
       if hasOverflown {
         return Duration(attoseconds: .max)
       } else {
         let (next, hasOverflown) = current.attoseconds.addingReportingOverflow(increment.attoseconds)
-        guard hasOverflown else {
+        if hasOverflown {
+          self.hasOverflown = true
+          return Duration(attoseconds: .max)
+        } else {
           defer { current = Duration(attoseconds: next) }
           return current
         }
-        self.hasOverflown = true
-        return nextDuration()
       }
     }
   }
@@ -113,17 +114,18 @@ public protocol BackoffIterator {
       self.current = current
       self.factor = factor
     }
-    @inlinable mutating func nextDuration() -> Duration {
+    @inlinable @inline(__always) mutating func nextDuration() -> Duration {
       if hasOverflown {
         return Duration(attoseconds: .max)
       } else {
         let (next, hasOverflown) = current.attoseconds.multipliedReportingOverflow(by: factor)
-        guard hasOverflown else {
+        if hasOverflown {
+          self.hasOverflown = true
+          return Duration(attoseconds: .max)
+        } else {
           defer { current = Duration(attoseconds: next) }
           return current
         }
-        self.hasOverflown = true
-        return nextDuration()
       }
     }
   }
@@ -147,7 +149,7 @@ public protocol BackoffIterator {
       self.base = base
       self.minimum = minimum
     }
-    @inlinable mutating func nextDuration() -> Base.Duration {
+    @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       return max(minimum, base.nextDuration())
     }
   }
@@ -174,7 +176,7 @@ extension MinimumBackoffStrategy: Sendable where Base: Sendable {}
       self.base = base
       self.maximum = maximum
     }
-    @inlinable mutating func nextDuration() -> Base.Duration {
+    @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       return min(maximum, base.nextDuration())
     }
   }
@@ -202,7 +204,7 @@ where Base.Duration == Swift.Duration {
       self.base = base
       self.generator = generator
     }
-    @inlinable mutating func nextDuration() -> Base.Duration {
+    @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       return .init(attoseconds: Int128.random(in: 0...base.nextDuration().attoseconds, using: &generator))
     }
   }
