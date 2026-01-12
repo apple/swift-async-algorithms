@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 #if compiler(>=6.0)
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension AsyncSequence {
 
   /// Converts any failure into a new error.
@@ -19,19 +19,32 @@ extension AsyncSequence {
   /// - Returns: An asynchronous sequence that maps the error thrown into the one produced by the transform closure.
   ///
   /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
-  @available(AsyncAlgorithms 1.1, *)
+  @available(AsyncAlgorithms 1.2, *)
   public func mapError<MappedError: Error>(
-    _ transform: @Sendable @escaping (Failure) async -> MappedError
-  ) -> AsyncMapErrorSequence<Self, MappedError> {
+    _ transform: @Sendable @escaping (Self.Failure
+  ) -> MappedError) -> some AsyncSequence<Self.Element, MappedError> {
+    AsyncMapErrorSequence(base: self, transform: transform)
+  }
+  
+  /// Converts any failure into a new error.
+  ///
+  /// - Parameter transform: A closure that takes the failure as a parameter and returns a new error.
+  /// - Returns: An asynchronous sequence that maps the error thrown into the one produced by the transform closure.
+  ///
+  /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
+  @available(AsyncAlgorithms 1.2, *)
+  public func mapError<MappedError: Error>(
+    _ transform: @Sendable @escaping (Self.Failure) -> MappedError
+  ) -> (some AsyncSequence<Self.Element, MappedError> & Sendable) where Self: Sendable, Self.Element: Sendable {
     AsyncMapErrorSequence(base: self, transform: transform)
   }
 }
 
 /// An asynchronous sequence that converts any failure into a new error.
-@available(AsyncAlgorithms 1.1, *)
-public struct AsyncMapErrorSequence<Base: AsyncSequence, MappedError: Error> {
-  public typealias Element = Base.Element
-  public typealias Failure = MappedError
+@available(AsyncAlgorithms 1.2, *)
+struct AsyncMapErrorSequence<Base: AsyncSequence, MappedError: Error> {
+  typealias Element = Base.Element
+  typealias Failure = MappedError
 
   private let base: Base
   private let transform: @Sendable (Base.Failure) async -> MappedError
@@ -45,12 +58,12 @@ public struct AsyncMapErrorSequence<Base: AsyncSequence, MappedError: Error> {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.2, *)
 extension AsyncMapErrorSequence: AsyncSequence {
 
   /// The iterator that produces elements of the map sequence.
-  public struct Iterator: AsyncIteratorProtocol {
-    public typealias Element = Base.Element
+  struct Iterator: AsyncIteratorProtocol {
+    typealias Element = Base.Element
 
     private var base: Base.AsyncIterator
 
@@ -64,11 +77,11 @@ extension AsyncMapErrorSequence: AsyncSequence {
       self.transform = transform
     }
 
-    public mutating func next() async throws(MappedError) -> Element? {
+    mutating func next() async throws(MappedError) -> Element? {
       try await self.next(isolation: nil)
     }
 
-    public mutating func next(isolation actor: isolated (any Actor)?) async throws(MappedError) -> Element? {
+    mutating func next(isolation actor: isolated (any Actor)?) async throws(MappedError) -> Element? {
       do {
         return try await base.next(isolation: actor)
       } catch {
@@ -77,7 +90,7 @@ extension AsyncMapErrorSequence: AsyncSequence {
     }
   }
 
-  public func makeAsyncIterator() -> Iterator {
+  func makeAsyncIterator() -> Iterator {
     Iterator(
       base: base.makeAsyncIterator(),
       transform: transform
@@ -85,8 +98,8 @@ extension AsyncMapErrorSequence: AsyncSequence {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
-extension AsyncMapErrorSequence: Sendable where Base: Sendable {}
+@available(AsyncAlgorithms 1.2, *)
+extension AsyncMapErrorSequence: Sendable where Base: Sendable, Base.Element: Sendable {}
 
 @available(*, unavailable)
 extension AsyncMapErrorSequence.Iterator: Sendable {}
