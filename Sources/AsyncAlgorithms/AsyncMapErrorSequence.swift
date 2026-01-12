@@ -25,7 +25,7 @@ extension AsyncSequence {
   ) -> some AsyncSequence<Self.Element, MappedError> {
     AsyncMapErrorSequence(base: self, transform: transform)
   }
-  
+
   /// Converts any failure into a new error.
   ///
   /// - Parameter transform: A closure that takes the failure as a parameter and returns a new error.
