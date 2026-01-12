@@ -21,8 +21,8 @@ extension AsyncSequence {
   /// Use the ``mapError(_:)`` operator when you need to replace one error type with another.
   @available(AsyncAlgorithms 1.2, *)
   public func mapError<MappedError: Error>(
-    _ transform: @Sendable @escaping (Self.Failure
-  ) -> MappedError) -> some AsyncSequence<Self.Element, MappedError> {
+    _ transform: @Sendable @escaping (Self.Failure) -> MappedError
+  ) -> some AsyncSequence<Self.Element, MappedError> {
     AsyncMapErrorSequence(base: self, transform: transform)
   }
   
