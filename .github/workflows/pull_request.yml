@@ -15,7 +15,6 @@ jobs:
       linux_exclude_swift_versions: "[{\"swift_version\": \"5.9\"}, {\"swift_version\": \"5.10\"}]]"
       windows_exclude_swift_versions: "[{\"swift_version\": \"5.9\"}]"
       enable_wasm_sdk_build: true
-      wasm_sdk_build_command: swift build -Xcc -D_WASI_EMULATED_PTHREAD
 
   soundness:
     name: Soundness
