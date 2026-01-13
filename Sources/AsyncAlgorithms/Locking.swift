@@ -22,8 +22,10 @@ import Bionic
 #elseif canImport(wasi_pthread)
 import wasi_pthread
 #elseif canImport(WASILibc)
-// No locking on WASILibc provided by the current Swift for WebAssembly SDK as of Dec 2025.
-// That SDK is also single-threaded, so we can safely avoid locking altogether.
+// Here, we can not import wasi_pthread, but we can import WASILibc. So
+// this is a variation of WASILibc without pthread support. As such, the
+// platform does not have locks or mechanisms to become multi-threaded,
+// so no locks are needed.
 #else
 #error("Unsupported platform")
 #endif
@@ -55,7 +57,10 @@ internal struct Lock {
     let result = pthread_mutex_init(platformLock, nil)
     precondition(result == 0, "pthread_mutex_init failed")
     #elseif canImport(WASILibc)
-    // This WASILibc variation is single threaded, provides no locks
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
     #elseif canImport(WinSDK)
     InitializeSRWLock(platformLock)
     #else
@@ -77,7 +82,10 @@ internal struct Lock {
     #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     pthread_mutex_lock(platformLock)
     #elseif canImport(WASILibc)
-    // This WASILibc variation is single threaded, provides no locks
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
     return
     #elseif canImport(WinSDK)
     AcquireSRWLockExclusive(platformLock)
@@ -93,7 +101,10 @@ internal struct Lock {
     let result = pthread_mutex_unlock(platformLock)
     precondition(result == 0, "pthread_mutex_unlock failed")
     #elseif canImport(WASILibc)
-    // This WASILibc variation is single threaded, provides no locks
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
     return
     #elseif canImport(WinSDK)
     ReleaseSRWLockExclusive(platformLock)
