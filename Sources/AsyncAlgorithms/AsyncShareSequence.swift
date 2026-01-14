@@ -423,7 +423,7 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
     }
 
     func iterate() async -> Bool {
-      if let limit {
+      if let limit, limit > 0 {
         let cancelled = await withUnsafeContinuation { (continuation: UnsafeContinuation<Bool, Never>) in
           let (resume, cancelled) = state.withLock { state -> (UnsafeContinuation<Bool, Never>?, Bool) in
             guard state.buffer.count >= limit else {
