@@ -7,8 +7,11 @@ let AsyncAlgorithms_v1_0 = "AvailabilityMacro=AsyncAlgorithms 1.0:macOS 10.15, i
 #if compiler(>=6.0) && swift(>=6.0)  // 5.10 doesnt support visionOS availability
 let AsyncAlgorithms_v1_1 =
   "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
+let AsyncAlgorithms_v1_2 =
+  "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"
 #else
 let AsyncAlgorithms_v1_1 = "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
+let AsyncAlgorithms_v1_2 = "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
 #endif
 
 let availabilityMacros: [SwiftSetting] = [
@@ -17,6 +20,9 @@ let availabilityMacros: [SwiftSetting] = [
   ),
   .enableExperimentalFeature(
     AsyncAlgorithms_v1_1
+  ),
+  .enableExperimentalFeature(
+    AsyncAlgorithms_v1_2
   ),
 ]
 

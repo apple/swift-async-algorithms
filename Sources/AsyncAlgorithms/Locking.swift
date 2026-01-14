@@ -21,6 +21,11 @@ import WinSDK
 import Bionic
 #elseif canImport(wasi_pthread)
 import wasi_pthread
+#elseif canImport(WASILibc)
+// Here, we can not import wasi_pthread, but we can import WASILibc. So
+// this is a variation of WASILibc without pthread support. As such, the
+// platform does not have locks or mechanisms to become multi-threaded,
+// so no locks are needed.
 #else
 #error("Unsupported platform")
 #endif
@@ -30,6 +35,8 @@ internal struct Lock {
   typealias Primitive = os_unfair_lock
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   typealias Primitive = pthread_mutex_t
+  #elseif canImport(WASILibc)
+  // This WASILibc variation is single threaded, provides no locks
   #elseif canImport(WinSDK)
   typealias Primitive = SRWLOCK
   #else
@@ -49,6 +56,11 @@ internal struct Lock {
     #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     let result = pthread_mutex_init(platformLock, nil)
     precondition(result == 0, "pthread_mutex_init failed")
+    #elseif canImport(WASILibc)
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
     #elseif canImport(WinSDK)
     InitializeSRWLock(platformLock)
     #else
@@ -69,6 +81,12 @@ internal struct Lock {
     os_unfair_lock_lock(platformLock)
     #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     pthread_mutex_lock(platformLock)
+    #elseif canImport(WASILibc)
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
+    return
     #elseif canImport(WinSDK)
     AcquireSRWLockExclusive(platformLock)
     #else
@@ -82,6 +100,12 @@ internal struct Lock {
     #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
     let result = pthread_mutex_unlock(platformLock)
     precondition(result == 0, "pthread_mutex_unlock failed")
+    #elseif canImport(WASILibc)
+    // Here, we can not import wasi_pthread, but we can import WASILibc. So
+    // this is a variation of WASILibc without pthread support. As such, the
+    // platform does not have locks or mechanisms to become multi-threaded,
+    // so no locks are needed.
+    return
     #elseif canImport(WinSDK)
     ReleaseSRWLockExclusive(platformLock)
     #else
