@@ -48,8 +48,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///
 /// `retry` does not introduce special cancellation handling. If your code cooperatively
 /// cancels by throwing, ensure your strategy returns `.stop` for that error. Otherwise,
-/// retries continue unless the clock throws on cancellation (which, at the time of writing,
-/// both `ContinuousClock` and `SuspendingClock` do).
+/// retries continue unless the used clock throws on cancellation.
 ///
 /// - Precondition: `maxAttempts` must be greater than 0.
 ///
@@ -65,23 +64,26 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///
 /// ## Example
 ///
+/// This example honors a server-provided backoff duration from the error:
+///
 /// ```swift
-/// let backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
-/// var iterator = backoff.makeIterator()
-/// let result = try await retry(maxAttempts: 3, clock: ContinuousClock()) {
-///   try await someNetworkOperation()
+/// let result = try await retry(maxAttempts: 5, clock: ContinuousClock()) {
+///   try await someHTTPOperation()
 /// } strategy: { error in
-///   return .backoff(iterator.nextDuration())
+///   if let error = error as? StatusCodeError {
+///     return .backoff(.seconds(error.retryAfter))
+///   }
+///   return .stop
 /// }
 /// ```
 @available(AsyncAlgorithms 1.1, *)
-@inlinable nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
+@inlinable nonisolated(nonsending) public func retry<Result, ErrorType, DurationType>(
   maxAttempts: Int,
-  tolerance: ClockType.Instant.Duration? = nil,
-  clock: ClockType,
+  tolerance: DurationType? = nil,
+  clock: any Clock<DurationType>,
   operation: () async throws(ErrorType) -> Result,
-  strategy: (ErrorType) -> RetryAction<ClockType.Instant.Duration> = { _ in .backoff(.zero) }
-) async throws -> Result where ClockType: Clock, ErrorType: Error {
+  strategy: (ErrorType) -> RetryAction<DurationType> = { _ in .backoff(.zero) }
+) async throws -> Result where DurationType: DurationProtocol, ErrorType: Error {
   precondition(maxAttempts > 0, "Must have at least one attempt")
   for _ in 0..<maxAttempts - 1 {
     do {
@@ -89,8 +91,7 @@ public struct RetryAction<Duration: DurationProtocol> {
     } catch {
       switch strategy(error).action {
       case .backoff(let duration):
-        let deadline = clock.now.advanced(by: duration)
-        try await Task.sleep(until: deadline, tolerance: tolerance, clock: clock)
+        try await clock.sleep(for: duration, tolerance: tolerance)
       case .stop:
         throw error
       }
@@ -124,8 +125,7 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///
 /// `retry` does not introduce special cancellation handling. If your code cooperatively
 /// cancels by throwing, ensure your strategy returns `.stop` for that error. Otherwise,
-/// retries continue unless the clock throws on cancellation (which, at the time of writing,
-/// both `ContinuousClock` and `SuspendingClock` do).
+/// retries continue unless the used clock throws on cancellation.
 ///
 /// - Precondition: `maxAttempts` must be greater than 0.
 ///
@@ -140,21 +140,24 @@ public struct RetryAction<Duration: DurationProtocol> {
 ///
 /// ## Example
 ///
+/// This example honors a server-provided backoff duration from the error:
+///
 /// ```swift
-/// let backoff = Backoff.exponential(factor: 2, initial: .milliseconds(100))
-/// var iterator = backoff.makeIterator()
-/// let result = try await retry(maxAttempts: 3) {
-///   try await someNetworkOperation()
+/// let result = try await retry(maxAttempts: 5) {
+///   try await someHTTPOperation()
 /// } strategy: { error in
-///   return .backoff(iterator.nextDuration())
+///   if let error = error as? StatusCodeError {
+///     return .backoff(.seconds(error.retryAfter))
+///   }
+///   return .stop
 /// }
 /// ```
 @available(AsyncAlgorithms 1.1, *)
 @inlinable nonisolated(nonsending) public func retry<Result, ErrorType>(
   maxAttempts: Int,
-  tolerance: ContinuousClock.Instant.Duration? = nil,
+  tolerance: ContinuousClock.Duration? = nil,
   operation: () async throws(ErrorType) -> Result,
-  strategy: (ErrorType) -> RetryAction<ContinuousClock.Instant.Duration> = { _ in .backoff(.zero) }
+  strategy: (ErrorType) -> RetryAction<ContinuousClock.Duration> = { _ in .backoff(.zero) }
 ) async throws -> Result where ErrorType: Error {
   return try await retry(
     maxAttempts: maxAttempts,
@@ -162,6 +165,158 @@ public struct RetryAction<Duration: DurationProtocol> {
     clock: ContinuousClock(),
     operation: operation,
     strategy: strategy
+  )
+}
+
+/// Executes an asynchronous operation with retry logic using a backoff strategy.
+///
+/// This function executes an asynchronous operation up to a specified number of attempts.
+/// When the operation fails, the backoff strategy determines how long to wait before
+/// the next attempt. Common strategies include exponential backoff with jitter to
+/// prevent thundering herd problems.
+///
+/// The retry logic follows this sequence:
+/// 1. Execute the operation
+/// 2. If successful, return the result
+/// 3. If failed and this was not the final attempt:
+///    - Call the `shouldRetry` closure with the error
+///      - If `shouldRetry` returns `false`, rethrow the error immediately
+///      - If `shouldRetry` returns `true`, suspend for the next backoff duration
+///      - Return to step 1
+/// 4. If failed on the final attempt, rethrow the error without consulting `shouldRetry`
+///
+/// Given this sequence, there are four termination conditions (when retrying will be stopped):
+/// - The operation completes without throwing an error
+/// - The operation has been attempted `maxAttempts` times
+/// - The `shouldRetry` closure returns `false`
+/// - The clock throws
+///
+/// ## Cancellation
+///
+/// `retry` does not introduce special cancellation handling. If your code cooperatively
+/// cancels by throwing, ensure `shouldRetry` returns `false` for that error. Otherwise,
+/// retries continue unless the used clock throws on cancellation.
+///
+/// - Precondition: `maxAttempts` must be greater than 0.
+///
+/// - Parameters:
+///   - maxAttempts: The maximum number of attempts to make.
+///   - backoff: The backoff strategy to use for delays between retries.
+///   - tolerance: The tolerance for the sleep operation between retries.
+///   - clock: The clock to use for timing delays between retries.
+///   - operation: The asynchronous operation to retry.
+///   - shouldRetry: A closure that determines whether to retry based on the error.
+///                  Return `true` to retry with backoff, `false` to stop immediately.
+///                  Defaults to always retrying.
+/// - Returns: The result of the successful operation.
+/// - Throws: The error from the operation if all retry attempts fail or if `shouldRetry` returns `false`.
+///
+/// ## Example
+///
+/// ```swift
+/// let backoff = Backoff
+///   .exponential(factor: 2, initial: .milliseconds(100))
+///   .maximum(.seconds(10))
+///   .fullJitter()
+///
+/// let result = try await retry(maxAttempts: 5, backoff: backoff) {
+///   try await someHTTPOperation()
+/// }
+/// ```
+@available(AsyncAlgorithms 1.1, *)
+@inlinable nonisolated(nonsending) public func retry<Result, ErrorType, DurationType, Strategy>(
+  maxAttempts: Int,
+  backoff: Strategy,
+  tolerance: DurationType? = nil,
+  clock: any Clock<DurationType>,
+  operation: () async throws(ErrorType) -> Result,
+  shouldRetry: (ErrorType) -> Bool = { _ in true }
+) async throws -> Result where DurationType: DurationProtocol, ErrorType: Error, Strategy: BackoffStrategy<DurationType> {
+  var iterator = backoff.makeIterator()
+  return try await retry(
+    maxAttempts: maxAttempts,
+    tolerance: tolerance,
+    clock: clock,
+    operation: operation,
+    strategy: { error in
+      if shouldRetry(error) {
+        return .backoff(iterator.nextDuration())
+      } else {
+        return .stop
+      }
+    }
+  )
+}
+
+/// Executes an asynchronous operation with retry logic using a backoff strategy.
+///
+/// This function executes an asynchronous operation up to a specified number of attempts.
+/// When the operation fails, the backoff strategy determines how long to wait before
+/// the next attempt. Common strategies include exponential backoff with jitter to
+/// prevent thundering herd problems.
+///
+/// The retry logic follows this sequence:
+/// 1. Execute the operation
+/// 2. If successful, return the result
+/// 3. If failed and this was not the final attempt:
+///    - Call the `shouldRetry` closure with the error
+///      - If `shouldRetry` returns `false`, rethrow the error immediately
+///      - If `shouldRetry` returns `true`, suspend for the next backoff duration
+///      - Return to step 1
+/// 4. If failed on the final attempt, rethrow the error without consulting `shouldRetry`
+///
+/// Given this sequence, there are four termination conditions (when retrying will be stopped):
+/// - The operation completes without throwing an error
+/// - The operation has been attempted `maxAttempts` times
+/// - The `shouldRetry` closure returns `false`
+/// - The clock throws
+///
+/// ## Cancellation
+///
+/// `retry` does not introduce special cancellation handling. If your code cooperatively
+/// cancels by throwing, ensure `shouldRetry` returns `false` for that error. Otherwise,
+/// retries continue unless the used clock throws on cancellation.
+///
+/// - Precondition: `maxAttempts` must be greater than 0.
+///
+/// - Parameters:
+///   - maxAttempts: The maximum number of attempts to make.
+///   - backoff: The backoff strategy to use for delays between retries.
+///   - tolerance: The tolerance for the sleep operation between retries.
+///   - operation: The asynchronous operation to retry.
+///   - shouldRetry: A closure that determines whether to retry based on the error.
+///                  Return `true` to retry with backoff, `false` to stop immediately.
+///                  Defaults to always retrying.
+/// - Returns: The result of the successful operation.
+/// - Throws: The error from the operation if all retry attempts fail or if `shouldRetry` returns `false`.
+///
+/// ## Example
+///
+/// ```swift
+/// let backoff = Backoff
+///   .exponential(factor: 2, initial: .milliseconds(100))
+///   .maximum(.seconds(10))
+///   .fullJitter()
+///
+/// let result = try await retry(maxAttempts: 5, backoff: backoff) {
+///   try await someHTTPOperation()
+/// }
+/// ```
+@available(AsyncAlgorithms 1.1, *)
+@inlinable nonisolated(nonsending) public func retry<Result, ErrorType, Strategy>(
+  maxAttempts: Int,
+  backoff: Strategy,
+  tolerance: ContinuousClock.Duration? = nil,
+  operation: () async throws(ErrorType) -> Result,
+  shouldRetry: (ErrorType) -> Bool = { _ in true }
+) async throws -> Result where ErrorType: Error, Strategy: BackoffStrategy<ContinuousClock.Duration> {
+  return try await retry(
+    maxAttempts: maxAttempts,
+    backoff: backoff,
+    tolerance: tolerance,
+    clock: ContinuousClock(),
+    operation: operation,
+    shouldRetry: shouldRetry
   )
 }
 #endif

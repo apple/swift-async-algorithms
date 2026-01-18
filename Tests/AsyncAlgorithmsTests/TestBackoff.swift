@@ -52,6 +52,19 @@ import Testing
   }
 
   @available(AsyncAlgorithms 1.1, *)
+  @Test func equalJitter() {
+    var iterator =
+      Backoff
+      .constant(.milliseconds(100))
+      .equalJitter(using: SplitMix64(seed: 42))
+      .makeIterator()
+    #expect(iterator.nextDuration() == Duration(attoseconds: 57_995_519_643_846_006))  // 57.99 ms
+    #expect(iterator.nextDuration() == Duration(attoseconds: 67_209_535_826_181_879))  // 67.20 ms
+    #expect(iterator.nextDuration() == Duration(attoseconds: 93_411_403_827_326_619))  // 93.41 ms
+    #expect(iterator.nextDuration() == Duration(attoseconds: 90_031_593_835_675_172))  // 90.03 ms
+  }
+
+  @available(AsyncAlgorithms 1.1, *)
   @Test func minimum() {
     var iterator =
       Backoff

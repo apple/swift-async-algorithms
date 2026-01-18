@@ -214,6 +214,35 @@ where Base.Duration == Swift.Duration {
 extension FullJitterBackoffStrategy: Sendable where Base: Sendable, RNG: Sendable {}
 
 @available(AsyncAlgorithms 1.1, *)
+@usableFromInline struct EqualJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenerator>: BackoffStrategy
+where Base.Duration == Swift.Duration {
+  @usableFromInline let base: Base
+  @usableFromInline let generator: RNG
+  @usableFromInline init(base: Base, generator: RNG) {
+    self.base = base
+    self.generator = generator
+  }
+  @inlinable func makeIterator() -> Iterator {
+    return Iterator(base: base.makeIterator(), generator: generator)
+  }
+  @usableFromInline struct Iterator: BackoffIterator {
+    @usableFromInline var base: Base.Iterator
+    @usableFromInline var generator: RNG
+    @usableFromInline init(base: Base.Iterator, generator: RNG) {
+      self.base = base
+      self.generator = generator
+    }
+    @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
+      let duration = base.nextDuration().attoseconds
+      return .init(attoseconds: Int128.random(in: duration / 2...duration, using: &generator))
+    }
+  }
+}
+
+@available(AsyncAlgorithms 1.1, *)
+extension EqualJitterBackoffStrategy: Sendable where Base: Sendable, RNG: Sendable {}
+
+@available(AsyncAlgorithms 1.1, *)
 public enum Backoff {
   /// Creates a constant backoff strategy that always returns the same delay.
   ///
@@ -368,6 +397,22 @@ extension BackoffStrategy {
   ) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
     return FullJitterBackoffStrategy(base: self, generator: generator)
   }
+
+  /// Applies equal jitter to this backoff strategy.
+  ///
+  /// Formula: `f(n) = random(g(n)/2, g(n))` where `g(n)` is the base strategy
+  ///
+  /// Equal jitter provides a balance between full jitter and no jitter, ensuring
+  /// at least half of the computed delay is always applied while still providing
+  /// randomization to prevent thundering herd.
+  ///
+  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
+  /// - Returns: A backoff strategy with equal jitter applied.
+  @inlinable public func equalJitter<RNG: RandomNumberGenerator>(
+    using generator: RNG = SystemRandomNumberGenerator()
+  ) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
+    return EqualJitterBackoffStrategy(base: self, generator: generator)
+  }
 }
 
 @available(AsyncAlgorithms 1.1, *)
@@ -431,6 +476,22 @@ extension BackoffStrategy where Self: Sendable {
     using generator: RNG = SystemRandomNumberGenerator()
   ) -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration, RNG: Sendable {
     return FullJitterBackoffStrategy(base: self, generator: generator)
+  }
+
+  /// Applies equal jitter to this backoff strategy.
+  ///
+  /// Formula: `f(n) = random(g(n)/2, g(n))` where `g(n)` is the base strategy
+  ///
+  /// Equal jitter provides a balance between full jitter and no jitter, ensuring
+  /// at least half of the computed delay is always applied while still providing
+  /// randomization to prevent thundering herd.
+  ///
+  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
+  /// - Returns: A backoff strategy with equal jitter applied.
+  @inlinable public func equalJitter<RNG: RandomNumberGenerator>(
+    using generator: RNG = SystemRandomNumberGenerator()
+  ) -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration, RNG: Sendable {
+    return EqualJitterBackoffStrategy(base: self, generator: generator)
   }
 }
 #endif

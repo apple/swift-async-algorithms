@@ -159,6 +159,36 @@ import Testing
     }
   }
 
+  @available(AsyncAlgorithms 1.1, *)
+  @Test func retryWithBackoffStrategy() async throws {
+    var operationAttempts = 0
+    let backoff = Backoff.constant(.zero)
+    let result = try await retry(maxAttempts: 3, backoff: backoff) {
+      operationAttempts += 1
+      if operationAttempts < 3 {
+        throw Failure()
+      }
+      return "success"
+    }
+    #expect(result == "success")
+    #expect(operationAttempts == 3)
+  }
+
+  @available(AsyncAlgorithms 1.1, *)
+  @Test func retryWithBackoffStrategyShouldRetryFalse() async throws {
+    var operationAttempts = 0
+    let backoff = Backoff.constant(.zero)
+    await #expect(throws: Failure.self) {
+      try await retry(maxAttempts: 5, backoff: backoff) {
+        operationAttempts += 1
+        throw Failure()
+      } shouldRetry: { _ in
+        operationAttempts < 2
+      }
+    }
+    #expect(operationAttempts == 2)
+  }
+
   #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst)) || os(Linux) || os(FreeBSD) || os(OpenBSD) || os(Windows)
   @available(AsyncAlgorithms 1.1, *)
   @Test func zeroAttempts() async {
