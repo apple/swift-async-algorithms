@@ -23,13 +23,13 @@ This proposal introduces a retry function that executes an asynchronous operatio
 
 ```swift
 @available(AsyncAlgorithms 1.1, *)
-nonisolated(nonsending) public func retry<Result, ErrorType, ClockType>(
+nonisolated(nonsending) public func retry<Result, ErrorType, DurationType>(
   maxAttempts: Int,
-  tolerance: ClockType.Instant.Duration? = nil,
-  clock: ClockType = ContinuousClock(),
+  tolerance: DurationType? = nil,
+  clock: any Clock<DurationType>,
   operation: () async throws(ErrorType) -> Result,
-  strategy: (ErrorType) -> RetryAction<ClockType.Instant.Duration> = { _ in .backoff(.zero) }
-) async throws -> Result where ClockType: Clock, ErrorType: Error
+  strategy: (ErrorType) -> RetryAction<DurationType> = { _ in .backoff(.zero) }
+) async throws -> Result where DurationType: DurationProtocol, ErrorType: Error
 ```
 
 ```swift
@@ -38,6 +38,20 @@ public struct RetryAction<Duration: DurationProtocol> {
   public static var stop: Self
   public static func backoff(_ duration: Duration) -> Self
 }
+```
+
+For convenience, there are also overloads that accept a `BackoffStrategy` directly. These overloads automatically compute the next backoff duration from the strategy on each retry, and replace the `strategy` closure with a simpler `shouldRetry` closure that returns `Bool` instead of `RetryAction`:
+
+```swift
+@available(AsyncAlgorithms 1.1, *)
+nonisolated(nonsending) public func retry<Result, ErrorType, DurationType, Strategy>(
+  maxAttempts: Int,
+  backoff: Strategy,
+  tolerance: DurationType? = nil,
+  clock: any Clock<DurationType>,
+  operation: () async throws(ErrorType) -> Result,
+  shouldRetry: (ErrorType) -> Bool = { _ in true }
+) async throws -> Result where DurationType: DurationProtocol, ErrorType: Error, Strategy: BackoffStrategy<DurationType>
 ```
 
 Additionally, this proposal includes a suite of backoff strategies that can be used to generate delays between retry attempts. The core strategies provide different patterns for calculating delays: constant intervals, linear growth, and exponential growth.
@@ -63,6 +77,7 @@ extension BackoffStrategy {
 @available(AsyncAlgorithms 1.1, *)
 extension BackoffStrategy where Duration == Swift.Duration {
   public func fullJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration>
+  public func equalJitter<RNG: RandomNumberGenerator>(using generator: RNG = SystemRandomNumberGenerator()) -> some BackoffStrategy<Duration>
 }
 ```
 
@@ -127,7 +142,7 @@ iterator.nextDuration()
 
 #### Custom backoff
 
-Adopters may choose to create their own strategies. There is no requirement to conform to `BackoffStrategy`, since retry and backoff are decoupled; however, to use the provided modifiers (`minimum`, `maximum`, `fullJitter`), a strategy must conform.
+Adopters may choose to create their own strategies. There is no requirement to conform to `BackoffStrategy`, since retry and backoff are decoupled; however, to use the provided modifiers (`minimum`, `maximum`, `fullJitter`, `equalJitter`), a strategy must conform.
 
 The `BackoffStrategy` protocol represents an immutable configuration. To generate delay durations, call `makeIterator()` to create a `BackoffIterator`. Each call to `nextDuration()` on the iterator returns the delay for the next retry attempt. Iterators are stateful; they may track the number of invocations or the previously returned duration to calculate the next delay.
 
@@ -159,10 +174,11 @@ As previously mentioned this proposal introduces several common backoff strategi
 - **Minimum**: $f(n) = max(minimum, g(n))$ where $g(n)$ is the base strategy
 - **Maximum**: $f(n) = min(maximum, g(n))$ where $g(n)$ is the base strategy
 - **Full Jitter**: $f(n) = random(0, g(n))$ where $g(n)$ is the base strategy
+- **Equal Jitter**: $f(n) = random(g(n)/2, g(n))$ where $g(n)$ is the base strategy
 
 ##### Sendability
 
-The core backoff strategies returned by `Backoff.constant`, `Backoff.linear`, and `Backoff.exponential` are unconditionally `Sendable`. The modifier methods (`minimum`, `maximum`, `fullJitter`) preserve `Sendable` conformance, meaning when called on a `Sendable` strategy, they return a `Sendable` result. This allows strategies to be stored and shared across isolation domains as configuration.
+The core backoff strategies returned by `Backoff.constant`, `Backoff.linear`, and `Backoff.exponential` are unconditionally `Sendable`. The modifier methods (`minimum`, `maximum`, `fullJitter`, `equalJitter`) preserve `Sendable` conformance, meaning when called on a `Sendable` strategy, they return a `Sendable` result. This allows strategies to be stored and shared across isolation domains as configuration.
 
 The `BackoffIterator` types are not meant to be shared across isolation domains, because their state evolves with each call to `nextDuration()`. Create a new iterator via `makeIterator()` when needed in different contexts.
 
@@ -175,17 +191,13 @@ The most common use cases encountered for recovering from transient failures are
 Both of these use cases can be implemented using the proposed algorithm, respectively:
 
 ```swift
-let rng = SystemRandomNumberGenerator() // or a seeded RNG for unit tests
 let backoff = Backoff
   .exponential(factor: 2, initial: .milliseconds(100))
   .maximum(.seconds(10))
-  .fullJitter(using: rng)
+  .fullJitter()
 
-var iterator = backoff.makeIterator()
-let response = try await retry(maxAttempts: 5) {
+let response = try await retry(maxAttempts: 5, backoff: backoff) {
   try await URLSession.shared.data(from: url)
-} strategy: { error in
-  return .backoff(iterator.nextDuration())
 }
 ```
 
@@ -217,7 +229,7 @@ This proposal introduces a purely additive API with no impact on existing functi
 
 ## Future directions
 
-The jitter variants introduced by this proposal support custom `RandomNumberGenerator` by **copying** it in order to perform the necessary mutations. 
+The jitter variants (`fullJitter`, `equalJitter`) introduced by this proposal support custom `RandomNumberGenerator` by **copying** it in order to perform the necessary mutations. 
 This is not optimal and does not match the standard library's signatures of e.g. `shuffle()` or `randomElement()` which take an **`inout`** random number generator.  
 Due to the composability of backoff algorithms proposed here, this is not possible to adopt in current Swift.  
 If Swift gains the capability to "store" `inout` variables, the jitter variants should adopt this by adding new `inout` overloads and deprecating the copying overloads.
