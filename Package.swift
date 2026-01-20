@@ -72,6 +72,7 @@ let package = Package(
             .macCatalyst,
             .android,
             .linux,
+            .custom("freebsd"),
             .openbsd,
             .wasi,
           ])
@@ -87,6 +88,7 @@ let package = Package(
             .macCatalyst,
             .android,
             .linux,
+            .custom("freebsd"),
             .openbsd,
             .wasi,
           ])
