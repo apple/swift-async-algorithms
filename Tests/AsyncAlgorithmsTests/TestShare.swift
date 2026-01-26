@@ -132,7 +132,7 @@ final class TestShare: XCTestCase {
   
   func test_share_with_no_buffering() async {
     let shared = [1, 2, 3, 4, 5].async.share(bufferingPolicy: .bounded(0))
-    
+
     let expectation1 = XCTestExpectation(description: "Consumer 1 finished looping")
     let expectation2 = XCTestExpectation(description: "Consumer 2 finished looping")
 
@@ -162,9 +162,9 @@ final class TestShare: XCTestCase {
       }
       expectation2.fulfill()
     }
-    
+
     await fulfillment(of: [expectation1, expectation2], timeout: 5)
-    
+
     await consumer1.value
     await consumer2.value
 
@@ -172,7 +172,7 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results1.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
     XCTAssertEqual(results2.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
   }
-  
+
   func test_share_with_no_buffering_multiple() async {
     for _ in 0..<10 {
       await test_share_with_no_buffering()
