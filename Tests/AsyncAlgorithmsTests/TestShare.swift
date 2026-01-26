@@ -129,7 +129,7 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results1.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
     XCTAssertEqual(results2.withLock { $0 }.sorted(), [1, 2, 3, 4, 5])
   }
-  
+
   func test_share_with_no_buffering() async {
     let shared = [1, 2, 3, 4, 5].async.share(bufferingPolicy: .bounded(0))
 
