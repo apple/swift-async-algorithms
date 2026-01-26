@@ -11,6 +11,7 @@
 
 import XCTest
 import AsyncAlgorithms
+import Observation
 
 final class TestAdjacentPairs: XCTestCase {
   func test_adjacentPairs_produces_tuples_of_adjacent_values_of_original_element() async {
@@ -95,4 +96,29 @@ final class TestAdjacentPairs: XCTestCase {
     task.cancel()
     await fulfillment(of: [finished], timeout: 1.0)
   }
+
+  @available(macOS 26.0, iOS 26.0, tvOS 26.0, watchOS 26.0, visionOS 26.0, *)
+  @MainActor func test_adjacentPairs_respects_immediate() async {
+    let testObservable = TestObservable()
+    let observations = Observations { testObservable.prop }
+
+    let iterated = expectation(description: "iterates once")
+
+    // with `Task.immediate`, the first element in the adjacent pair should be populated immediately
+    let t = Task.immediate {
+      for await (previous, current) in observations.adjacentPairs() {
+        XCTAssertEqual(previous, 1)
+        XCTAssertEqual(current, 2)
+        iterated.fulfill()
+      }
+    }
+    testObservable.prop = 2
+    await fulfillment(of: [iterated], timeout: 1.0)
+    t.cancel()
+  }
+}
+
+@available(macOS 26.0, iOS 26.0, tvOS 26.0, watchOS 26.0, visionOS 26.0, *)
+@MainActor @Observable private final class TestObservable {
+  var prop = 1
 }
