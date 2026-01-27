@@ -53,13 +53,23 @@ This pattern is broadly applicable:
 
 The `flatMapLatest` algorithm transforms each element from the base `AsyncSequence` into a new inner `AsyncSequence` using a transform closure. When a new element is produced by the base sequence, iteration on the current inner sequence is cancelled, and iteration begins on the newly created sequence.
 
-The interface is available on all `AsyncSequence` types where both the base and inner sequences are `Sendable`:
+The interface is available on all `AsyncSequence` types where both the base and inner sequences are `Sendable` along with two disfavored refinements to account for variations of typed throws signatures:
 
 ```swift
 extension AsyncSequence where Self: Sendable {
   public func flatMapLatest<T: AsyncSequence & Sendable>(
     _ transform: @escaping @Sendable (Element) -> T
-  ) -> AsyncFlatMapLatestSequence<Self, T>
+  ) -> some AsyncSequence<T.Element, T.Failure> & Sendable where T.Failure == Failure, T.Element: Sendable, Element: Sendable
+
+  @_disfavoredOverload
+  public func flatMapLatest<T: AsyncSequence & Sendable>(
+    _ transform: @escaping @Sendable (Element) -> T
+  ) -> some AsyncSequence<T.Element, Failure> & Sendable where T.Failure == Never, T.Element: Sendable, Element: Sendable
+
+  @_disfavoredOverload
+  public func flatMapLatest<T: AsyncSequence & Sendable>(
+    _ transform: @escaping @Sendable (Element) -> T
+  ) -> some AsyncSequence<T.Element, T.Failure> & Sendable where Failure == Never, T.Element: Sendable, Element: Sendable
 }
 ```
 
@@ -74,19 +84,6 @@ userActions.flatMapLatest { action in
 ## Detailed Design
 
 The type that implements the algorithm emits elements from the inner sequences. It throws when either the base type or any inner sequence throws.
-
-```swift
-public struct AsyncFlatMapLatestSequence<Base: AsyncSequence & Sendable, Inner: AsyncSequence & Sendable>: AsyncSequence, Sendable 
-  where Base.Element: Sendable, Inner.Element: Sendable {
-  public typealias Element = Inner.Element
-  
-  public struct Iterator: AsyncIteratorProtocol, Sendable {
-    public func next() async throws -> Element?
-  }
-  
-  public func makeAsyncIterator() -> Iterator
-}
-```
 
 Since both the base sequence and inner sequences must be `Sendable` (to support concurrent iteration and cancellation), `AsyncFlatMapLatestSequence` is unconditionally `Sendable`.
 
@@ -171,6 +168,28 @@ An alternative behavior would buffer elements from cancelled sequences and deliv
 ### No Automatic Cancellation
 
 Requiring manual cancellation would place significant burden on developers and be error-prone. The automatic cancellation is the key value proposition.
+
+### Shorthand version for async sequences of async sequences
+
+Mimicing combine a shorthand extension of `switchToLatest` could be added as an extension when the base AsyncSequence's element conforms to AsyncSequence. The implementation of which is trivial:
+
+```swift
+extension AsyncSequence where Self: Sendable {
+  func switchToLatest() -> some AsyncSequence<Element.Element, Failure> where Element: AsyncSequence, Element.Failure == Failure, Element.Element: Sendable, Element: Sendable {
+    flatMapLatest { $0 }
+  }
+
+  @_disfavoredOverload
+  func switchToLatest() -> some AsyncSequence<Element.Element, Failure> where Element: AsyncSequence, Element.Failure == Never, Element.Element: Sendable, Element: Sendable {
+    flatMapLatest { $0 }
+  }
+
+  @_disfavoredOverload
+  func switchToLatest() -> some AsyncSequence<Element.Element, Failure> where Element: AsyncSequence, Failure == Never, Element.Element: Sendable, Element: Sendable {
+    flatMapLatest { $0 }
+  }
+}
+```
 
 ## Comparison with Other Libraries
 
