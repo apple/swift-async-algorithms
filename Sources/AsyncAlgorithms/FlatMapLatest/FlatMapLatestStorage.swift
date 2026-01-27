@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@available(AsyncAlgorithms 1.0, *)
+@available(AsyncAlgorithms 1.1, *)
 final class FlatMapLatestStorage<Base: AsyncSequence & Sendable, Inner: AsyncSequence & Sendable>: @unchecked Sendable where Base.Element: Sendable, Inner.Element: Sendable {
   typealias Element = Inner.Element
   
@@ -24,37 +24,41 @@ final class FlatMapLatestStorage<Base: AsyncSequence & Sendable, Inner: AsyncSeq
     lock.deinitialize()
   }
   
-  func next() async throws -> Element? {
-    return try await withTaskCancellationHandler {
-      lock.lock()
-      let action = stateMachine.next()
-      
-      switch action {
-      case .returnElement(let element):
-        lock.unlock()
-        return element
+  func next(isolation: isolated (any Actor)? = #isolation) async throws(Inner.Failure) -> Inner.Element? {
+    do {
+      return try await withTaskCancellationHandler {
+        lock.lock()
+        let action = stateMachine.next()
         
-      case .returnNil:
-        lock.unlock()
-        return nil
-        
-      case .throwError(let error):
-        lock.unlock()
-        throw error
-        
-      case .startOuterTask(let base):
-        // We need to start the outer task and then suspend
-        startOuterTask(base)
-        
-        return try await suspend()
-        
-      case .suspend:
-        lock.unlock()
-        return try await suspend()
+        switch action {
+        case .returnElement(let element):
+          lock.unlock()
+          return element
+          
+        case .returnNil:
+          lock.unlock()
+          return nil
+          
+        case .throwError(let error):
+          lock.unlock()
+          throw error
+          
+        case .startOuterTask(let base):
+          // We need to start the outer task and then suspend
+          startOuterTask(base)
+          
+          return try await suspend()
+          
+        case .suspend:
+          lock.unlock()
+          return try await suspend()
+        }
+      } onCancel: {
+        let action = lock.withLock { stateMachine.cancelled() }
+        handleAction(action)
       }
-    } onCancel: {
-      let action = lock.withLock { stateMachine.cancelled() }
-      handleAction(action)
+    } catch {
+      throw error as! Inner.Failure
     }
   }
   

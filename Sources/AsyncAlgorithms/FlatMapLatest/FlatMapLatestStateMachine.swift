@@ -11,7 +11,7 @@
 
 import DequeModule
 
-@available(AsyncAlgorithms 1.0, *)
+@available(AsyncAlgorithms 1.1, *)
 struct FlatMapLatestStateMachine<Base: AsyncSequence & Sendable, Inner: AsyncSequence & Sendable> where Base.Element: Sendable, Inner.Element: Sendable {
   typealias Element = Inner.Element
   
