@@ -175,6 +175,22 @@ import Testing
   }
 
   @available(AsyncAlgorithms 1.1, *)
+  @Test func retryWithBackoffStrategyAndRNG() async throws {
+    var operationAttempts = 0
+    let backoff = Backoff.constant(.zero).fullJitter()
+    var rng = SplitMix64(seed: 42)
+    let result = try await retry(maxAttempts: 3, backoff: backoff, using: &rng) {
+      operationAttempts += 1
+      if operationAttempts < 3 {
+        throw Failure()
+      }
+      return "success"
+    }
+    #expect(result == "success")
+    #expect(operationAttempts == 3)
+  }
+
+  @available(AsyncAlgorithms 1.1, *)
   @Test func retryWithBackoffStrategyShouldRetryFalse() async throws {
     var operationAttempts = 0
     let backoff = Backoff.constant(.zero)
@@ -182,7 +198,7 @@ import Testing
       try await retry(maxAttempts: 5, backoff: backoff) {
         operationAttempts += 1
         throw Failure()
-      } shouldRetry: { _ in
+      } strategy: { _ in
         operationAttempts < 2
       }
     }

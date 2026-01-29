@@ -40,28 +40,30 @@ import Testing
 
   @available(AsyncAlgorithms 1.1, *)
   @Test func fullJitter() {
+    var rng = SplitMix64(seed: 42)
     var iterator =
       Backoff
       .constant(.milliseconds(100))
-      .fullJitter(using: SplitMix64(seed: 42))
+      .fullJitter()
       .makeIterator()
-    #expect(iterator.nextDuration() == Duration(attoseconds: 15_991_039_287_692_012))  // 15.99 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 34_419_071_652_363_758))  // 34.41 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 86_822_807_654_653_238))  // 86.82 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 80_063_187_671_350_344))  // 80.06 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 15_991_039_287_692_012))  // 15.99 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 34_419_071_652_363_758))  // 34.41 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 86_822_807_654_653_238))  // 86.82 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 80_063_187_671_350_344))  // 80.06 ms
   }
 
   @available(AsyncAlgorithms 1.1, *)
   @Test func equalJitter() {
+    var rng = SplitMix64(seed: 42)
     var iterator =
       Backoff
       .constant(.milliseconds(100))
-      .equalJitter(using: SplitMix64(seed: 42))
+      .equalJitter()
       .makeIterator()
-    #expect(iterator.nextDuration() == Duration(attoseconds: 57_995_519_643_846_006))  // 57.99 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 67_209_535_826_181_879))  // 67.20 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 93_411_403_827_326_619))  // 93.41 ms
-    #expect(iterator.nextDuration() == Duration(attoseconds: 90_031_593_835_675_172))  // 90.03 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 57_995_519_643_846_006))  // 57.99 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 67_209_535_826_181_879))  // 67.20 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 93_411_403_827_326_619))  // 93.41 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 90_031_593_835_675_172))  // 90.03 ms
   }
 
   @available(AsyncAlgorithms 1.1, *)
@@ -89,8 +91,37 @@ import Testing
     #expect(iterator.nextDuration() == .milliseconds(4))  // 4 unchanged
     #expect(iterator.nextDuration() == .milliseconds(5))  // 8 clamped to max 5
   }
+  
+  @available(AsyncAlgorithms 1.1, *)
+  @Test func fullJitterAndMaximum() {
+    var rng = SplitMix64(seed: 42)
+    var iterator =
+      Backoff
+      .constant(.milliseconds(100))
+      .fullJitter()
+      .maximum(.milliseconds(50))
+      .makeIterator()
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 15_991_039_287_692_012))  // 15.99 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 34_419_071_652_363_758))  // 34.41 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 50_000_000_000_000_000))  // 50 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 50_000_000_000_000_000))  // 50 ms
+  }
 
-  #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst)) || os(Linux) || os(FreeBSD) || os(OpenBSD) || os(Windows)
+  @available(AsyncAlgorithms 1.1, *)
+  @Test func equalJitterAndMaximum() {
+    var rng = SplitMix64(seed: 42)
+    var iterator =
+      Backoff
+      .constant(.milliseconds(100))
+      .equalJitter()
+      .maximum(.milliseconds(60))
+      .makeIterator()
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 57_995_519_643_846_006))  // 57.99 ms
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 60_000_000_000_000_000))  // 60 ms clamped
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 60_000_000_000_000_000))  // 60 ms clamped
+    #expect(iterator.nextDuration(using: &rng) == Duration(attoseconds: 60_000_000_000_000_000))  // 60 ms clamped
+  }
+
   @available(AsyncAlgorithms 1.1, *)
   @Test func overflowSafety() async {
     await #expect(processExitsWith: .success) {
@@ -99,7 +130,7 @@ import Testing
         .exponential(factor: 2, initial: .seconds(5))
         .maximum(.seconds(120))
         .makeIterator()
-      for _ in 0..<100 {
+      for _ in 0..<1000 {
         _ = iterator.nextDuration()
       }
     }
@@ -146,6 +177,5 @@ import Testing
       _ = Backoff.exponential(factor: -1, initial: .milliseconds(1))
     }
   }
-  #endif
 }
 #endif

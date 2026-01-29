@@ -32,6 +32,19 @@ public protocol BackoffStrategy<Duration> {
 public protocol BackoffIterator {
   associatedtype Duration: DurationProtocol
   mutating func nextDuration() -> Duration
+  mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Duration
+}
+
+@available(AsyncAlgorithms 1.1, *)
+extension BackoffIterator {
+  /// Default implementation that ignores the random number generator and
+  /// calls ``nextDuration()``.
+  ///
+  /// Override this method in iterators that use randomization (such as jitter)
+  /// to use the provided generator instead of the system default.
+  public mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Duration {
+    nextDuration()
+  }
 }
 
 @available(AsyncAlgorithms 1.1, *)
@@ -139,7 +152,7 @@ public protocol BackoffIterator {
     self.base = base
     self.minimum = minimum
   }
-  @inlinable func makeIterator() -> Iterator {
+  @inlinable public func makeIterator() -> Iterator {
     return Iterator(base: base.makeIterator(), minimum: minimum)
   }
   @usableFromInline struct Iterator: BackoffIterator {
@@ -151,6 +164,9 @@ public protocol BackoffIterator {
     }
     @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       return max(minimum, base.nextDuration())
+    }
+    @inlinable @inline(__always) mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Base.Duration {
+      return max(minimum, base.nextDuration(using: &generator))
     }
   }
 }
@@ -179,6 +195,9 @@ extension MinimumBackoffStrategy: Sendable where Base: Sendable {}
     @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       return min(maximum, base.nextDuration())
     }
+    @inlinable @inline(__always) mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Base.Duration {
+      return min(maximum, base.nextDuration(using: &generator))
+    }
   }
 }
 
@@ -186,61 +205,58 @@ extension MinimumBackoffStrategy: Sendable where Base: Sendable {}
 extension MaximumBackoffStrategy: Sendable where Base: Sendable {}
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct FullJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenerator>: BackoffStrategy
-where Base.Duration == Swift.Duration {
+@usableFromInline struct FullJitterBackoffStrategy<Base: BackoffStrategy>: BackoffStrategy where Base.Duration == Swift.Duration {
   @usableFromInline let base: Base
-  @usableFromInline let generator: RNG
-  @usableFromInline init(base: Base, generator: RNG) {
+  @usableFromInline init(base: Base) {
     self.base = base
-    self.generator = generator
   }
   @inlinable func makeIterator() -> Iterator {
-    return Iterator(base: base.makeIterator(), generator: generator)
+    return Iterator(base: base.makeIterator())
   }
   @usableFromInline struct Iterator: BackoffIterator {
     @usableFromInline var base: Base.Iterator
-    @usableFromInline var generator: RNG
-    @usableFromInline init(base: Base.Iterator, generator: RNG) {
+    @usableFromInline init(base: Base.Iterator) {
       self.base = base
-      self.generator = generator
     }
     @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
-      return .init(attoseconds: Int128.random(in: 0...base.nextDuration().attoseconds, using: &generator))
+      return .init(attoseconds: Int128.random(in: 0...base.nextDuration().attoseconds))
+    }
+    @inlinable @inline(__always) mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Base.Duration {
+      return .init(attoseconds: Int128.random(in: 0...base.nextDuration(using: &generator).attoseconds, using: &generator))
     }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension FullJitterBackoffStrategy: Sendable where Base: Sendable, RNG: Sendable {}
+extension FullJitterBackoffStrategy: Sendable where Base: Sendable {}
 
 @available(AsyncAlgorithms 1.1, *)
-@usableFromInline struct EqualJitterBackoffStrategy<Base: BackoffStrategy, RNG: RandomNumberGenerator>: BackoffStrategy
-where Base.Duration == Swift.Duration {
+@usableFromInline struct EqualJitterBackoffStrategy<Base: BackoffStrategy>: BackoffStrategy where Base.Duration == Swift.Duration {
   @usableFromInline let base: Base
-  @usableFromInline let generator: RNG
-  @usableFromInline init(base: Base, generator: RNG) {
+  @usableFromInline init(base: Base) {
     self.base = base
-    self.generator = generator
   }
   @inlinable func makeIterator() -> Iterator {
-    return Iterator(base: base.makeIterator(), generator: generator)
+    return Iterator(base: base.makeIterator())
   }
   @usableFromInline struct Iterator: BackoffIterator {
     @usableFromInline var base: Base.Iterator
-    @usableFromInline var generator: RNG
-    @usableFromInline init(base: Base.Iterator, generator: RNG) {
+    @usableFromInline init(base: Base.Iterator) {
       self.base = base
-      self.generator = generator
     }
     @inlinable @inline(__always) mutating func nextDuration() -> Base.Duration {
       let duration = base.nextDuration().attoseconds
-      return .init(attoseconds: Int128.random(in: duration / 2...duration, using: &generator))
+      return .init(attoseconds: Int128.random(in: (duration / 2)...duration))
+    }
+    @inlinable @inline(__always) mutating func nextDuration(using generator: inout some RandomNumberGenerator) -> Duration {
+      let duration = base.nextDuration(using: &generator).attoseconds
+      return .init(attoseconds: Int128.random(in: (duration / 2)...duration, using: &generator))
     }
   }
 }
 
 @available(AsyncAlgorithms 1.1, *)
-extension EqualJitterBackoffStrategy: Sendable where Base: Sendable, RNG: Sendable {}
+extension EqualJitterBackoffStrategy: Sendable where Base: Sendable {}
 
 @available(AsyncAlgorithms 1.1, *)
 public enum Backoff {
@@ -275,7 +291,9 @@ public enum Backoff {
   /// iterator.nextDuration() // 100ms
   /// iterator.nextDuration() // 100ms
   /// ```
-  @inlinable public static func constant(_ constant: Duration) -> some BackoffStrategy<Duration> & Sendable {
+  @inlinable public static func constant(
+    _ constant: Duration
+  ) -> some BackoffStrategy<Duration> & Sendable {
     return ConstantBackoffStrategy(constant: constant)
   }
 
@@ -289,6 +307,9 @@ public enum Backoff {
   ///   - increment: The amount to increase the delay by on each attempt.
   ///   - initial: The initial delay for the first retry attempt.
   /// - Returns: A backoff strategy with linearly increasing delays.
+  ///
+  /// - Note: If the computed duration overflows, subsequent calls return the maximum
+  ///   representable duration (`Duration(attoseconds: .max)`).
   ///
   /// ## Example
   ///
@@ -317,6 +338,9 @@ public enum Backoff {
   ///   - factor: The multiplication factor for each retry attempt.
   ///   - initial: The initial delay for the first retry attempt.
   /// - Returns: A backoff strategy with exponentially increasing delays.
+  ///
+  /// - Note: If the computed duration overflows, subsequent calls return the maximum
+  ///   representable duration (`Duration(attoseconds: .max)`).
   ///
   /// ## Example
   ///
@@ -356,7 +380,9 @@ extension BackoffStrategy {
   /// var iterator = backoff.makeIterator()
   /// iterator.nextDuration() // 200ms (enforced minimum)
   /// ```
-  @inlinable public func minimum(_ minimum: Duration) -> some BackoffStrategy<Duration> {
+  @inlinable public func minimum(
+    _ minimum: Duration
+  ) -> some BackoffStrategy<Duration> {
     return MinimumBackoffStrategy(base: self, minimum: minimum)
   }
 
@@ -379,7 +405,9 @@ extension BackoffStrategy {
   /// var iterator = backoff.makeIterator()
   /// // Delays will cap at 5 seconds instead of growing indefinitely
   /// ```
-  @inlinable public func maximum(_ maximum: Duration) -> some BackoffStrategy<Duration> {
+  @inlinable public func maximum(
+    _ maximum: Duration
+  ) -> some BackoffStrategy<Duration> {
     return MaximumBackoffStrategy(base: self, maximum: maximum)
   }
 
@@ -390,12 +418,9 @@ extension BackoffStrategy {
   /// Jitter prevents the thundering herd problem where multiple clients retry
   /// simultaneously, reducing server load spikes and improving system stability.
   ///
-  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
   /// - Returns: A backoff strategy with full jitter applied.
-  @inlinable public func fullJitter<RNG: RandomNumberGenerator>(
-    using generator: RNG = SystemRandomNumberGenerator()
-  ) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
-    return FullJitterBackoffStrategy(base: self, generator: generator)
+  @inlinable public func fullJitter() -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
+    return FullJitterBackoffStrategy(base: self)
   }
 
   /// Applies equal jitter to this backoff strategy.
@@ -406,12 +431,9 @@ extension BackoffStrategy {
   /// at least half of the computed delay is always applied while still providing
   /// randomization to prevent thundering herd.
   ///
-  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
   /// - Returns: A backoff strategy with equal jitter applied.
-  @inlinable public func equalJitter<RNG: RandomNumberGenerator>(
-    using generator: RNG = SystemRandomNumberGenerator()
-  ) -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
-    return EqualJitterBackoffStrategy(base: self, generator: generator)
+  @inlinable public func equalJitter() -> some BackoffStrategy<Duration> where Duration == Swift.Duration {
+    return EqualJitterBackoffStrategy(base: self)
   }
 }
 
@@ -436,7 +458,9 @@ extension BackoffStrategy where Self: Sendable {
   /// var iterator = backoff.makeIterator()
   /// iterator.nextDuration() // 200ms (enforced minimum)
   /// ```
-  @inlinable public func minimum(_ minimum: Duration) -> some BackoffStrategy<Duration> & Sendable {
+  @inlinable public func minimum(
+    _ minimum: Duration
+  ) -> some BackoffStrategy<Duration> & Sendable {
     return MinimumBackoffStrategy(base: self, minimum: minimum)
   }
 
@@ -459,7 +483,9 @@ extension BackoffStrategy where Self: Sendable {
   /// var iterator = backoff.makeIterator()
   /// // Delays will cap at 5 seconds instead of growing indefinitely
   /// ```
-  @inlinable public func maximum(_ maximum: Duration) -> some BackoffStrategy<Duration> & Sendable {
+  @inlinable public func maximum(
+    _ maximum: Duration
+  ) -> some BackoffStrategy<Duration> & Sendable {
     return MaximumBackoffStrategy(base: self, maximum: maximum)
   }
 
@@ -470,12 +496,9 @@ extension BackoffStrategy where Self: Sendable {
   /// Jitter prevents the thundering herd problem where multiple clients retry
   /// simultaneously, reducing server load spikes and improving system stability.
   ///
-  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
   /// - Returns: A backoff strategy with full jitter applied.
-  @inlinable public func fullJitter<RNG: RandomNumberGenerator>(
-    using generator: RNG = SystemRandomNumberGenerator()
-  ) -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration, RNG: Sendable {
-    return FullJitterBackoffStrategy(base: self, generator: generator)
+  @inlinable public func fullJitter() -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration {
+    return FullJitterBackoffStrategy(base: self)
   }
 
   /// Applies equal jitter to this backoff strategy.
@@ -486,12 +509,9 @@ extension BackoffStrategy where Self: Sendable {
   /// at least half of the computed delay is always applied while still providing
   /// randomization to prevent thundering herd.
   ///
-  /// - Parameter generator: The random number generator to use. Defaults to `SystemRandomNumberGenerator()`.
   /// - Returns: A backoff strategy with equal jitter applied.
-  @inlinable public func equalJitter<RNG: RandomNumberGenerator>(
-    using generator: RNG = SystemRandomNumberGenerator()
-  ) -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration, RNG: Sendable {
-    return EqualJitterBackoffStrategy(base: self, generator: generator)
+  @inlinable public func equalJitter() -> some BackoffStrategy<Duration> & Sendable where Duration == Swift.Duration {
+    return EqualJitterBackoffStrategy(base: self)
   }
 }
 #endif
