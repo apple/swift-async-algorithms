@@ -31,13 +31,52 @@ struct TimeoutTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func timesoutThrowing() async throws {
-    await #expect(throws: TimeoutError<CancellationError>.self) {
+    do {
       try await withTimeout(
         in: .milliseconds(1),
         clock: .continuous
       ) { () async throws(CancellationError) in
         try await typedSleep()
       }
+      Issue.record("Expected TimeoutError.timedOut to be thrown")
+    } catch {
+      switch error {
+      case .timedOut:
+        // Expected case
+        break
+      case .operationFailed:
+        Issue.record("Expected timedOut but got operationFailed")
+      }
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
+  @Test
+  func timesoutThrowingAlternativeCatch() async throws {
+    do {
+      try await withTimeout(
+        in: .milliseconds(1),
+        clock: .continuous
+      ) { () async throws(CancellationError) in
+        try await typedSleep()
+      }
+      Issue.record("Expected TimeoutError.timedOut to be thrown")
+    } catch TimeoutError<CancellationError>.timedOut(let error) {
+      // Expected case
+      return
+    } catch TimeoutError<CancellationError>.operationFailed(let error) {
+      Issue.record("Expected timedOut but got operationFailed")
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
+  @Test
+  func timesoutNonThrowing() async throws {
+    try await withTimeout(
+      in: .milliseconds(1),
+      clock: .continuous
+    ) { () async throws(Never) in
+      try? await typedSleep()
     }
   }
 
@@ -55,12 +94,21 @@ struct TimeoutTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func completesThrowing() async throws {
-    await #expect(throws: TimeoutError<CancellationError>.self) {
+    do {
       try await withTimeout(
         in: .seconds(100),
         clock: .continuous
       ) { () throws(CancellationError) in
         throw CancellationError()
+      }
+      Issue.record("Expected TimeoutError.operationFailed to be thrown")
+    } catch {
+      switch error {
+      case .operationFailed:
+        // Expected case - operation threw before timeout
+        break
+      case .timedOut:
+        Issue.record("Expected operationFailed but got timedOut")
       }
     }
   }
@@ -105,8 +153,17 @@ struct TimeoutTests {
       }
     }
     task.cancel()
-    await #expect(throws: TimeoutError<CancellationError>.self) {
+    do {
       try await task.value
+      Issue.record("Expected TimeoutError.timedOut to be thrown")
+    } catch let error as TimeoutError<CancellationError> {
+      switch error {
+      case .timedOut:
+        // Expected case - cancelled due to timeout
+        break
+      case .operationFailed:
+        Issue.record("Expected timedOut but got operationFailed")
+      }
     }
   }
 

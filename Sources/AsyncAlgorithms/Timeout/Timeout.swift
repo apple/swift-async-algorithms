@@ -9,19 +9,42 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// An error that wraps an underlying error when an operation times out.
-public struct TimeoutError<UnderylingError: Error>: Error {
-  /// The error thrown by the timed-out operation.
-  public var underlying: UnderylingError
-
-  /// Creates a timeout error with the specified underlying error.
+/// An error that indicates whether an operation failed due to a timeout or threw an error during normal execution.
+///
+/// This error type distinguishes between two failure scenarios:
+/// - The operation threw an error before the timeout expired.
+/// - The operation was cancelled due to timeout and then threw an error.
+///
+/// Use pattern matching to handle each case appropriately:
+///
+/// ```swift
+/// do {
+///     let result = try await withTimeout(in: .seconds(5)) {
+///         try await fetchDataFromServer()
+///     }
+///     print("Data received: \(result)")
+/// } catch TimeoutError<NetworkError>.timedOut(let error) {
+///     print("Request timed out and threw: \(error)")
+/// } catch TimeoutError<NetworkError>.operationFailed(let error) {
+///     print("Request failed before timeout: \(error)")
+/// }
+/// ```
+@frozen
+public enum TimeoutError<OperationError: Error>: Error {
+  /// The operation was cancelled due to timeout and subsequently threw an error.
   ///
-  /// - Parameter underlying: The error thrown by the operation that timed out.
-  public init(underlying: UnderylingError) {
-    self.underlying = underlying
-  }
+  /// This case indicates the timeout duration expired, the operation was cancelled,
+  /// and the operation threw an error during or after cancellation.
+  case timedOut(OperationError)
+  
+  /// The operation threw an error before the timeout expired.
+  ///
+  /// This case indicates the operation failed on its own without the timeout
+  /// being reached.
+  case operationFailed(OperationError)
 }
 
+#if compiler(>=6.3)
 /// Executes an asynchronous operation with a specified timeout duration.
 ///
 /// Use this function to limit the execution time of an asynchronous operation. If the operation
@@ -36,10 +59,21 @@ public struct TimeoutError<UnderylingError: Error>: Error {
 ///         try await fetchDataFromServer()
 ///     }
 ///     print("Data received: \(result)")
-/// } catch let error as TimeoutError<NetworkError> {
-///     print("Request timed out: \(error.underlying)")
+/// } catch TimeoutError<NetworkError>.timedOut(let error) {
+///     print("Request timed out: \(error)")
+/// } catch TimeoutError<NetworkError>.operationFailed(let error) {
+///     print("Request failed: \(error)")
 /// }
 /// ```
+///
+/// ## Behavior
+///
+/// The function exhibits the following behavior based on timeout and operation completion:
+///
+/// - If the operation completes successfully before timeout: Returns the operation's result
+/// - If the operation throws an error before timeout: Throws ``TimeoutError/operationFailed(_:)``
+/// - If timeout expires and operation completes successfully: Returns the operation's result
+/// - If timeout expires and operation throws an error: Throws ``TimeoutError/timedOut(_:)``
 ///
 /// - Important: This function cancels the operation when the timeout expires, but waits for the operation
 /// to return. The function may run longer than the specified timeout duration if the operation doesn't respond
@@ -51,10 +85,11 @@ public struct TimeoutError<UnderylingError: Error>: Error {
 ///   - clock: The clock to use for measuring time. The default is `ContinuousClock()`.
 ///   - body: The asynchronous operation to execute within the timeout period.
 ///
-/// - Returns: The result of the operation if it completes before the timeout expires.
+/// - Returns: The result of the operation if it completes successfully before or after the timeout expires.
 ///
-/// - Throws: A ``TimeoutError`` containing the underlying error if the operation throws or times out.
-#if compiler(>=6.3)
+/// - Throws: A ``TimeoutError`` indicating whether the operation failed before timeout
+/// (``TimeoutError/operationFailed(_:)``) or was cancelled due to timeout
+/// (``TimeoutError/timedOut(_:)``).
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
 nonisolated(nonsending) public func withTimeout<Return, Failure: Error, Clock: _Concurrency.Clock>(
   in timeout: Clock.Instant.Duration,
@@ -72,6 +107,8 @@ nonisolated(nonsending) public func withTimeout<Return, Failure: Error, Clock: _
   }
 }
 #elseif compiler(>=6.2)
+// Duplicated due to the compiler not being able to infer the default
+// generic clock type before 6.3
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
 nonisolated(nonsending) public func withTimeout<Return, Failure: Error, Clock: _Concurrency.Clock>(
   in timeout: Clock.Instant.Duration,
@@ -144,9 +181,9 @@ nonisolated(nonsending) public func __withTimeout<Return, Failure: Error, Clock:
       group.cancelAll()
       return .success(result)
     case .error(let error):
-      // Work threw. Cancel the timer task and rethrow
+      // Work threw before timeout. Cancel the timer task and throw operationFailed
       group.cancelAll()
-      return .failure(TimeoutError(underlying: error))
+      return .failure(TimeoutError.operationFailed(error))
     case .timedOut:
       // Timed out, cancel the work task.
       group.cancelAll()
@@ -155,7 +192,7 @@ nonisolated(nonsending) public func __withTimeout<Return, Failure: Error, Clock:
       case .success(let result):
         return .success(result)
       case .error(let error):
-        return .failure(TimeoutError(underlying: error))
+        return .failure(TimeoutError.timedOut(error))
       case .timedOut, .cancelled, .none:
         // We already got a result from the sleeping task so we can't get another one or none.
         fatalError("Unexpected task result")
@@ -165,7 +202,7 @@ nonisolated(nonsending) public func __withTimeout<Return, Failure: Error, Clock:
       case .success(let result):
         return .success(result)
       case .error(let error):
-        return .failure(TimeoutError(underlying: error))
+        return .failure(TimeoutError.timedOut(error))
       case .timedOut, .cancelled, .none:
         // We already got a result from the sleeping task so we can't get another one or none.
         fatalError("Unexpected task result")
