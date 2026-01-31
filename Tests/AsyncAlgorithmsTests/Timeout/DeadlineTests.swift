@@ -14,12 +14,12 @@ import Testing
 import AsyncAlgorithms
 
 @Suite
-struct TimeoutTests {
+struct DeadlineTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func timesoutCompleting() async throws {
-    let result = try await withTimeout(
-      in: .milliseconds(1),
+    let result = try await withDeadline(
+      until: .now.advanced(by: .milliseconds(1)),
       clock: .continuous
     ) {
       try? await typedSleep()
@@ -32,48 +32,29 @@ struct TimeoutTests {
   @Test
   func timesoutThrowing() async throws {
     do {
-      try await withTimeout(
-        in: .milliseconds(1),
+      try await withDeadline(
+        until: .now.advanced(by: .milliseconds(1)),
         clock: .continuous
       ) { () async throws(CancellationError) in
         try await typedSleep()
       }
-      Issue.record("Expected TimeoutError.timedOut to be thrown")
+      Issue.record("Expected DeadlineError.deadlineExceeded to be thrown")
     } catch {
-      switch error {
-      case .timedOut:
+      switch error.cause {
+      case .deadlineExceeded:
         // Expected case
         break
       case .operationFailed:
-        Issue.record("Expected timedOut but got operationFailed")
+        Issue.record("Expected deadlineExceeded but got operationFailed")
       }
-    }
-  }
-
-  @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
-  @Test
-  func timesoutThrowingAlternativeCatch() async throws {
-    do {
-      try await withTimeout(
-        in: .milliseconds(1),
-        clock: .continuous
-      ) { () async throws(CancellationError) in
-        try await typedSleep()
-      }
-      Issue.record("Expected TimeoutError.timedOut to be thrown")
-    } catch TimeoutError<CancellationError>.timedOut(let error) {
-      // Expected case
-      return
-    } catch TimeoutError<CancellationError>.operationFailed(let error) {
-      Issue.record("Expected timedOut but got operationFailed")
     }
   }
 
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func timesoutNonThrowing() async throws {
-    try await withTimeout(
-      in: .milliseconds(1),
+    try await withDeadline(
+      until: .now.advanced(by: .milliseconds(1)),
       clock: .continuous
     ) { () async throws(Never) in
       try? await typedSleep()
@@ -83,8 +64,8 @@ struct TimeoutTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func completes() async throws {
-    try await withTimeout(
-      in: .seconds(100),
+    try await withDeadline(
+      until: .now.advanced(by: .seconds(100)),
       clock: .continuous
     ) {
       try await Task.sleep(for: .milliseconds(10))
@@ -95,20 +76,20 @@ struct TimeoutTests {
   @Test
   func completesThrowing() async throws {
     do {
-      try await withTimeout(
-        in: .seconds(100),
+      try await withDeadline(
+        until: .now.advanced(by: .seconds(100)),
         clock: .continuous
       ) { () throws(CancellationError) in
         throw CancellationError()
       }
-      Issue.record("Expected TimeoutError.operationFailed to be thrown")
+      Issue.record("Expected DeadlineError.operationFailed to be thrown")
     } catch {
-      switch error {
+      switch error.cause {
       case .operationFailed:
         // Expected case - operation threw before timeout
         break
-      case .timedOut:
-        Issue.record("Expected operationFailed but got timedOut")
+      case .deadlineExceeded:
+        Issue.record("Expected operationFailed but got deadlineExceeded")
       }
     }
   }
@@ -117,8 +98,8 @@ struct TimeoutTests {
   @Test
   func cancelledCompleting() async throws {
     let task = Task {
-      try await withTimeout(
-        in: .seconds(100),
+      try await withDeadline(
+        until: .now.advanced(by: .seconds(100)),
         clock: .continuous
       ) {
         try? await Task.sleep(for: .seconds(100))
@@ -139,8 +120,8 @@ struct TimeoutTests {
   @Test
   func cancelledThrowing() async throws {
     let task = Task {
-      try await withTimeout(
-        in: .seconds(100),
+      try await withDeadline(
+        until: .now.advanced(by: .seconds(100)),
         clock: .continuous
       ) { () throws(CancellationError) in
         try? await Task.sleep(for: .seconds(100))
@@ -155,14 +136,14 @@ struct TimeoutTests {
     task.cancel()
     do {
       try await task.value
-      Issue.record("Expected TimeoutError.timedOut to be thrown")
-    } catch let error as TimeoutError<CancellationError> {
-      switch error {
-      case .timedOut:
+      Issue.record("Expected DeadlineError.deadlineExceeded to be thrown")
+    } catch {
+      switch (error as! DeadlineError<CancellationError, ContinuousClock>) .cause {
+      case .deadlineExceeded:
         // Expected case - cancelled due to timeout
         break
       case .operationFailed:
-        Issue.record("Expected timedOut but got operationFailed")
+        Issue.record("Expected deadlineExceeded but got operationFailed")
       }
     }
   }
@@ -170,8 +151,8 @@ struct TimeoutTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func mainActorIsolatedClosure() async throws {
-    try await withTimeout(
-      in: .seconds(100),
+    try await withDeadline(
+      until: .now.advanced(by: .seconds(100)),
       clock: .continuous
     ) { @MainActor in
       MainActor.assertIsolated()
@@ -181,8 +162,8 @@ struct TimeoutTests {
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   @Test
   func actorIsolatedClosure() async throws {
-    try await withTimeout(
-      in: .seconds(100),
+    try await withDeadline(
+      until: .now.advanced(by: .seconds(100)),
       clock: .continuous
     ) {
       try await TestActor().timeout()
@@ -193,8 +174,8 @@ struct TimeoutTests {
   actor TestActor {
     func timeout() async throws {
       self.assertIsolated()
-      try await withTimeout(
-        in: .seconds(100),
+      try await withDeadline(
+        until: .now.advanced(by: .seconds(100)),
         clock: .continuous
       ) {
         // We are hopping off here to another actor to see if we hop back
@@ -217,8 +198,8 @@ struct TimeoutTests {
 
   @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, *)
   private func concreteClock(clock: some Clock<Duration>) async throws {
-    try await withTimeout(
-      in: .seconds(10),
+    try await withDeadline(
+      until: clock.now.advanced(by: .seconds(10)),
       clock: clock
     ) {
       try await Task.sleep(for: .milliseconds(10))
