@@ -261,9 +261,9 @@ extension MultiProducerSingleConsumerAsyncChannel {
     ) throws -> MultiProducerSingleConsumerAsyncChannel<Element, Failure>.Source.SendResult {
       // We need to move the value into an optional since we don't have call-once
       // closures in the Swift yet.
-      var optionalSequence = Optional(sequence)
+      var optionalSequence = Disconnected(value: Optional(sequence))
       let action = self._stateMachine.withLock {
-        let sequence = optionalSequence.takeSending()!
+        let sequence = optionalSequence.swap(newValue: nil)!
         return $0.send(sequence)
       }
 
@@ -313,11 +313,11 @@ extension MultiProducerSingleConsumerAsyncChannel {
       callbackToken: UInt64,
       onProduceMore: sending @escaping (Result<Void, Error>) -> Void
     ) {
-      // We need to move the value into an optional since we don't have call-once
+      // We need to move the value into a disconnected since we don't have call-once
       // closures in the Swift yet.
-      var optionalOnProduceMore = Optional(onProduceMore)
+      var optionalOnProduceMore = Disconnected(value: Optional(onProduceMore))
       let action = self._stateMachine.withLock {
-        let onProduceMore = optionalOnProduceMore.takeSending()!
+        let onProduceMore = optionalOnProduceMore.swap(newValue: nil)!
         return $0.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
       }
 
@@ -1720,15 +1720,6 @@ enum _MultiProducerSingleConsumerSuspendedProducer {
   case continuation(UnsafeContinuation<Void, Error>)
 }
 
-extension Optional where Wrapped: ~Copyable {
-  @usableFromInline
-  mutating func takeSending() -> sending Self {
-    let result = consume self
-    self = nil
-    return result
-  }
-}
-
 @usableFromInline
 struct SendableConsumeOnceBox<Wrapped> {
   @usableFromInline
@@ -1741,7 +1732,8 @@ struct SendableConsumeOnceBox<Wrapped> {
 
   @inlinable
   consuming func take() -> sending Wrapped {
-    return self.wrapped.takeSending()!
+    nonisolated(unsafe) let value = self.wrapped.take()!
+    return value
   }
 }
 #endif

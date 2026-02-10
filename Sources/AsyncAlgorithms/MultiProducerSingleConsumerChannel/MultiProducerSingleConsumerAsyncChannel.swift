@@ -138,23 +138,24 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   public struct ChannelAndStream: ~Copyable {
     /// The channel.
     @usableFromInline
-    var channel: MultiProducerSingleConsumerAsyncChannel?
+    var channel: Disconnected<MultiProducerSingleConsumerAsyncChannel?>
 
     /// Takes and returns the channel.
     ///
     /// - Important: If this is called more than once it will result in a runtime crash.
     @inlinable
     public mutating func takeChannel() -> sending MultiProducerSingleConsumerAsyncChannel {
-      return self.channel.takeSending()!
+      var channel = self.channel.swap(newValue: nil)
+      return channel.take()!
     }
     /// The source.
     public var source: Source
 
     init(
-      channel: consuming MultiProducerSingleConsumerAsyncChannel,
+      channel: consuming sending MultiProducerSingleConsumerAsyncChannel,
       source: consuming Source
     ) {
-      self.channel = .some(channel)
+      self.channel = Disconnected(value: channel)
       self.source = source
     }
   }
