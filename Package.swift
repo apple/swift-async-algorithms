@@ -31,6 +31,20 @@ let package = Package(
   products: [
     .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"])
   ],
+  traits: [
+    .default(
+      enabledTraits: [
+        "UnstableAsyncStreaming"
+      ]
+    ),
+    .trait(
+      name: "UnstableAsyncStreaming",
+      description: """
+        Enables source unstable async streaming components in the _AsyncStreaming
+        module. Do not rely on this module in API stable packages.
+        """
+    ),
+  ],
   targets: [
     .target(
       name: "AsyncAlgorithms",
@@ -40,6 +54,23 @@ let package = Package(
       ],
       swiftSettings: availabilityMacros + [
         .enableExperimentalFeature("StrictConcurrency=complete")
+      ]
+    ),
+    .target(
+      name: "_AsyncStreaming",
+      dependencies: [
+        .product(name: "BasicContainers", package: "swift-collections")
+      ],
+      swiftSettings: [
+        .enableExperimentalFeature("SuppressedAssociatedTypes"),
+        .enableExperimentalFeature("LifetimeDependence"),
+        .enableExperimentalFeature("Lifetimes"),
+        .enableUpcomingFeature("LifetimeDependence"),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+        .enableUpcomingFeature("InternalImportsByDefault"),
       ]
     ),
     .target(
@@ -98,12 +129,33 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
+    .testTarget(
+      name: "AsyncStreamingTests",
+      dependencies: [
+        "_AsyncStreaming",
+        .product(name: "BasicContainers", package: "swift-collections"),
+      ],
+      swiftSettings: [
+        .enableExperimentalFeature("SuppressedAssociatedTypes"),
+        .enableExperimentalFeature("LifetimeDependence"),
+        .enableExperimentalFeature("Lifetimes"),
+        .enableUpcomingFeature("LifetimeDependence"),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+        .enableUpcomingFeature("InternalImportsByDefault"),
+      ]
+    ),
   ]
 )
 
 if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
-    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0")
+    .package(
+      url: "https://github.com/FranzBusch/swift-collections.git",
+      branch: "fb-async"
+    )
   ]
 } else {
   package.dependencies += [
