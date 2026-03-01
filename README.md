@@ -35,6 +35,7 @@ This package is the home for these APIs. Development and API design take place o
 #### Performance optimized asynchronous iterators
 
 - [`AsyncBufferedByteIterator`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/BufferedBytes.md): A highly efficient iterator useful for iterating byte sequences derived from asynchronous read functions.
+- [`share(bufferingPolicy:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Share.md): Shares the asynchronous sequence, allowing multiple independent iterations.
 
 #### Other useful asynchronous sequences
 - [`adjacentPairs()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/AdjacentPairs.md): Collects tuples of adjacent elements.
