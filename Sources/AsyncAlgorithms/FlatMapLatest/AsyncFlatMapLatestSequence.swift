@@ -78,6 +78,10 @@ where Base.Element: Sendable, Inner.Element: Sendable, Base.Failure == Inner.Fai
       self.storage = FlatMapLatestStorage(base: base, transform: transform)
     }
 
+    func next() async rethrows -> Element? {
+      return try await storage.next(isolation: nil)
+    }
+
     func next(isolation: isolated (any Actor)? = #isolation) async throws(Failure) -> Element? {
       return try await storage.next(isolation: isolation)
     }
