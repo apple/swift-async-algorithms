@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.3, *)
 extension AsyncSequence where Self: Sendable {
   /// Transforms elements into new asynchronous sequences, emitting elements
   /// from the most recent inner sequence.
@@ -46,7 +46,7 @@ extension AsyncSequence where Self: Sendable {
   }
 }
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.3, *)
 struct AsyncFlatMapLatestSequence<Base: AsyncSequence & Sendable, Inner: AsyncSequence & Sendable>: AsyncSequence, Sendable where Base.Element: Sendable, Inner.Element: Sendable, Base.Failure == Inner.Failure{
   typealias Element = Inner.Element
   typealias Failure = Inner.Failure

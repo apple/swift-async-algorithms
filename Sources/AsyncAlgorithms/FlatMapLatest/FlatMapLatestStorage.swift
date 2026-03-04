@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@available(AsyncAlgorithms 1.1, *)
+@available(AsyncAlgorithms 1.3, *)
 final class FlatMapLatestStorage<Base: AsyncSequence & Sendable, Inner: AsyncSequence & Sendable>: @unchecked Sendable where Base.Element: Sendable, Inner.Element: Sendable {
   typealias Element = Inner.Element
   
