@@ -10,3 +10,4 @@ DerivedData/
 .swiftpm
 Package.resolved
 .swift-version
+test_output.log
