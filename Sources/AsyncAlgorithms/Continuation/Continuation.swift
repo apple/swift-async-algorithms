@@ -60,7 +60,7 @@ public struct Continuation<Success /*: ~Copyable*/, Failure: Error>: ~Copyable {
 @inlinable
 // TODO: Add the failure Never mode and the ~Copyable Success, once support for this is in the stdlib.
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-public func withContinuation<Success/*: ~Copyable, Failure: Error*/>(
+public nonisolated(nonsending) func withContinuation<Success/*: ~Copyable, Failure: Error*/>(
     of: Success.Type,
 //    failure: Failure.Type,
     file: StaticString = #file,
