@@ -391,7 +391,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     }
 
     @inlinable
-    func next(isolation: isolated (any Actor)? = #isolation) async throws -> Element? {
+    nonisolated(nonsending) func next() async throws -> Element? {
       let action = self._stateMachine.withLock {
         $0.next()
       }
@@ -431,7 +431,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     }
 
     @inlinable
-    func suspendNext(isolation: isolated (any Actor)? = #isolation) async throws -> Element? {
+    nonisolated(nonsending) func suspendNext() async throws -> Element? {
       try await withTaskCancellationHandler {
         try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Element?, Error>) in
           let action = self._stateMachine.withLock {
