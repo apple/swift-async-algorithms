@@ -34,7 +34,11 @@ internal struct Lock {
   #if canImport(Darwin)
   typealias Primitive = os_unfair_lock
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
+  #if os(FreeBSD) || os(OpenBSD)
+  typealias Primitive = pthread_mutex_t?
+  #else
   typealias Primitive = pthread_mutex_t
+  #endif
   #elseif canImport(WASILibc)
   // This WASILibc variation is single threaded, provides no locks
   #elseif canImport(WinSDK)

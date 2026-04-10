@@ -55,6 +55,8 @@ final class TaskDriver: Sendable {
   let queue: WorkQueue
   #if canImport(Darwin) || canImport(wasi_pthread)
   nonisolated(unsafe) var thread: pthread_t?
+  #elseif os(FreeBSD)
+  nonisolated(unsafe) var thread = pthread_t(bitPattern: 0)
   #elseif canImport(Glibc) || canImport(Musl) || canImport(Bionic)
   nonisolated(unsafe) var thread = pthread_t()
   #elseif canImport(WinSDK)
