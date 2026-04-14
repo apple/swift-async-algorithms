@@ -66,7 +66,9 @@ public struct AsyncAdjacentPairsSequence<Base: AsyncSequence>: AsyncSequence {
     }
 
     @available(AsyncAlgorithms 1.1, *)
-    mutating public func next(isolation actor: isolated (any Actor)?) async throws(Base.Failure) -> (Base.Element, Base.Element)? {
+    mutating public func next(
+      isolation actor: isolated (any Actor)?
+    ) async throws(Base.Failure) -> (Base.Element, Base.Element)? {
       if previousElement == nil {
         previousElement = try await base.next(isolation: actor)
       }
