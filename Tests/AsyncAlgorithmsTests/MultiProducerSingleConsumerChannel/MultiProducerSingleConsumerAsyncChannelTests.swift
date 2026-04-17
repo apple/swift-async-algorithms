@@ -971,7 +971,7 @@ final class MultiProducerSingleConsumerAsyncChannelTests: XCTestCase {
         backpressureStrategy: .watermark(low: 2, high: 4)
       )
       let channel = channelAndSource.takeChannel()
-      var source: MultiProducerSingleConsumerAsyncChannel.Source! = consume channelAndSource.source
+      var source: MultiProducerSingleConsumerAsyncChannel<Int, Never>.Source! = consume channelAndSource.source
 
       group.addTask {
         var source = source.take()!
