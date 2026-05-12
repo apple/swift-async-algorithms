@@ -35,7 +35,8 @@ let availabilityMacros: [SwiftSetting] = [
 let package = Package(
   name: "swift-async-algorithms",
   products: [
-    .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"])
+    .library(name: "AsyncAlgorithms", targets: ["AsyncAlgorithms"]),
+    .library(name: "AsyncStreaming", targets: ["AsyncStreaming"]),
   ],
   traits: [
     .default(
