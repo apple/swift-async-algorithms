@@ -58,7 +58,7 @@ public protocol AsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
 }
 
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
   /// Reads elements with no upper bound on span size.
   public mutating func read<Return: ~Copyable, Failure: Error>(
     body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Return
