@@ -53,4 +53,7 @@ public enum EitherError<First: Error, Second: Error>: Error {
     }
   }
 }
+
+extension EitherError: Equatable where First: Equatable, Second: Equatable {}
+extension EitherError: Hashable where First: Hashable, Second: Hashable {}
 #endif
