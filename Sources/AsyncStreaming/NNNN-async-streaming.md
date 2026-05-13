@@ -138,32 +138,32 @@ the 2×2 possibility matrix:
 
 { Caller Buffers, Callee Buffers } × { Read, Write }
 
-These protocols use Swift's `InputSpan` and `OutputSpan` types to enforce that
-buffers are not stored after the operation completes, enabling safe reuse. For
-the callee-owned variants, a closure-scoped API ensures the compiler prevents
-buffer escape.
+These protocols use generic buffer types constrained to `RangeReplaceableContainer`
+from the Swift Collections library. For the callee-owned variants, a closure-scoped
+API with `inout` access ensures the caller can process elements without taking
+ownership of the buffer, enabling safe reuse.
 
 The bite-sized pseudocode:
 
 ```
 protocol AsyncReader {
-    // Callee provides a full buffer; caller drains it
-    func read(body: (buffer) throws -> R) throws -> R
+    // Callee provides a full buffer; caller processes it
+    func read(body: (inout buffer) throws -> R) throws -> R
 }
 
 protocol CallerAsyncReader {
     // Caller provides an empty buffer; callee fills it
-    func read(into buffer: buffer) throws
+    func read(into buffer: inout buffer) throws
+}
+
+protocol CallerAsyncWriter {
+    // Caller provides a full buffer; callee drains it
+    func write(buffer: inout buffer) throws
 }
 
 protocol AsyncWriter {
-    // Caller provides a full buffer; callee drains it
-    func write(span: buffer) throws
-}
-
-protocol CalleeAsyncWriter {
     // Callee provides an empty buffer; caller fills it
-    func write(body: (buffer) throws -> R) throws -> R
+    func write(body: (inout buffer) throws -> R) throws -> R
 }
 ```
 
@@ -175,7 +175,7 @@ question "which one(s) should my type conform to?". We believe that applying
 of situations:
 
 > If you are not sure, pick callee-owned (`AsyncReader`) for read streams and
-> caller-owned (`AsyncWriter`) for write streams.
+> caller-owned (`CallerAsyncWriter`) for write streams.
 
 The intuition: data produced by the callee flows toward the caller on the read
 side, so the callee is the natural owner of the buffer. On the write side, data
@@ -184,8 +184,8 @@ owner. The "other" pair exists for cases where the default imposes unnecessary
 overhead.
 
 By documenting this rule and following it in our own types, we expect developers
-to naturally reach for `AsyncReader` and `AsyncWriter`, leaving
-`CallerAsyncReader` and `CalleeAsyncWriter` for the specialized situations that
+to naturally reach for `AsyncReader` and `CallerAsyncWriter`, leaving
+`CallerAsyncReader` and `AsyncWriter` for the specialized situations that
 truly need them.
 
 ### Bridging with `AsyncSequence`
@@ -272,45 +272,33 @@ extensions allow ergonomic use when one side cannot fail.
 
 ### Callee-owned async reader (preferred read type)
 
-The callee-owned reader controls the buffer and passes a span of elements to the
-caller through a scoped closure. This is the preferred protocol for read
-streams.
+The callee-owned reader controls the buffer and passes a mutable reference to it
+through a scoped closure. This is the preferred protocol for read streams.
 
 ```swift
-public protocol AsyncReader<Element, Failure>: ~Copyable, ~Escapable {
+public protocol AsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
     /// The type of elements that can be read.
-    associatedtype Element: ~Copyable
+    associatedtype ReadElement: ~Copyable
+
+    /// The container type the reader uses to pass elements to the caller.
+    associatedtype Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable
 
     /// The type of error thrown during reading.
-    associatedtype Failure: Error
+    associatedtype ReadFailure: Error
 
     /// Reads elements from the source and passes them to the body closure.
     ///
-    /// The reader fills an internal buffer from its source and passes a span
-    /// of the read elements to `body`. When the span is empty, the stream
+    /// The reader fills an internal buffer from its source and passes a mutable
+    /// reference to it to `body`. When the buffer is empty, the stream
     /// has ended.
     ///
-    /// - Parameter maximumCount: The maximum number of elements the caller is
-    ///   ready to process. Must be greater than zero.
     /// - Parameter body: A closure that processes the read elements.
     /// - Returns: The value returned by the body closure.
-    /// - Throws: An `EitherError` containing either a `Failure` from the read
-    ///   operation or a `ConsumerFailure` from the body closure.
-    mutating func read<Return, ConsumerFailure: Error>(
-        maximumCount: Int,
-        body: (inout InputSpan<Element>) async throws(ConsumerFailure) -> Return
-    ) async throws(EitherError<Failure, ConsumerFailure>) -> Return
-}
-
-extension AsyncReader {
-    /// Reads elements with no upper bound on span size.
-    ///
-    /// This convenience calls `read(maximumCount: .max, body:)`.
-    mutating func read<Return, ConsumerFailure: Error>(
-        body: (inout InputSpan<Element>) async throws(ConsumerFailure) -> Return
-    ) async throws(EitherError<Failure, ConsumerFailure>) -> Return {
-        try await read(maximumCount: .max, body: body)
-    }
+    /// - Throws: An `EitherError` containing either a `ReadFailure` from the read
+    ///   operation or a `Failure` from the body closure.
+    mutating func read<Return, Failure: Error>(
+        body: (inout Buffer) async throws(Failure) -> Return
+    ) async throws(EitherError<ReadFailure, Failure>) -> Return
 }
 ```
 
@@ -320,50 +308,48 @@ The caller provides a buffer that the reader fills with elements from the
 source.
 
 ```swift
-public protocol CallerAsyncReader<Element, Failure>: ~Copyable, ~Escapable {
+public protocol CallerAsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
     /// The type of elements that can be read.
-    associatedtype Element: ~Copyable
+    associatedtype ReadElement: ~Copyable
 
     /// The type of error thrown during reading.
-    associatedtype Failure: Error
+    associatedtype ReadFailure: Error
 
     /// Reads elements from the source into the provided buffer.
     ///
     /// Appends elements into `buffer`. When the read operation reaches the
     /// end of the source, no elements are appended.
     ///
-    /// - Parameter buffer: The output span to fill with read elements.
-    /// - Throws: A `Failure` from the underlying read operation.
-    mutating func read(
-        into buffer: inout OutputSpan<Element>
-    ) async throws(Failure)
+    /// - Parameter buffer: The buffer to fill with read elements.
+    /// - Throws: A `ReadFailure` from the underlying read operation.
+    mutating func read<Buffer: RangeReplaceableContainer<ReadElement>>(
+        into buffer: inout Buffer
+    ) async throws(ReadFailure) where Buffer.Element: ~Copyable
 }
 ```
 
 ### Caller-owned async writer (preferred write type)
 
-The caller provides a span of elements for the writer to consume. This is the
+The caller provides a buffer of elements for the writer to consume. This is the
 preferred protocol for write streams.
 
 ```swift
-public protocol AsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
+public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
     /// The type of elements that can be written.
     associatedtype WriteElement: ~Copyable
 
     /// The type of error thrown during writing.
     associatedtype WriteFailure: Error
 
-    /// Writes a span of elements to the destination.
+    /// Writes elements from the provided buffer to the destination.
     ///
-    /// Asynchronously writes all elements from the provided span. If the
-    /// writer cannot accept all elements at once, `span` will be non-empty
-    /// after `write` returns.
+    /// Asynchronously writes all elements from the provided buffer.
     ///
-    /// - Parameter span: The span of elements to write.
+    /// - Parameter buffer: The buffer of elements to write.
     /// - Throws: A `WriteFailure` from the underlying write operation.
-    mutating func write(
-        span: borrowing InputSpan<WriteElement>
-    ) async throws(WriteFailure)
+    mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
+        buffer: inout Buffer
+    ) async throws(WriteFailure) where Buffer.Element: ~Copyable
 }
 ```
 
@@ -372,26 +358,29 @@ public protocol AsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
 The writer provides a buffer that the caller fills with elements to write.
 
 ```swift
-public protocol CalleeAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
+public protocol AsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
     /// The type of elements that can be written.
     associatedtype WriteElement: ~Copyable
+
+    /// The container type the writer uses to receive elements from the caller.
+    associatedtype Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable
 
     /// The type of error thrown during writing.
     associatedtype WriteFailure: Error
 
     /// Provides a buffer for writing elements to the destination.
     ///
-    /// The writer supplies an output span that the `body` closure fills with
+    /// The writer supplies a buffer that the `body` closure fills with
     /// elements. After the closure returns, the writer handles the actual
     /// write operation.
     ///
-    /// - Parameter body: A closure that receives an `OutputSpan` to fill.
+    /// - Parameter body: A closure that receives a mutable buffer to fill.
     /// - Returns: The value returned by the body closure.
     /// - Throws: An `EitherError` containing either a `WriteFailure` from the
-    ///   write operation or a `ProducerFailure` from the body closure.
-    mutating func write<Return, ProducerFailure: Error>(
-        _ body: (inout OutputSpan<WriteElement>) async throws(ProducerFailure) -> Return
-    ) async throws(EitherError<WriteFailure, ProducerFailure>) -> Return
+    ///   write operation or a `Failure` from the body closure.
+    mutating func write<Return, Failure: Error>(
+        _ body: (inout Buffer) async throws(Failure) -> Return
+    ) async throws(EitherError<WriteFailure, Failure>) -> Return
 }
 ```
 
@@ -404,21 +393,21 @@ not support noncopyable elements.
 #### `AsyncReader` to `AsyncSequence`
 
 ```swift
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Element: Copyable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: Copyable {
     /// Returns an `AsyncSequence` that yields the elements of this reader
     /// one at a time.
     ///
     /// The returned sequence calls `read` on the underlying reader and
-    /// yields the elements from each span individually.
+    /// yields the elements from each buffer individually.
     public var asyncSequence: AsyncReaderSequence<Self> { get }
 }
 
 /// An `AsyncSequence` adapter over an `AsyncReader`.
 public struct AsyncReaderSequence<
     Reader: AsyncReader & ~Copyable & ~Escapable
->: AsyncSequence where Reader.Element: Copyable {
-    public typealias Element = Reader.Element
-    public typealias Failure = Reader.Failure
+>: AsyncSequence where Reader.ReadElement: Copyable {
+    public typealias Element = Reader.ReadElement
+    public typealias Failure = Reader.ReadFailure
 
     public struct AsyncIterator: AsyncIteratorProtocol {
         public mutating func next() async throws(Failure) -> Element?
@@ -435,7 +424,7 @@ extension AsyncSequence {
     /// Returns an `AsyncReader` that reads elements from this sequence.
     ///
     /// Each call to `read` on the returned reader advances the sequence's
-    /// iterator and passes available elements to the body closure as a span.
+    /// iterator and passes available elements to the body closure as a buffer.
     public var asyncReader: AsyncSequenceReader<Self> { get }
 }
 
@@ -443,13 +432,12 @@ extension AsyncSequence {
 public struct AsyncSequenceReader<
     Base: AsyncSequence
 >: AsyncReader {
-    public typealias Element = Base.Element
-    public typealias Failure = Base.Failure
+    public typealias ReadElement = Base.Element
+    public typealias ReadFailure = Base.Failure
 
-    public mutating func read<Return, ConsumerFailure: Error>(
-        maximumCount: Int?,
-        body: (inout InputSpan<Element>) async throws(ConsumerFailure) -> Return
-    ) async throws(EitherError<Failure, ConsumerFailure>) -> Return
+    public mutating func read<Return, Failure: Error>(
+        body: (inout Buffer) async throws(Failure) -> Return
+    ) async throws(EitherError<ReadFailure, Failure>) -> Return
 }
 ```
 
@@ -494,20 +482,55 @@ patterns, for example:
 These extensions are straightforward to add in a follow-up proposal once the
 core protocols are established.
 
+### Iteration and collection helpers
+
+Two common patterns emerge immediately when working with `AsyncReader`: iterating
+over all chunks until the stream ends, and collecting elements into a buffer up
+to a specified limit. We envision convenience extensions for both:
+
+```swift
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
+    /// Iterates over all chunks, executing `body` for each buffer until the
+    /// stream ends.
+    public consuming func forEachBuffer<Failure: Error>(
+        body: (inout Buffer) async throws(Failure) -> Void
+    ) async throws(EitherError<ReadFailure, Failure>)
+}
+
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+    /// Collects elements up to `limit`, then passes the accumulated
+    /// elements to `body` as an `InputSpan`.
+    public mutating func collect<Result, Failure: Error>(
+        upTo limit: Int,
+        body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Result
+    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> Result
+}
+```
+
+`forEachBuffer` provides a simple way to consume an entire stream without manually
+looping over `read` calls and checking for empty buffers. `collect` accumulates
+elements from multiple reads into a single buffer before processing, which is
+useful when an algorithm needs all data in contiguous memory (for example,
+parsing a complete message frame).
+
+These helpers are intentionally excluded from this proposal because their error
+handling semantics (particularly `collect`'s nested `EitherError` and the
+`AsyncReaderLeftOverElementsError` overflow behavior) benefit from real-world
+usage feedback before stabilization.
+
 ### Owned buffer transfer protocols
 
-The four protocols in this proposal all use `InputSpan` and `OutputSpan` to
-provide scoped, non-escaping access to buffers. This is optimal for
-high-throughput streaming where buffer reuse matters — the compiler enforces
-that the buffer cannot be stored after the closure returns, enabling safe reuse
-without copies.
+The four protocols in this proposal all use generic `RangeReplaceableContainer`
+buffers with closure-scoped `inout` access. This is optimal for high-throughput
+streaming where buffer reuse matters — the caller processes elements in-place
+without taking ownership, enabling safe reuse without copies.
 
 However, there are important message-oriented I/O patterns where the caller
 needs to take ownership of the data with an independent lifetime. Consider an
 HTTP/2 proxy: the proxy decodes a DATA frame, which internally allocates a
-buffer to hold the frame payload. With span-based protocols, the proxy receives
-a borrowed view and must copy the data if it needs to store it for retry or
-fan-out to multiple downstream connections.
+buffer to hold the frame payload. With the closure-scoped protocols, the proxy
+receives a mutable reference and must copy the data if it needs to store it for
+retry or fan-out to multiple downstream connections.
 
 An owned buffer transfer protocol would let the decoder hand over its
 internally-allocated buffer by value. The proxy can store it, retry a failed
@@ -524,7 +547,7 @@ protocol OwnedAsyncReader<Buffer, Failure>: ~Copyable, ~Escapable {
 ```
 
 This differs fundamentally from the caller/callee distinction in this proposal.
-The span-based protocols are about **who manages a reusable buffer during a
+The closure-scoped protocols are about **who manages a reusable buffer during a
 streaming operation**. Owned buffer transfer is about **transferring
 independently-allocated data with a lifecycle decoupled from the stream**. This
 is the distinction between stream-oriented I/O (TCP byte streams, file reads)
@@ -788,8 +811,8 @@ Swift's structured concurrency model avoids the cancellation and buffer lifetime
 problems that fragment Rust's ecosystem: structured concurrency guarantees that
 child tasks complete before the parent scope exits, and cancellation is
 cooperative. The closure-scoped design of the callee-owned protocols provides
-compiler-enforced safety — `InputSpan` and `OutputSpan` are `~Escapable`, so the
-compiler guarantees at the type level that buffers cannot outlive their scope.
+compiler-enforced safety — the `Buffer` associated type is `~Copyable`, and the
+`inout` closure pattern ensures buffers cannot be stored beyond the closure scope.
 This is stronger than Go's convention-based "must not retain p" and .NET's
 runtime-only enforcement after `AdvanceTo`.
 

@@ -20,10 +20,10 @@ import Testing
 struct AsyncReaderCollectTests {
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectAllElements() async {
+  func collectAllElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
-    let result = await reader.collect(upTo: 10) { span in
+    let result = try await reader.collect(upTo: 10) { span in
       return Array(span)
     }
 
@@ -32,10 +32,10 @@ struct AsyncReaderCollectTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectWithExactLimit() async {
+  func collectWithExactLimit() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
-    let result = await reader.collect(upTo: 5) { span in
+    let result = try await reader.collect(upTo: 5) { span in
       return Array(span)
     }
 
@@ -44,10 +44,10 @@ struct AsyncReaderCollectTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectEmptyReader() async {
+  func collectEmptyReader() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
 
-    let result = await reader.collect(upTo: 10) { span in
+    let result = try await reader.collect(upTo: 10) { span in
       return span.count
     }
 
@@ -56,10 +56,10 @@ struct AsyncReaderCollectTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectProcessesAllElements() async {
+  func collectProcessesAllElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
 
-    let result = await reader.collect(upTo: 10) { span in
+    let result = try await reader.collect(upTo: 10) { span in
       var sum = 0
       for i in span.indices {
         sum += span[i]
@@ -72,29 +72,17 @@ struct AsyncReaderCollectTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectIntoOutputSpan() async {
-    // TODO: Cannot test this yet since we can't get `InputSpan`s available in async contexts
-    //        var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    //        var buffer = RigidArray<Int>.init(capacity: 5)
-    //
-    //        await buffer.append(count: 5) { outputSpan in
-    //            await reader.collect(into: &outputSpan)
-    //        }
-    //
-    //        #expect(buffer.count == 5)
-  }
-
-  @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func collectWithNeverFailingReader() async {
+  func collectThrowsLeftOverElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
-    // This tests the Never overload
-    let result = await reader.collect(upTo: 10) { span in
-      return span.count
+    let expectedError = EitherError<EitherError<Never, AsyncReaderLeftOverElementsError>, Never>.first(
+      .second(AsyncReaderLeftOverElementsError())
+    )
+    await #expect(throws: expectedError) {
+      try await reader.collect(upTo: 1) { span in
+        return span.count
+      }
     }
-
-    #expect(result == 3)
   }
 }
 

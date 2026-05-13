@@ -17,15 +17,15 @@ import ContainersPreview
 import Testing
 
 @Suite
-struct AsyncReaderforEachChunkTests {
+struct AsyncReaderforEachBufferTests {
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkIteratesAllSpans() async throws {
+  func forEachBufferIteratesAllSpans() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
     var elementCount = 0
 
-    await reader.forEachChunk { span in
-      elementCount += span.count
+    await reader.forEachBuffer { buffer in
+      elementCount += buffer.count
     }
 
     #expect(elementCount == 5)
@@ -33,13 +33,13 @@ struct AsyncReaderforEachChunkTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkProcessesElements() async throws {
+  func forEachBufferProcessesElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
     var sum = 0
 
-    await reader.forEachChunk { span in
-      for i in span.indices {
-        sum += span[i]
+    await reader.forEachBuffer { buffer in
+      for i in buffer.indices {
+        sum += buffer[i]
       }
     }
 
@@ -48,11 +48,11 @@ struct AsyncReaderforEachChunkTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkWithEmptyReader() async throws {
+  func forEachBufferWithEmptyReader() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
     var callCount = 0
 
-    await reader.forEachChunk { span in
+    await reader.forEachBuffer { buffer in
       callCount += 1
     }
 
@@ -61,7 +61,7 @@ struct AsyncReaderforEachChunkTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkWithThrowingBody() async {
+  func forEachBufferWithThrowingBody() async {
     enum TestError: Error {
       case failed
     }
@@ -69,7 +69,7 @@ struct AsyncReaderforEachChunkTests {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
     do {
-      try await reader.forEachChunk { (span) throws(TestError) -> Void in
+      try await reader.forEachBuffer { (_) throws(TestError) -> Void in
         throw TestError.failed
       }
       Issue.record("Expected error to be thrown")
@@ -80,7 +80,7 @@ struct AsyncReaderforEachChunkTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkWithNeverFailingReader() async {
+  func forEachBufferWithNeverFailingReader() async {
     enum TestError: Error {
       case failed
     }
@@ -89,8 +89,8 @@ struct AsyncReaderforEachChunkTests {
     var count = 0
 
     do {
-      try await reader.forEachChunk { (span) throws(TestError) -> Void in
-        count += span.count
+      try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
+        count += buffer.count
       }
     } catch {
       Issue.record("No error should be thrown from reader")
@@ -101,41 +101,18 @@ struct AsyncReaderforEachChunkTests {
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkWithAsyncWork() async throws {
+  func forEachBufferWithAsyncWork() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
     var results: [Int] = []
 
-    await reader.forEachChunk { span in
+    await reader.forEachBuffer { buffer in
       await Task.yield()
-      for i in span.indices {
-        results.append(span[i])
+      for i in buffer.indices {
+        results.append(buffer[i])
       }
     }
 
     #expect(results == [1, 2, 3])
-  }
-
-  @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func forEachChunkMultipleSpans() async {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 6, copying: [1, 2, 3, 4, 5, 6]))
-    var spanCounts: [Int] = []
-
-    // Force reading in smaller chunks
-    while true {
-      let hasMore = try! await reader.read(maximumCount: 2) { span in
-        if span.count > 0 {
-          spanCounts.append(span.count)
-          return true
-        }
-        return false
-      }
-      if !hasMore {
-        break
-      }
-    }
-
-    #expect(spanCounts == [2, 2, 2])
   }
 }
 

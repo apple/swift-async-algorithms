@@ -10,10 +10,12 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
+public import ContainersPreview
+
 /// Reads elements asynchronously into a caller-provided buffer.
 ///
 /// Adopt ``CallerAsyncReader`` when you need caller-managed buffering,
-/// where the caller supplies an output span that the reader fills
+/// where the caller supplies a buffer that the reader fills
 /// with elements.
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
 public protocol CallerAsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
@@ -28,10 +30,10 @@ public protocol CallerAsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapab
   /// This method appends elements into `buffer`. When the read operation
   /// reaches the end of the source, it appends no elements.
   ///
-  /// - Parameter buffer: The output span to fill with read elements.
+  /// - Parameter buffer: The buffer to fill with read elements.
   /// - Throws: A `ReadFailure` from the underlying read operation.
-  mutating func read(
-    into buffer: inout OutputSpan<ReadElement>
-  ) async throws(ReadFailure)
+  mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
+    into buffer: inout Buffer
+  ) async throws(ReadFailure) where Buffer.Element: ~Copyable
 }
 #endif

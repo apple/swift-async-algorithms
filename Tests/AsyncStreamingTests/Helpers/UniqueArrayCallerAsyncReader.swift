@@ -22,9 +22,9 @@ struct UniqueArrayCallerAsyncReader: ~Copyable, CallerAsyncReader {
   var storage: UniqueArray<Int>
   var position: Int = 0
 
-  mutating func read(
-    into buffer: inout OutputSpan<Int>
-  ) async throws(Never) {
+  mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
+    into buffer: inout Buffer
+  ) async throws(ReadFailure) where Buffer.Element: ~Copyable {
     guard position < storage.count else { return }
     let count = min(buffer.freeCapacity, storage.count - position)
     for i in 0..<count {

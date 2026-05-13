@@ -19,64 +19,39 @@ import Testing
 struct AsyncReaderTests {
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func readWithMaximumCount() async {
+  func read() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
-    let result = try! await reader.read(maximumCount: 3) { span in
-      return Array(span)
+    let result = try! await reader.read { buffer in
+      return buffer.clone()
     }
 
-    #expect(result == [1, 2, 3])
+    #expect(result.count == 5)
+    #expect(result[0] == 1)
+    #expect(result[1] == 2)
+    #expect(result[2] == 3)
+    #expect(result[3] == 4)
+    #expect(result[4] == 5)
   }
 
   @Test
   @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func readWithoutMaximumCount() async {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-
-    let result = try! await reader.read(maximumCount: .max) { span in
-      return Array(span)
-    }
-
-    #expect(result == [1, 2, 3, 4, 5])
-  }
-
-  @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func readEmptySpanAtEnd() async {
+  func readEmptyAtEnd() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
     // Read all data
-    _ = try! await reader.read { span in
-      return Array(span)
+    let first = try! await reader.read { buffer in
+      return buffer.count
     }
+
+    #expect(first == 3)
 
     // Next read should return empty span
-    let result = try! await reader.read { span in
-      return span.count
+    let second = try! await reader.read { buffer in
+      return buffer.count
     }
 
-    #expect(result == 0)
-  }
-
-  @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-  func readMultipleChunks() async {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 6, copying: [1, 2, 3, 4, 5, 6]))
-    var chunks: [[Int]] = []
-
-    while true {
-      let chunk = try! await reader.read(maximumCount: 2) { span in
-        return Array(span)
-      }
-      print(chunk)
-      if chunk.isEmpty {
-        break
-      }
-      chunks.append(chunk)
-    }
-
-    #expect(chunks == [[1, 2], [3, 4], [5, 6]])
+    #expect(second == 0)
   }
 }
 #endif

@@ -16,14 +16,14 @@ public import ContainersPreview
 // swift-format-ignore: AmbiguousTrailingClosureOverload
 @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
 extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
-  /// Iterates over all chunks from the reader, executing the provided body for each span.
+  /// Iterates over all chunks from the reader, executing the provided body for each buffer.
   ///
   /// This method continuously reads chunks from the async reader until the stream ends,
-  /// executing the provided closure for each span of elements read. The iteration terminates
-  /// when the reader produces an empty span, indicating the end of the stream.
+  /// executing the provided closure for each buffer of elements read. The iteration terminates
+  /// when the reader produces an empty buffer, indicating the end of the stream.
   ///
-  /// - Parameter body: An asynchronous closure that processes each span of elements read
-  ///   from the stream. The closure receives a `Span<ReadElement>` for each read operation.
+  /// - Parameter body: An asynchronous closure that processes each buffer of elements read
+  ///   from the stream.
   ///
   /// - Throws: An `EitherError` containing either a `ReadFailure` from the read operation
   ///   or a `Failure` from the body closure.
@@ -33,14 +33,12 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
   /// ```swift
   /// var fileReader: FileAsyncReader = ...
   ///
-  /// // Process each chunk of data from the file
-  /// try await fileReader.forEach { chunk in
-  ///     print("Processing \(chunk.count) elements")
-  ///     // Process the chunk
+  /// try await fileReader.forEachBuffer { buffer in
+  ///     print("Processing \(buffer.count) elements")
   /// }
   /// ```
-  public consuming func forEachChunk<Failure: Error>(
-    body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Void
+  public consuming func forEachBuffer<Failure: Error>(
+    body: (inout Buffer) async throws(Failure) -> Void
   ) async throws(EitherError<ReadFailure, Failure>) {
     var shouldContinue = true
     while shouldContinue {
@@ -50,37 +48,34 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
           return
         }
 
-        try await body(next)
+        try await body(&next)
       }
     }
   }
 
-  /// Iterates over all chunks from the reader, executing the provided body for each span.
+  /// Iterates over all chunks from a non-failing reader, executing the provided body for each buffer.
   ///
   /// This method continuously reads chunks from the async reader until the stream ends,
-  /// executing the provided closure for each span of elements read. The iteration terminates
-  /// when the reader produces an empty span, indicating the end of the stream.
+  /// executing the provided closure for each buffer of elements read. The iteration terminates
+  /// when the reader produces an empty buffer, indicating the end of the stream.
   ///
-  /// - Parameter body: An asynchronous closure that processes each span of elements read
-  ///   from the stream. The closure receives a `Span<ReadElement>` for each read operation.
+  /// Use this overload when the reader's ``AsyncReader/ReadFailure`` type is `Never`.
   ///
-  /// - Throws: An error of type `Failure` from the body closure. Since this reader never fails,
-  ///   only the body closure can throw errors.
+  /// - Parameter body: An asynchronous closure that processes each buffer of elements read
+  ///   from the stream.
   ///
   /// ## Example
   ///
   /// ```swift
   /// var fileReader: FileAsyncReader = ...
   ///
-  /// // Process each chunk of data from the file
-  /// try await fileReader.forEach { chunk in
-  ///     print("Processing \(chunk.count) elements")
-  ///     // Process the chunk
+  /// await fileReader.forEachBuffer { buffer in
+  ///     print("Processing \(buffer.count) elements")
   /// }
   /// ```
   @inlinable
-  public consuming func forEachChunk(
-    body: (consuming InputSpan<ReadElement>) async -> Void
+  public consuming func forEachBuffer(
+    body: (inout Buffer) async -> Void
   ) async where ReadFailure == Never {
     var shouldContinue = true
     while shouldContinue {
@@ -91,7 +86,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
             return
           }
 
-          await body(next)
+          await body(&next)
         }
       } catch {
         fatalError()

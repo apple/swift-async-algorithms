@@ -19,7 +19,7 @@ struct WriterCapacityError: Error {}
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
 struct UniqueArrayCallerAsyncWriter: ~Copyable, CallerAsyncWriter {
   typealias WriteElement = Int
-  typealias WriteFailure = WriterCapacityError
+  typealias WriteFailure = Never
 
   var storage: UniqueArray<Int>
 
@@ -27,15 +27,11 @@ struct UniqueArrayCallerAsyncWriter: ~Copyable, CallerAsyncWriter {
     self.storage = UniqueArray(minimumCapacity: capacity)
   }
 
-  mutating func write(
-    span: borrowing InputSpan<Int>
-  ) async throws(WriterCapacityError) {
-    guard span.count <= storage.freeCapacity else {
-      throw WriterCapacityError()
-    }
-    for i in span.indices {
-      storage.append(span[i])
-    }
+  mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
+    buffer: inout Buffer
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
+    self.storage.reserveCapacity(buffer.count)
+    self.storage.append(copying: buffer)
   }
 }
 #endif
