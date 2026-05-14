@@ -31,7 +31,10 @@ struct UniqueArrayCallerAsyncWriter: ~Copyable, CallerAsyncWriter {
     buffer: inout Buffer
   ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
     self.storage.reserveCapacity(buffer.count)
-    self.storage.append(copying: buffer)
+    var consumer = buffer.consumeAll()
+    while let element = consumer.next() {
+      self.storage.append(element)
+    }
   }
 }
 #endif
