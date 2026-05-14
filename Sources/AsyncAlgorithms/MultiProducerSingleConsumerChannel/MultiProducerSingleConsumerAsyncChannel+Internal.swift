@@ -321,11 +321,13 @@ extension MultiProducerSingleConsumerAsyncChannel {
         return $0.enqueueProducer(callbackToken: callbackToken, onProduceMore: onProduceMore)
       }
 
-      switch action {
+      switch consume action {
       case .resumeProducer(let onProduceMore):
+        let onProduceMore = onProduceMore.take()
         onProduceMore(Result<Void, Error>.success(()))
 
       case .resumeProducerWithError(let onProduceMore, let error):
+        let onProduceMore = onProduceMore.take()
         onProduceMore(Result<Void, Error>.failure(error))
 
       case .none:
@@ -396,7 +398,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
         $0.next()
       }
 
-      switch action {
+      switch consume action {
       case .returnElement(let element):
         return element.take()
 
@@ -438,17 +440,15 @@ extension MultiProducerSingleConsumerAsyncChannel {
             $0.suspendNext(continuation: continuation)
           }
 
-          switch action {
-          case .resumeConsumerWithElement(let continuation, let element):
-            continuation.resume(returning: element.take())
+          switch consume action {
+          case .resumeConsumerWithElement(let payload):
+            let element = payload.element.take()
+            payload.continuation.resume(returning: element)
 
-          case .resumeConsumerWithElementAndProducers(
-            let continuation,
-            let element,
-            let producerContinuations
-          ):
-            continuation.resume(returning: element.take())
-            for producerContinuation in producerContinuations {
+          case .resumeConsumerWithElementAndProducers(let payload):
+            let element = payload.element.take()
+            payload.continuation.resume(returning: element)
+            for producerContinuation in payload.producerContinuations {
               switch producerContinuation {
               case .closure(let onProduceMore):
                 onProduceMore(.success(()))
@@ -457,19 +457,13 @@ extension MultiProducerSingleConsumerAsyncChannel {
               }
             }
 
-          case .resumeConsumerWithFailureAndCallOnTerminations(
-            let continuation,
-            let failure,
-            let onTerminations
-          ):
-            switch failure {
-            case .some(let error):
-              continuation.resume(throwing: error)
-
-            case .none:
-              continuation.resume(returning: nil)
+          case .resumeConsumerWithFailureAndCallOnTerminations(let payload):
+            if let error = payload.failure {
+              payload.continuation.resume(throwing: error)
+            } else {
+              payload.continuation.resume(returning: nil)
             }
-            onTerminations.forEach { $0.1() }
+            payload.onTerminations.forEach { $0.1() }
 
           case .resumeConsumerWithNil(let continuation):
             continuation.resume(returning: nil)
@@ -543,7 +537,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `sourceDeinitialized()`.
     @usableFromInline
-    enum SetOnTerminationCallback {
+    enum SetOnTerminationCallback: Sendable {
       /// Indicates that `onTermination` should be called.
       case callOnTermination(
         @Sendable () -> Void
@@ -615,7 +609,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `sourceDeinitialized()`.
     @usableFromInline
-    enum SourceDeinitialized {
+    enum SourceDeinitialized: Sendable {
       /// Indicates that the consumer  should be resumed with the failure, the producers
       /// should be resumed with an error and `onTermination`s should be called.
       case resumeConsumerAndCallOnTerminations(
@@ -710,7 +704,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `sequenceDeinitialized()`.
     @usableFromInline
-    enum ChannelOrSequenceDeinitializedAction {
+    enum ChannelOrSequenceDeinitializedAction: Sendable {
       /// Indicates that `onTermination`s should be called.
       case callOnTerminations(_TinyArray<(UInt64, @Sendable () -> Void)>)
       /// Indicates that all producers should be failed and `onTermination`s should be called.
@@ -875,7 +869,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `iteratorDeinitialized()`.
     @usableFromInline
-    enum IteratorDeinitializedAction {
+    enum IteratorDeinitializedAction: Sendable {
       /// Indicates that `onTermination`s should be called.
       case callOnTerminations(_TinyArray<(UInt64, @Sendable () -> Void)>)
       /// Indicates that  all producers should be failed and `onTermination`s should be called.
@@ -1047,11 +1041,11 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `enqueueProducer()`.
     @usableFromInline
-    enum EnqueueProducerAction {
+    enum EnqueueProducerAction: ~Copyable, Sendable {
       /// Indicates that the producer should be notified to produce more.
-      case resumeProducer((Result<Void, Error>) -> Void)
+      case resumeProducer(Disconnected<(Result<Void, Error>) -> Void>)
       /// Indicates that the producer should be notified about an error.
-      case resumeProducerWithError((Result<Void, Error>) -> Void, Error)
+      case resumeProducerWithError(Disconnected<(Result<Void, Error>) -> Void>, Error)
     }
 
     @inlinable
@@ -1066,12 +1060,12 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           channeling.cancelledAsyncProducers.remove(at: index)
           self = .init(state: .channeling(channeling))
 
-          return .resumeProducerWithError(onProduceMore, CancellationError())
+          return .resumeProducerWithError(.init(value: onProduceMore), CancellationError())
         } else if channeling.hasOutstandingDemand {
           // We hit an edge case here where we wrote but the consuming thread got interleaved
           self = .init(state: .channeling(channeling))
 
-          return .resumeProducer(onProduceMore)
+          return .resumeProducer(.init(value: onProduceMore))
         } else {
           channeling.suspendedProducers.append((callbackToken, .closure(onProduceMore)))
           self = .init(state: .channeling(channeling))
@@ -1084,20 +1078,26 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .sourceFinished(sourceFinished))
 
-        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
+        return .resumeProducerWithError(
+          .init(value: onProduceMore),
+          MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()
+        )
 
       case .finished(let finished):
         // Since we are unlocking between sending elements and suspending the send
         // It can happen that the source got finished or the consumption fully finishes.
         self = .init(state: .finished(finished))
 
-        return .resumeProducerWithError(onProduceMore, MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError())
+        return .resumeProducerWithError(
+          .init(value: onProduceMore),
+          MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError()
+        )
       }
     }
 
     /// Actions returned by `enqueueContinuation()`.
     @usableFromInline
-    enum EnqueueContinuationAction {
+    enum EnqueueContinuationAction: Sendable {
       /// Indicates that the producer should be notified to produce more.
       case resumeProducer(UnsafeContinuation<Void, any Error>)
       /// Indicates that the producer should be notified about an error.
@@ -1147,7 +1147,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `cancelProducer()`.
     @usableFromInline
-    enum CancelProducerAction {
+    enum CancelProducerAction: Sendable {
       /// Indicates that the producer should be notified about cancellation.
       case resumeProducerWithCancellationError(_MultiProducerSingleConsumerSuspendedProducer)
     }
@@ -1190,7 +1190,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `finish()`.
     @usableFromInline
-    enum FinishAction {
+    enum FinishAction: Sendable {
       /// Indicates that `onTermination`s should be called.
       case callOnTerminations(_TinyArray<(UInt64, @Sendable () -> Void)>)
       /// Indicates that the consumer  should be resumed with the failure, the producers
@@ -1266,12 +1266,12 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `next()`.
     @usableFromInline
-    enum NextAction {
+    enum NextAction: ~Copyable, Sendable {
       /// Indicates that the element should be returned to the caller.
-      case returnElement(SendableConsumeOnceBox<Element>)
+      case returnElement(Disconnected<Element>)
       /// Indicates that the element should be returned to the caller and that all producers should be called.
       case returnElementAndResumeProducers(
-        SendableConsumeOnceBox<Element>,
+        Disconnected<Element>,
         _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
       )
       /// Indicates that the `Failure` should be returned to the caller and that `onTermination`s should be called.
@@ -1310,14 +1310,14 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           // We don't have any new demand, so we can just return the element.
           self = .init(state: .channeling(channeling))
 
-          return .returnElement(element)
+          return .returnElement(Disconnected(value: element.take()))
         }
         // There is demand and we have to resume our producers
         let producers = _TinyArray(channeling.suspendedProducers.lazy.map { $0.1 })
         channeling.suspendedProducers.removeAll(keepingCapacity: true)
         self = .init(state: .channeling(channeling))
 
-        return .returnElementAndResumeProducers(element, producers)
+        return .returnElementAndResumeProducers(Disconnected(value: element.take()), producers)
 
       case .sourceFinished(var sourceFinished):
         // Check if we have an element left in the buffer and return it
@@ -1340,7 +1340,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         }
         self = .init(state: .sourceFinished(sourceFinished))
 
-        return .returnElement(element)
+        return .returnElement(Disconnected(value: element.take()))
 
       case .finished(let finished):
         self = .init(state: .finished(finished))
@@ -1351,21 +1351,72 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `suspendNext()`.
     @usableFromInline
-    enum SuspendNextAction: ~Copyable {
+    enum SuspendNextAction: ~Copyable, Sendable {
+      /// Payload for `.resumeConsumerWithElement`.
+      ///
+      /// - Note: Wrapped in a struct to work around a SILGen crash when
+      ///   destructively pattern-matching an enum case with multiple payloads
+      ///   that include a `~Copyable` generic wrapper type (`Disconnected`).
+      @usableFromInline
+      struct ResumeElement: ~Copyable, Sendable {
+        @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
+        @usableFromInline var element: Disconnected<Element>
+
+        @inlinable
+        init(
+          continuation: UnsafeContinuation<Element?, Error>,
+          element: consuming Disconnected<Element>
+        ) {
+          self.continuation = continuation
+          self.element = element
+        }
+      }
+      /// Payload for `.resumeConsumerWithElementAndProducers`.
+      ///
+      /// - Note: See `ResumeElement` for the reason behind this wrapper.
+      @usableFromInline
+      struct ResumeElementAndProducers: ~Copyable, Sendable {
+        @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
+        @usableFromInline var element: Disconnected<Element>
+        @usableFromInline let producerContinuations: _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
+
+        @inlinable
+        init(
+          continuation: UnsafeContinuation<Element?, Error>,
+          element: consuming Disconnected<Element>,
+          producerContinuations: _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
+        ) {
+          self.continuation = continuation
+          self.element = element
+          self.producerContinuations = producerContinuations
+        }
+      }
+      /// Payload for `.resumeConsumerWithFailureAndCallOnTerminations`.
+      ///
+      /// - Note: See `ResumeElement` for the reason behind this wrapper.
+      @usableFromInline
+      struct ResumeFailure: ~Copyable, Sendable {
+        @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
+        @usableFromInline let failure: Failure?
+        @usableFromInline let onTerminations: _TinyArray<(UInt64, @Sendable () -> Void)>
+
+        @inlinable
+        init(
+          continuation: UnsafeContinuation<Element?, Error>,
+          failure: Failure?,
+          onTerminations: _TinyArray<(UInt64, @Sendable () -> Void)>
+        ) {
+          self.continuation = continuation
+          self.failure = failure
+          self.onTerminations = onTerminations
+        }
+      }
       /// Indicates that the consumer should be resumed.
-      case resumeConsumerWithElement(UnsafeContinuation<Element?, Error>, SendableConsumeOnceBox<Element>)
+      case resumeConsumerWithElement(ResumeElement)
       /// Indicates that the consumer and all producers should be resumed.
-      case resumeConsumerWithElementAndProducers(
-        UnsafeContinuation<Element?, Error>,
-        SendableConsumeOnceBox<Element>,
-        _TinyArray<_MultiProducerSingleConsumerSuspendedProducer>
-      )
+      case resumeConsumerWithElementAndProducers(ResumeElementAndProducers)
       /// Indicates that the consumer should be resumed with the failure and that `onTermination`s should be called.
-      case resumeConsumerWithFailureAndCallOnTerminations(
-        UnsafeContinuation<Element?, Error>,
-        Failure?,
-        _TinyArray<(UInt64, @Sendable () -> Void)>
-      )
+      case resumeConsumerWithFailureAndCallOnTerminations(ResumeFailure)
       /// Indicates that the consumer should be resumed with `nil`.
       case resumeConsumerWithNil(UnsafeContinuation<Element?, Error>)
     }
@@ -1396,7 +1447,9 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           // We don't have any new demand, so we can just return the element.
           self = .init(state: .channeling(channeling))
 
-          return .resumeConsumerWithElement(continuation, element)
+          return .resumeConsumerWithElement(
+            .init(continuation: continuation, element: Disconnected(value: element.take()))
+          )
         }
         // There is demand and we have to resume our producers
         let producers = _TinyArray(channeling.suspendedProducers.lazy.map { $0.1 })
@@ -1404,9 +1457,11 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         self = .init(state: .channeling(channeling))
 
         return .resumeConsumerWithElementAndProducers(
-          continuation,
-          element,
-          producers
+          .init(
+            continuation: continuation,
+            element: Disconnected(value: element.take()),
+            producerContinuations: producers
+          )
         )
 
       case .sourceFinished(var sourceFinished):
@@ -1424,14 +1479,18 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
           )
 
           return .resumeConsumerWithFailureAndCallOnTerminations(
-            continuation,
-            sourceFinished.failure,
-            sourceFinished.onTerminations
+            .init(
+              continuation: continuation,
+              failure: sourceFinished.failure,
+              onTerminations: sourceFinished.onTerminations
+            )
           )
         }
         self = .init(state: .sourceFinished(sourceFinished))
 
-        return .resumeConsumerWithElement(continuation, element)
+        return .resumeConsumerWithElement(
+          .init(continuation: continuation, element: Disconnected(value: element.take()))
+        )
 
       case .finished(let finished):
         self = .init(state: .finished(finished))
@@ -1442,7 +1501,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     /// Actions returned by `cancelNext()`.
     @usableFromInline
-    enum CancelNextAction {
+    enum CancelNextAction: Sendable {
       /// Indicates that the continuation should be resumed with nil, the producers should be finished and call onTerminations.
       case resumeConsumerWithNilAndCallOnTerminations(
         UnsafeContinuation<Element?, Error>,
@@ -1715,11 +1774,14 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
 
 @available(AsyncAlgorithms 1.1, *)
 @usableFromInline
-enum _MultiProducerSingleConsumerSuspendedProducer {
+// TODO:  This type is unchecked Sendable since the closure is actually sending
+// We can't yet use Disconnected here since we need to have a UniqueDeque to store them
+enum _MultiProducerSingleConsumerSuspendedProducer: @unchecked Sendable {
   case closure((Result<Void, Error>) -> Void)
   case continuation(UnsafeContinuation<Void, Error>)
 }
 
+// TODO: This should be replaced with Disconnected once we have a UniqueDeque
 @usableFromInline
 struct SendableConsumeOnceBox<Wrapped> {
   @usableFromInline

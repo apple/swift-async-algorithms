@@ -12,10 +12,10 @@
 #if UnstableAsyncStreaming && compiler(>=6.4)
 public import ContainersPreview
 
-/// Writes elements asynchronously from a caller-provided span.
+/// Writes elements asynchronously from a caller-provided buffer.
 ///
 /// Adopt ``CallerAsyncWriter`` when you need caller-managed buffering,
-/// where the caller provides a span of elements for the writer
+/// where the caller provides a buffer of elements for the writer
 /// to consume.
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
 public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
@@ -25,27 +25,25 @@ public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escap
   /// The error type that writing operations throw.
   associatedtype WriteFailure: Error
 
-  /// Writes a span of elements to the underlying destination.
+  /// Writes elements from the provided buffer to the underlying destination.
   ///
-  /// This method asynchronously writes all elements from the provided span to whatever destination
-  /// the writer represents. The operation may require multiple write calls to complete if the
-  /// writer cannot accept all elements at once.
+  /// This method asynchronously writes all elements from the provided buffer to the destination
+  /// the writer represents.
   ///
-  /// - Parameter span: The span of elements to write. If not all elements can be written, `span` will be non-empty after `write` returns
+  /// - Parameter buffer: The buffer of elements to write.
   ///
-  /// - Throws: A `WriteFailure` from the underlying write operation
+  /// - Throws: A `WriteFailure` from the underlying write operation.
   ///
   /// ## Example
   ///
   /// ```swift
   /// var fileWriter: FileAsyncWriter = ...
-  /// let dataBuffer: [UInt8] = [1, 2, 3, 4, 5]
+  /// var data = UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
   ///
-  /// // Write the entire span to a file asynchronously
-  /// try await fileWriter.write(dataBuffer.span)
+  /// try await fileWriter.write(buffer: &data)
   /// ```
-  mutating func write(
-    span: borrowing InputSpan<WriteElement>
-  ) async throws(WriteFailure)
+  mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
+    buffer: inout Buffer
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable
 }
 #endif

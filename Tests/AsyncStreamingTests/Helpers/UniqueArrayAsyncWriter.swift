@@ -15,20 +15,25 @@ import BasicContainers
 import ContainersPreview
 
 @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
-struct UniqueArrayAsyncReader: ~Copyable, AsyncReader {
-  typealias ReadElement = Int
+struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
+  typealias WriteElement = Int
   typealias Buffer = UniqueArray<Int>
-  typealias ReadFailure = Never
+  typealias WriteFailure = Never
 
   var storage: UniqueArray<Int>
 
-  mutating func read<Return: ~Copyable, Failure: Error>(
-    body: (inout UniqueArray<Int>) async throws(Failure) -> Return
+  init(capacity: Int = 100) {
+    self.storage = UniqueArray(minimumCapacity: capacity)
+  }
+
+  mutating func write<Return: ~Copyable, Failure: Error>(
+    _ body: (inout UniqueArray<Int>) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
+    var buffer = UniqueArray<Int>(minimumCapacity: 64)
     do {
-      var uniqueArray = self.storage.clone()
-      self.storage = .init()
-      return try await body(&uniqueArray)
+      let result = try await body(&buffer)
+      self.storage.append(copying: buffer)
+      return result
     } catch {
       throw .second(error)
     }

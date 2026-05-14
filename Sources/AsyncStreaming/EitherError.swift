@@ -17,20 +17,16 @@
 @frozen
 public enum EitherError<First: Error, Second: Error>: Error {
   /// An error of the first type.
-  ///
-  /// The associated value contains the specific error instance of type `First`.
   case first(First)
 
   /// An error of the second type.
-  ///
-  /// The associated value contains the specific error instance of type `Second`.
   case second(Second)
 
-  /// Throws the underlying error, unwrapping this either error.
+  /// Throws the underlying error, unwrapping this ``EitherError``.
   ///
-  /// This method extracts and throws the error in the either error,
+  /// This method extracts and throws the contained error,
   /// whether it's the first or second type. Use this when you need to propagate
-  /// the original error without the either error wrapper.
+  /// the original error without the ``EitherError`` wrapper.
   ///
   /// - Throws: The underlying error, either of type `First` or `Second`.
   ///
@@ -38,10 +34,9 @@ public enum EitherError<First: Error, Second: Error>: Error {
   ///
   /// ```swift
   /// do {
-  ///     // Some operation that returns EitherError
   ///     let result = try await operation()
   /// } catch let eitherError as EitherError<NetworkError, ParseError> {
-  ///     try eitherError.unwrap() // Throws the original error
+  ///     try eitherError.unwrap()
   /// }
   /// ```
   public func unwrap() throws {

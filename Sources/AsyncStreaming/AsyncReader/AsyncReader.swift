@@ -12,58 +12,47 @@
 #if UnstableAsyncStreaming && compiler(>=6.4)
 public import ContainersPreview
 
-/// Reads elements asynchronously from a source.
+/// Reads elements asynchronously from a source using callee-managed buffering.
 ///
-/// Adopt ``AsyncReader`` when you need to provide callee-managed buffering,
-/// where the reader controls the buffer and passes a span of elements
-/// to the caller through the `body` closure.
+/// Adopt ``AsyncReader`` when you need callee-managed buffering,
+/// where the reader controls the buffer and passes it to the caller
+/// through the `body` closure.
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
 public protocol AsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
   /// The type of elements this reader reads.
   associatedtype ReadElement: ~Copyable
+
+  /// The container type the reader uses to pass elements to the caller.
+  associatedtype Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable
 
   /// The error type that reading operations throw.
   associatedtype ReadFailure: Error
 
   /// Reads elements from the underlying source and passes them to the provided body closure.
   ///
-  /// This method asynchronously reads a span of elements from the source,
-  /// then passes them to `body` for processing.
+  /// This method asynchronously reads elements from the source into a buffer,
+  /// then passes the buffer to `body` for processing. When the buffer is empty,
+  /// the stream has ended.
   ///
   /// ```swift
   /// var fileReader: FileAsyncReader = ...
   ///
-  /// // Read data from a file asynchronously and process it.
-  /// let result = try await fileReader.read { data in
-  ///     guard data.count > 0 else {
-  ///         return
+  /// let result = try await fileReader.read { buffer in
+  ///     guard buffer.count > 0 else {
+  ///         return 0
   ///     }
-  ///     return data
+  ///     return buffer.count
   /// }
   /// ```
   ///
-  /// - Parameter maximumCount: The maximum count of items you're ready
-  ///   to process. Must be greater than zero.
-  /// - Parameter body: A closure that processes a span of read elements
-  ///   and returns a value of type `Return`. When the span is empty,
-  ///   it indicates the end of the stream.
+  /// - Parameter body: A closure that receives a mutable reference to the buffer
+  ///   of read elements and returns a value of type `Return`. When the buffer
+  ///   is empty, it indicates the end of the stream.
   /// - Returns: The value the body closure returns after processing the read elements.
   /// - Throws: An `EitherError` containing either a `ReadFailure` from the read operation
   ///   or a `Failure` from the body closure.
   mutating func read<Return: ~Copyable, Failure: Error>(
-    maximumCount: Int,
-    body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Return
+    body: (inout Buffer) async throws(Failure) -> Return
   ) async throws(EitherError<ReadFailure, Failure>) -> Return
-
-}
-
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
-  /// Reads elements with no upper bound on span size.
-  public mutating func read<Return: ~Copyable, Failure: Error>(
-    body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Return
-  ) async throws(EitherError<ReadFailure, Failure>) -> Return {
-    try await read(maximumCount: .max, body: body)
-  }
 }
 #endif
