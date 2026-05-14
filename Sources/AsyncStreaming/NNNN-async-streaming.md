@@ -147,7 +147,7 @@ The bite-sized pseudocode:
 
 ```
 protocol AsyncReader {
-    // Callee provides a full buffer; caller processes it
+    // Callee provides a full buffer; caller drains it
     func read(body: (inout buffer) throws -> R) throws -> R
 }
 
