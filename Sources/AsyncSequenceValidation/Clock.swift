@@ -22,6 +22,7 @@ extension AsyncSequenceValidationDiagram {
   }
 }
 
+@available(AsyncAlgorithms 1.0, *)
 public protocol TestClock: Sendable {
   associatedtype Instant: TestInstant
 
@@ -30,6 +31,7 @@ public protocol TestClock: Sendable {
   func sleep(until deadline: Self.Instant, tolerance: Self.Instant.Duration?) async throws
 }
 
+@available(AsyncAlgorithms 1.0, *)
 public protocol TestInstant: Equatable {
   associatedtype Duration
 }
