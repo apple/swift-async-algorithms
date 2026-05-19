@@ -19,7 +19,6 @@ import Testing
 @Suite
 struct AsyncReaderCollectTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func collectAllElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
@@ -31,7 +30,6 @@ struct AsyncReaderCollectTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func collectWithExactLimit() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
@@ -43,7 +41,6 @@ struct AsyncReaderCollectTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func collectEmptyReader() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
 
@@ -55,7 +52,6 @@ struct AsyncReaderCollectTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func collectProcessesAllElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
 
@@ -71,7 +67,6 @@ struct AsyncReaderCollectTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func collectThrowsLeftOverElements() async throws {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 

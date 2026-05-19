@@ -17,7 +17,7 @@ public import ContainersPreview
 /// Adopt ``CallerAsyncWriter`` when you need caller-managed buffering,
 /// where the caller provides a buffer of elements for the writer
 /// to consume.
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
+@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
 public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
   /// The type of elements this writer writes.
   associatedtype WriteElement: ~Copyable

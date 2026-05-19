@@ -19,7 +19,6 @@ import Testing
 @Suite
 struct AsyncReaderforEachBufferTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferIteratesAllSpans() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
     var elementCount = 0
@@ -32,7 +31,6 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferProcessesElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
     var sum = 0
@@ -47,7 +45,6 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferWithEmptyReader() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
     var callCount = 0
@@ -60,7 +57,6 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferWithThrowingBody() async {
     enum TestError: Error {
       case failed
@@ -79,7 +75,6 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferWithNeverFailingReader() async {
     enum TestError: Error {
       case failed
@@ -100,7 +95,6 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func forEachBufferWithAsyncWork() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
     var results: [Int] = []

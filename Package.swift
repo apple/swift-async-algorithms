@@ -163,7 +163,7 @@ if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
     .package(
       url: "https://github.com/apple/swift-collections.git",
-      from: "1.5.0",
+      from: "1.5.1",
       traits: [.trait(name: "UnstableContainersPreview", condition: .when(traits: ["UnstableAsyncStreaming"]))]
     )
   ]

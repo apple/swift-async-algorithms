@@ -18,7 +18,6 @@ import Testing
 @Suite
 struct AsyncWriterTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeElements() async {
     var writer = UniqueArrayAsyncWriter()
 
@@ -35,7 +34,6 @@ struct AsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeEmptyBuffer() async {
     var writer = UniqueArrayAsyncWriter()
 
@@ -45,7 +43,6 @@ struct AsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeReturnsValue() async {
     var writer = UniqueArrayAsyncWriter()
 
@@ -60,7 +57,6 @@ struct AsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeWithThrowingBody() async {
     enum TestError: Error, Equatable {
       case failed
@@ -79,7 +75,6 @@ struct AsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeMultipleTimes() async {
     var writer = UniqueArrayAsyncWriter()
 
