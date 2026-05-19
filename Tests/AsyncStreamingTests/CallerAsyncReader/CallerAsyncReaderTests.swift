@@ -18,7 +18,6 @@ import Testing
 @Suite
 struct CallerAsyncReaderTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func readIntoBuffer() async {
     var reader = UniqueArrayCallerAsyncReader(
       storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
@@ -36,7 +35,6 @@ struct CallerAsyncReaderTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func readIntoBufferAtEnd() async {
     var reader = UniqueArrayCallerAsyncReader(
       storage: UniqueArray(capacity: 0, copying: [])
@@ -49,7 +47,6 @@ struct CallerAsyncReaderTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func readIntoBufferRespectsCapacity() async {
     var reader = UniqueArrayCallerAsyncReader(
       storage: UniqueArray(capacity: 10, copying: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -65,7 +62,6 @@ struct CallerAsyncReaderTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func readMultipleTimes() async {
     var reader = UniqueArrayCallerAsyncReader(
       storage: UniqueArray(capacity: 6, copying: [1, 2, 3, 4, 5, 6])

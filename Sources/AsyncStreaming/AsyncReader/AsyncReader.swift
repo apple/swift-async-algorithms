@@ -17,7 +17,7 @@ public import ContainersPreview
 /// Adopt ``AsyncReader`` when you need callee-managed buffering,
 /// where the reader controls the buffer and passes it to the caller
 /// through the `body` closure.
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, visionOS 1.0, *)
+@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
 public protocol AsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
   /// The type of elements this reader reads.
   associatedtype ReadElement: ~Copyable

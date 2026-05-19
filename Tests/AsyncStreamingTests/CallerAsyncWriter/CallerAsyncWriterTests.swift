@@ -18,7 +18,6 @@ import Testing
 @Suite
 struct CallerAsyncWriterTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
     var data = UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
@@ -29,7 +28,6 @@ struct CallerAsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeEmptyBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
     var data = UniqueArray<Int>()
@@ -40,7 +38,6 @@ struct CallerAsyncWriterTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func writeLargeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter(capacity: 100)
     var data = UniqueArray(capacity: 5, copying: Array(1...50))

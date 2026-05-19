@@ -962,7 +962,7 @@ final class MultiProducerSingleConsumerAsyncChannelTests: XCTestCase {
     _ = await iterator.next(isolation: nil)
   }
 
-  func testWatermarWithLotsOfElements() async throws {
+  func testWatermarkWithLotsOfElements() async throws {
     await withThrowingTaskGroup(of: Void.self) { group in
       // This test should in the future use a custom task executor to schedule to avoid sending
       // 1000 elements.
@@ -971,7 +971,7 @@ final class MultiProducerSingleConsumerAsyncChannelTests: XCTestCase {
         backpressureStrategy: .watermark(low: 2, high: 4)
       )
       let channel = channelAndSource.takeChannel()
-      var source: MultiProducerSingleConsumerAsyncChannel.Source! = consume channelAndSource.source
+      var source: MultiProducerSingleConsumerAsyncChannel.Source? = consume channelAndSource.source
 
       group.addTask {
         var source = source.take()!

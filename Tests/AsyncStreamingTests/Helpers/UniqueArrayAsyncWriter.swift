@@ -14,7 +14,6 @@ import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 
-@available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
 struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
   typealias WriteElement = Int
   typealias Buffer = UniqueArray<Int>

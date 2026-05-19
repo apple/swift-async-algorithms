@@ -18,7 +18,6 @@ import Testing
 @Suite
 struct AsyncReaderTests {
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func read() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
@@ -35,7 +34,6 @@ struct AsyncReaderTests {
   }
 
   @Test
-  @available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
   func readEmptyAtEnd() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
