@@ -518,6 +518,73 @@ handling semantics (particularly `collect`'s nested `EitherError` and the
 `AsyncReaderLeftOverElementsError` overflow behavior) benefit from real-world
 usage feedback before stabilization.
 
+### Piping a reader into a writer
+
+A common pattern when bridging streams is piping all elements from a reader to
+a writer. We envision convenience extensions on each reader protocol that
+consume the reader and forward its elements into a matching writer.
+
+When the buffer ownership of the reader and writer aligns, the buffer can flow
+directly between the two without an intermediate stage:
+
+```swift
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given callee-owned writer
+    /// until the stream ends.
+    public consuming func pipe<Writer>(
+        into writer: inout Writer
+    ) async throws where Writer: AsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+}
+
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
+    /// Pipes all elements from this reader into the given caller-owned writer
+    /// until the stream ends.
+    public consuming func pipe<Writer>(
+        into writer: inout Writer
+    ) async throws where Writer: CallerAsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+}
+```
+
+The two remaining combinations require a transfer between separate buffers. We
+distinguish them with explicit argument labels so the cost is visible at the
+call site:
+
+```swift
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given callee-owned writer,
+    /// copying each element from the reader's buffer into the writer's buffer.
+    ///
+    /// Both protocols supply their own buffer, so each element is moved between
+    /// them. The writer's buffer may be smaller than the reader's, in which case
+    /// multiple `write` calls are issued per chunk produced by the reader.
+    public consuming func pipe<Writer>(
+        copyingInto writer: inout Writer
+    ) async throws where Writer: AsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+}
+
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given caller-owned writer
+    /// through an intermediate buffer of the requested capacity.
+    ///
+    /// Neither protocol supplies a buffer, so this method allocates a single
+    /// `UniqueArray` and reuses it across iterations. The writer must drain all
+    /// elements during each `write(buffer:)` call.
+    public consuming func pipe<Writer>(
+        bufferingInto writer: inout Writer,
+        intermediateCapacity: Int
+    ) async throws where Writer: CallerAsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+}
+```
+
+These helpers eliminate the boilerplate of manually looping, threading an
+end-of-stream signal, and shuttling buffers between the two sides. Defining
+`pipe` on the reader matches the precedent that the operation hangs off the
+consumed source rather than the long-lived destination.
+
+Like the iteration and collection helpers above, these are intentionally
+excluded from the initial proposal so that their error handling semantics can
+mature through real-world use before stabilization.
+
 ### Owned buffer transfer protocols
 
 The four protocols in this proposal all use generic `RangeReplaceableContainer`
