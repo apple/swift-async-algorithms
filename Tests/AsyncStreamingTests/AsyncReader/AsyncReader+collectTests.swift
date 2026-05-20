@@ -20,7 +20,7 @@ import Testing
 struct AsyncReaderCollectTests {
   @Test
   func collectAllElements() async throws {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
     let result = try await reader.collect(upTo: 10) { span in
       return Array(span)
@@ -31,7 +31,7 @@ struct AsyncReaderCollectTests {
 
   @Test
   func collectWithExactLimit() async throws {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
     let result = try await reader.collect(upTo: 5) { span in
       return Array(span)
@@ -42,7 +42,7 @@ struct AsyncReaderCollectTests {
 
   @Test
   func collectEmptyReader() async throws {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
 
     let result = try await reader.collect(upTo: 10) { span in
       return span.count
@@ -53,7 +53,7 @@ struct AsyncReaderCollectTests {
 
   @Test
   func collectProcessesAllElements() async throws {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
 
     let result = try await reader.collect(upTo: 10) { span in
       var sum = 0
@@ -67,16 +67,30 @@ struct AsyncReaderCollectTests {
   }
 
   @Test
-  func collectThrowsLeftOverElements() async throws {
-    var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
+  func collectVoidOverloadReturnsResultOnly() async throws {
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
-    let expectedError = EitherError<EitherError<Never, AsyncReaderLeftOverElementsError>, Never>.first(
-      .second(AsyncReaderLeftOverElementsError())
-    )
-    await #expect(throws: expectedError) {
-      try await reader.collect(upTo: 1) { span in
+    let result: [Int] = try await reader.collect(upTo: 10) { span in
+      return Array(span)
+    }
+
+    #expect(result == [1, 2, 3])
+  }
+
+  @Test
+  func collectThrowsLeftOverElements() async throws {
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
+
+    do {
+      _ = try await reader.collect(upTo: 1) { (span) -> Int in
         return span.count
       }
+      Issue.record("Expected error")
+    } catch {
+      let expected = EitherError<EitherError<Never, AsyncReaderLeftOverElementsError>, Never>.first(
+        .second(AsyncReaderLeftOverElementsError())
+      )
+      #expect(error == expected)
     }
   }
 }

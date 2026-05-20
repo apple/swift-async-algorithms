@@ -94,5 +94,17 @@ struct AsyncWriterTests {
     #expect(writer.storage[2] == 3)
     #expect(writer.storage[3] == 4)
   }
+
+  @Test
+  func finishVoidConvenience() async {
+    let writer = UniqueArrayAsyncWriter()
+    await writer.finish()
+  }
+
+  @Test
+  func finishDeliversFinalElement() async {
+    let writer = UniqueArrayAsyncWriter()
+    await writer.finish(finalElement: ())
+  }
 }
 #endif
