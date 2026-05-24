@@ -27,6 +27,34 @@ final class TestReductions: XCTestCase {
     XCTAssertNil(pastEnd)
   }
 
+  func test_reductions_empty() async {
+    let sequence = [Int]().async.reductions("") { partial, value in
+      partial + "\(value)"
+    }
+    var iterator = sequence.makeAsyncIterator()
+    var collected = [String]()
+    while let item = await iterator.next() {
+      collected.append(item)
+    }
+    XCTAssertEqual(collected, [])
+    let pastEnd = await iterator.next()
+    XCTAssertNil(pastEnd)
+  }
+
+  func test_throwing_reductions_empty() async throws {
+    let sequence = [Int]().async.reductions("") { (partial, value) throws -> String in
+      partial + "\(value)"
+    }
+    var iterator = sequence.makeAsyncIterator()
+    var collected = [String]()
+    while let item = try await iterator.next() {
+      collected.append(item)
+    }
+    XCTAssertEqual(collected, [])
+    let pastEnd = try await iterator.next()
+    XCTAssertNil(pastEnd)
+  }
+
   func test_inclusive_reductions() async {
     let sequence = [1, 2, 3, 4].async.reductions { $0 + $1 }
     var iterator = sequence.makeAsyncIterator()
