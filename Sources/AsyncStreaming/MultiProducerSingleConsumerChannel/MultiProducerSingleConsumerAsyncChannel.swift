@@ -31,8 +31,7 @@ public import ContainersPreview
 /// The channel takes a ``FinalElement`` type that it delivers alongside the
 /// end-of-stream signal. A producer terminates the channel by calling
 /// either ``Source/finish(finalElement:)`` to signal end-of-stream
-/// (optionally with a payload) or ``Source/finish(throwing:)`` to terminate
-/// with a failure.
+/// or ``Source/finish(throwing:)`` to terminate with a failure.
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public struct MultiProducerSingleConsumerAsyncChannel<
   Element,
@@ -231,7 +230,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
       self._storage.finish(throwing: error, finalElement: nil)
     }
 
-    /// Finishes the channel with an optional ``FinalElement`` payload.
+    /// Finishes the channel with a ``FinalElement`` payload.
     ///
     /// The reader observes end-of-stream as a non-`nil` `finalElement`
     /// argument to the body of its next
@@ -243,7 +242,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     ///   final batch of elements alongside the terminator, call
     ///   ``write(buffer:)`` first and then ``finish(finalElement:)``.
     @inlinable
-    public consuming func finish(finalElement: consuming sending FinalElement?) {
+    public consuming func finish(finalElement: consuming sending FinalElement) {
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
 
@@ -295,11 +294,11 @@ extension MultiProducerSingleConsumerAsyncChannel.Source where FinalElement == V
   /// Finishes the channel with an empty `Void` end-of-stream payload.
   ///
   /// This method is equivalent to calling ``finish(finalElement:)`` with
-  /// `.some(())`. The reader observes end-of-stream as a non-`nil`
+  /// `()`. The reader observes end-of-stream as a non-`nil`
   /// `finalElement` argument to the body of its next read.
   @inlinable
   public consuming func finish() {
-    self._storage.finish(throwing: nil, finalElement: .some(()))
+    self._storage.finish(throwing: nil, finalElement: ())
   }
 }
 

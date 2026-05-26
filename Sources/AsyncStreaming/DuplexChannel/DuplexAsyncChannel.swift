@@ -28,7 +28,7 @@ public import ContainersPreview
 ///   readerA <──────────────────────────────────────── writerB
 /// ```
 ///
-/// The four handles are independent ``~Copyable`` values so each can be
+/// The four handles are independent `~Copyable` values so each can be
 /// sent to its own task without an intermediate decomposition step.
 ///
 /// Each direction applies backpressure independently using the configured
@@ -45,8 +45,8 @@ public import ContainersPreview
 ///
 /// The ``FinalElement`` and ``Failure`` types apply to both directions.
 /// Each direction's writer terminates its half of the channel
-/// independently by calling ``Writer/finish(finalElement:)`` (optionally
-/// with a payload) or ``Writer/finish(throwing:)``.
+/// independently by calling ``Writer/finish(finalElement:)`` or
+/// ``Writer/finish(throwing:)``.
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public struct DuplexAsyncChannel<
   Element: Sendable,
@@ -300,7 +300,7 @@ extension DuplexAsyncChannel {
       self._storage.finish(throwing: error, finalElement: nil)
     }
 
-    /// Finishes this direction with an optional ``FinalElement`` payload.
+    /// Finishes this direction with a ``FinalElement`` payload.
     ///
     /// The peer reader observes end-of-stream as a non-`nil` `finalElement`
     /// argument to the body of its next ``Reader/read(body:)`` call. The
@@ -311,7 +311,7 @@ extension DuplexAsyncChannel {
     ///   send a final batch of elements alongside the terminator, call
     ///   ``write(buffer:)`` first and then ``finish(finalElement:)``.
     @inlinable
-    public consuming func finish(finalElement: consuming sending FinalElement?) {
+    public consuming func finish(finalElement: consuming sending FinalElement) {
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
 
@@ -364,7 +364,7 @@ extension DuplexAsyncChannel {
     }
 
     /// Drains `buffer` to the peer, then signals end-of-stream with the
-    /// optional ``FinalElement`` payload. Consumes the writer.
+    /// ``FinalElement`` payload. Consumes the writer.
     ///
     /// This is the ``CallerAsyncWriter`` protocol entry point. The
     /// duplex's in-memory transport doesn't fuse the last write with the
@@ -376,7 +376,7 @@ extension DuplexAsyncChannel {
     /// - Parameters:
     ///   - buffer: A buffer of remaining elements to write before
     ///     signaling end-of-stream.
-    ///   - finalElement: An optional payload to deliver alongside the
+    ///   - finalElement: The payload to deliver alongside the
     ///     end-of-stream signal.
     /// - Throws: Any error thrown while draining `buffer`. If draining
     ///   fails, the direction is left unterminated; the scope's
@@ -384,7 +384,7 @@ extension DuplexAsyncChannel {
     @inlinable
     public consuming func finish<Buffer: RangeReplaceableContainer<Element> & ~Copyable>(
       buffer: inout Buffer,
-      finalElement: consuming FinalElement?
+      finalElement: consuming FinalElement
     ) async throws {
       try await self.write(buffer: &buffer)
       self._storage.finish(throwing: nil, finalElement: finalElement)
@@ -397,11 +397,11 @@ extension DuplexAsyncChannel.Writer where FinalElement == Void {
   /// Finishes this direction with an empty `Void` end-of-stream payload.
   ///
   /// This method is equivalent to calling ``finish(finalElement:)`` with
-  /// `.some(())`. The peer reader observes end-of-stream as a non-`nil`
+  /// `()`. The peer reader observes end-of-stream as a non-`nil`
   /// `finalElement` argument to the body of its next read.
   @inlinable
   public consuming func finish() {
-    self._storage.finish(throwing: nil, finalElement: .some(()))
+    self._storage.finish(throwing: nil, finalElement: ())
   }
 }
 
