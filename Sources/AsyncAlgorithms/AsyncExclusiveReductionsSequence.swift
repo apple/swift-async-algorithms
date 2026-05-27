@@ -14,15 +14,18 @@ extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given closure.
   ///
-  /// This can be seen as applying the reduce function to each element and
-  /// providing the initial value followed by these results as an asynchronous sequence.
+  /// Starting from the initial value, this combines each element of the base
+  /// asynchronous sequence with the running result and emits each intermediate
+  /// result. The initial value itself is not emitted, so the first element of
+  /// the returned sequence is the result of combining the initial value with
+  /// the first element of the base sequence. If the base sequence is empty, the
+  /// returned sequence is also empty.
   ///
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
   ///   - transform: A closure that combines the previously-reduced result and
   ///     the next element in the receiving asynchronous sequence, which it returns.
-  /// - Returns: An asynchronous sequence of the initial value followed by the reduced
-  ///   elements.
+  /// - Returns: An asynchronous sequence of the reduced elements.
   @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func reductions<Result>(
@@ -37,16 +40,19 @@ extension AsyncSequence {
   /// Returns an asynchronous sequence containing the accumulated results of combining the
   /// elements of the asynchronous sequence using the given closure.
   ///
-  /// This can be seen as applying the reduce function to each element and
-  /// providing the initial value followed by these results as an asynchronous sequence.
+  /// Starting from the initial value, this combines each element of the base
+  /// asynchronous sequence with the running result and emits each intermediate
+  /// result. The initial value itself is not emitted, so the first element of
+  /// the returned sequence is the result of combining the initial value with
+  /// the first element of the base sequence. If the base sequence is empty, the
+  /// returned sequence is also empty.
   ///
   /// - Parameters:
   ///   - initial: The value to use as the initial value.
   ///   - transform: A closure that combines the previously-reduced result and
   ///     the next element in the receiving asynchronous sequence, mutating the
   ///     previous result instead of returning a value.
-  /// - Returns: An asynchronous sequence of the initial value followed by the reduced
-  ///   elements.
+  /// - Returns: An asynchronous sequence of the reduced elements.
   @available(AsyncAlgorithms 1.0, *)
   @inlinable
   public func reductions<Result>(
