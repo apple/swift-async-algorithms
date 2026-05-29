@@ -16,8 +16,10 @@ import Synchronization
 @available(AsyncAlgorithms 1.1, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
+  @frozen
   enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
     @usableFromInline
+    @frozen
     struct _Watermark: Sendable, CustomStringConvertible {
       /// The low watermark where demand should start.
       @usableFromInline
@@ -118,7 +120,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
     @usableFromInline
     let _stateMachine: Mutex<_StateMachine>
 
-    @inlinable
+    @usableFromInline
     init(
       backpressureStrategy: _InternalBackpressureStrategy
     ) {
@@ -505,6 +507,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
 extension MultiProducerSingleConsumerAsyncChannel._Storage {
   /// The state machine of the channel.
   @usableFromInline
+  @frozen
   struct _StateMachine: ~Copyable {
     /// The state machine's current state.
     @usableFromInline
@@ -1358,6 +1361,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       ///   destructively pattern-matching an enum case with multiple payloads
       ///   that include a `~Copyable` generic wrapper type (`Disconnected`).
       @usableFromInline
+      @frozen
       struct ResumeElement: ~Copyable, Sendable {
         @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
         @usableFromInline var element: Disconnected<Element>
@@ -1375,6 +1379,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       ///
       /// - Note: See `ResumeElement` for the reason behind this wrapper.
       @usableFromInline
+      @frozen
       struct ResumeElementAndProducers: ~Copyable, Sendable {
         @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
         @usableFromInline var element: Disconnected<Element>
@@ -1395,6 +1400,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       ///
       /// - Note: See `ResumeElement` for the reason behind this wrapper.
       @usableFromInline
+      @frozen
       struct ResumeFailure: ~Copyable, Sendable {
         @usableFromInline let continuation: UnsafeContinuation<Element?, Error>
         @usableFromInline let failure: Failure?
@@ -1560,8 +1566,10 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
   @usableFromInline
+  @frozen
   enum _State: ~Copyable {
     @usableFromInline
+    @frozen
     struct Channeling: ~Copyable {
       /// The backpressure strategy.
       @usableFromInline
@@ -1662,6 +1670,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
     }
 
     @usableFromInline
+    @frozen
     struct SourceFinished: ~Copyable {
       /// Indicates if the iterator was initialized.
       @usableFromInline
@@ -1718,6 +1727,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
     }
 
     @usableFromInline
+    @frozen
     struct Finished: ~Copyable {
       /// Indicates if the iterator was initialized.
       @usableFromInline
@@ -1783,6 +1793,7 @@ enum _MultiProducerSingleConsumerSuspendedProducer: @unchecked Sendable {
 
 // TODO: This should be replaced with Disconnected once we have a UniqueDeque
 @usableFromInline
+@frozen
 struct SendableConsumeOnceBox<Wrapped> {
   @usableFromInline
   var wrapped: Optional<Wrapped>

@@ -26,8 +26,10 @@
 /// It supports arbitrary many elements but if only up to one ``Element`` is stored it does **not** allocate separate storage on the heap
 /// and instead stores the ``Element`` inline.
 @usableFromInline
+@frozen
 struct _TinyArray<Element> {
   @usableFromInline
+  @frozen
   enum Storage {
     case one(Element)
     case arbitrary([Element])
