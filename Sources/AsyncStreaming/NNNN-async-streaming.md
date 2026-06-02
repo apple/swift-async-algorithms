@@ -13,9 +13,10 @@
 
 Introduces four protocols for asynchronous streaming with caller- and
 callee-managed buffer ownership for both reading and writing. Supports
-noncopyable types, bulk/chunked access, and bidirectional streaming while
-maintaining structured concurrency. Provides bridging extensions between
-`AsyncReader` and `AsyncSequence`.
+noncopyable types, bulk/chunked access, fused end-of-stream signaling with an
+optional final-element payload, and bidirectional streaming while maintaining
+structured concurrency. Provides bridging extensions between `AsyncReader` and
+`AsyncSequence`.
 
 ## Motivation
 
@@ -276,29 +277,76 @@ The callee-owned reader controls the buffer and passes a mutable reference to it
 through a scoped closure. This is the preferred protocol for read streams.
 
 ```swift
-public protocol AsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
-    /// The type of elements that can be read.
-    associatedtype ReadElement: ~Copyable
+/// Reads elements asynchronously from a source using callee-managed buffering.
+///
+/// Adopt ``AsyncReader`` when you need callee-managed buffering,
+/// where the reader controls the buffer and passes it to the caller
+/// through the `body` closure.
+///
+/// ## Signaling end of stream
+///
+/// The reader signals end-of-stream by passing a non-`nil` value for the
+/// `finalElement` parameter of the `body` closure. This call may also carry a
+/// final chunk of elements in the buffer, allowing the reader to fuse the last
+/// chunk with the end signal in a single operation.
+///
+/// The ``FinalElement`` associated type controls what data, if any, the reader
+/// delivers alongside the end signal. The default is `Void`, which means the
+/// signal carries no payload. Set ``FinalElement`` to a custom type when the
+/// reader needs to deliver structured data with the terminator. Set it to `Never` to indicate
+/// that the stream never ends — the `finalElement` parameter will always be `nil`.
+///
+/// After the reader has emitted a non-`nil` `finalElement`, calling
+/// ``read(body:)`` again is a programmer error.
+public protocol AsyncReader<ReadElement, ReadFailure, FinalElement>: ~Copyable, ~Escapable {
+  /// The type of elements this reader reads.
+  associatedtype ReadElement: ~Copyable
 
-    /// The container type the reader uses to pass elements to the caller.
-    associatedtype Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable
+  /// The container type the reader uses to pass elements to the caller.
+  associatedtype Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable
 
-    /// The type of error thrown during reading.
-    associatedtype ReadFailure: Error
+  /// The error type that reading operations throw.
+  associatedtype ReadFailure: Error
 
-    /// Reads elements from the source and passes them to the body closure.
-    ///
-    /// The reader fills an internal buffer from its source and passes a mutable
-    /// reference to it to `body`. When the buffer is empty, the stream
-    /// has ended.
-    ///
-    /// - Parameter body: A closure that processes the read elements.
-    /// - Returns: The value returned by the body closure.
-    /// - Throws: An `EitherError` containing either a `ReadFailure` from the read
-    ///   operation or a `Failure` from the body closure.
-    mutating func read<Return, Failure: Error>(
-        body: (inout Buffer) async throws(Failure) -> Return
-    ) async throws(EitherError<ReadFailure, Failure>) -> Return
+  /// The data the reader delivers alongside the end-of-stream signal.
+  ///
+  /// Defaults to `Void`. Use a custom type to carry data along with the
+  /// end signal. Use `Never` for streams that never end.
+  associatedtype FinalElement: ~Copyable = Void
+
+  /// Reads elements from the underlying source and passes them to the provided body closure.
+  ///
+  /// This method asynchronously reads elements from the source into a buffer,
+  /// then passes the buffer and an optional `finalElement` to `body` for
+  /// processing.
+  ///
+  /// A `nil` value for `finalElement` means more data may follow. A non-`nil`
+  /// value (which is the only way a stream of `FinalElement == Void` signals
+  /// end) marks this chunk as the last one and delivers the final payload.
+  /// The terminal chunk's buffer may be empty or contain a final batch of
+  /// elements; the caller must process both.
+  ///
+  /// After the reader has emitted a non-`nil` `finalElement`, calling
+  /// ``read(body:)`` again is a programmer error.
+  ///
+  /// ```swift
+  /// var fileReader: FileAsyncReader = ...
+  ///
+  /// let result = try await fileReader.read { buffer, finalElement in
+  ///     let processed = buffer.count
+  ///     return (processed, finalElement != nil)
+  /// }
+  /// ```
+  ///
+  /// - Parameter body: A closure that receives a mutable reference to the buffer
+  ///   of read elements together with the optional end-of-stream payload and
+  ///   returns a value of type `Return`. 
+  /// - Returns: The value the body closure returns after processing the read elements.
+  /// - Throws: An `EitherError` containing either a `ReadFailure` from the read operation
+  ///   or a `Failure` from the body closure.
+  mutating func read<Return: ~Copyable, Failure: Error>(
+    body: (inout Buffer, consuming FinalElement?) async throws(Failure) -> Return
+  ) async throws(EitherError<ReadFailure, Failure>) -> Return
 }
 ```
 
@@ -308,23 +356,56 @@ The caller provides a buffer that the reader fills with elements from the
 source.
 
 ```swift
-public protocol CallerAsyncReader<ReadElement, ReadFailure>: ~Copyable, ~Escapable {
-    /// The type of elements that can be read.
-    associatedtype ReadElement: ~Copyable
+/// Reads elements asynchronously into a caller-provided buffer.
+///
+/// Adopt ``CallerAsyncReader`` when you need caller-managed buffering,
+/// where the caller supplies a buffer that the reader fills
+/// with elements.
+///
+/// ## Signaling end of stream
+///
+/// The reader signals end-of-stream by returning a non-`nil` ``FinalElement``
+/// from ``read(into:)``. The same call may also append a final batch of
+/// elements to the caller's buffer, allowing the reader to fuse the last
+/// chunk with the end signal.
+///
+/// The ``FinalElement`` associated type controls what data, if any, the reader
+/// delivers alongside the end signal. The default is `Void`. Use a custom type
+/// to carry data along with the end signal, or `Never` for streams that never
+/// end.
+///
+/// After the reader has returned a non-`nil` `FinalElement`, calling
+/// ``read(into:)`` again is a programmer error.
+public protocol CallerAsyncReader<ReadElement, ReadFailure, FinalElement>: ~Copyable, ~Escapable {
+  /// The type of elements this reader reads.
+  associatedtype ReadElement: ~Copyable
 
-    /// The type of error thrown during reading.
-    associatedtype ReadFailure: Error
+  /// The error type that reading operations throw.
+  associatedtype ReadFailure: Error
 
-    /// Reads elements from the source into the provided buffer.
-    ///
-    /// Appends elements into `buffer`. When the read operation reaches the
-    /// end of the source, no elements are appended.
-    ///
-    /// - Parameter buffer: The buffer to fill with read elements.
-    /// - Throws: A `ReadFailure` from the underlying read operation.
-    mutating func read<Buffer: RangeReplaceableContainer<ReadElement>>(
-        into buffer: inout Buffer
-    ) async throws(ReadFailure) where Buffer.Element: ~Copyable
+  /// The data the reader delivers alongside the end-of-stream signal.
+  ///
+  /// Defaults to `Void`. Use a custom type to carry data along with the end
+  /// signal, or `Never` for streams that never end.
+  associatedtype FinalElement: ~Copyable = Void
+
+  /// Reads elements from the source into the provided buffer.
+  ///
+  /// This method appends elements into `buffer`. A non-`nil` return value
+  /// signals end-of-stream and delivers the final payload. The call may
+  /// also append a final batch of elements before signaling end.
+  ///
+  /// After the reader has returned a non-`nil` `FinalElement`, calling
+  /// ``read(into:)`` again is a programmer error.
+  ///
+  /// - Parameter buffer: The buffer to fill with read elements.
+  /// - Returns: A non-`nil` ``FinalElement`` if this call delivered the
+  ///   end-of-stream signal; `nil` if more elements may follow.
+  /// - Throws: A `ReadFailure` from the underlying read operation.
+  // TODO: Check if we should support ~Escapable buffer
+  mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
+    into buffer: inout Buffer
+  ) async throws(ReadFailure) -> FinalElement? where Buffer.Element: ~Copyable
 }
 ```
 
@@ -334,22 +415,78 @@ The caller provides a buffer of elements for the writer to consume. This is the
 preferred protocol for write streams.
 
 ```swift
-public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
-    /// The type of elements that can be written.
-    associatedtype WriteElement: ~Copyable
+/// Writes elements asynchronously from a caller-provided buffer.
+///
+/// Adopt ``CallerAsyncWriter`` when you need caller-managed buffering,
+/// where the caller provides a buffer of elements for the writer
+/// to consume.
+///
+/// ## Signaling end of stream
+///
+/// The writer is terminated by a call to ``finish(buffer:finalElement:)``.
+/// The `finish` call communicates a final buffer (if any) and the
+/// ``FinalElement`` payload, allowing implementations to fuse the last data
+/// frame with the end signal on transports that support it.
+///
+/// The ``FinalElement`` associated type controls what data, if any, the writer
+/// transmits alongside the end signal. The default is `Void`. Use a custom
+/// type to carry data along with the end signal, or `Never` for endless
+/// streams. When ``FinalElement`` is `Never`, ``finish(buffer:finalElement:)``
+/// cannot be called and the writer can be written to indefinitely.
+///
+/// Conformers must accept zero, one, or many `write(buffer:)` calls, optionally
+/// followed by a single `finish(buffer:finalElement:)` call. After `finish`
+/// returns, the writer is consumed and no further calls are valid.
+public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable, ~Escapable {
+  /// The type of elements this writer writes.
+  associatedtype WriteElement: ~Copyable
 
-    /// The type of error thrown during writing.
-    associatedtype WriteFailure: Error
+  /// The error type that writing operations throw.
+  associatedtype WriteFailure: Error
 
-    /// Writes elements from the provided buffer to the destination.
-    ///
-    /// Asynchronously writes all elements from the provided buffer.
-    ///
-    /// - Parameter buffer: The buffer of elements to write.
-    /// - Throws: A `WriteFailure` from the underlying write operation.
-    mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-        buffer: inout Buffer
-    ) async throws(WriteFailure) where Buffer.Element: ~Copyable
+  /// The data the writer delivers alongside the end-of-stream signal.
+  ///
+  /// Defaults to `Void`.
+  associatedtype FinalElement: ~Copyable = Void
+
+  /// Writes elements from the provided buffer to the underlying destination.
+  ///
+  /// This method asynchronously writes all elements from the provided buffer
+  /// to the underlying destination.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var fileWriter: FileAsyncWriter = ...
+  /// var data = UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
+  ///
+  /// try await fileWriter.write(buffer: &data)
+  /// ```
+  ///
+  /// - Parameter buffer: The buffer of elements to write.
+  ///
+  /// - Throws: A `WriteFailure` from the underlying write operation.
+  mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
+    buffer: inout Buffer
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable
+
+  /// Sends the final buffer and ``FinalElement`` payload, and signals
+  /// end-of-stream to the destination.
+  ///
+  /// The buffer may be empty if there is no remaining content to emit
+  /// alongside the terminator. When ``FinalElement`` is `Void`, use the
+  /// closure-less ``finish()`` convenience instead of passing `()` explicitly.
+  ///
+  /// - Parameters:
+  ///   - buffer: The buffer of remaining elements to write alongside the
+  ///     terminator. 
+  ///   - finalElement: The ``FinalElement`` payload to deliver with the end
+  ///     signal.
+  /// - Throws: A `WriteFailure` from the underlying write operation.
+  consuming func finish<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
+    buffer: inout Buffer,
+    finalElement: consuming FinalElement
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable
 }
 ```
 
@@ -358,31 +495,115 @@ public protocol CallerAsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escap
 The writer provides a buffer that the caller fills with elements to write.
 
 ```swift
-public protocol AsyncWriter<WriteElement, WriteFailure>: ~Copyable, ~Escapable {
-    /// The type of elements that can be written.
-    associatedtype WriteElement: ~Copyable
+/// Writes elements asynchronously to a destination using callee-managed buffering.
+///
+/// Adopt ``AsyncWriter`` when you need callee-managed buffering,
+/// where the writer supplies a buffer that the caller fills
+/// with elements to write.
+///
+/// ## Signaling end of stream
+///
+/// The writer is terminated by a call to ``finish(finalElement:)``.
+/// Bulk transfer happens through ``write(_:)`` calls; ``finish(finalElement:)``
+/// only carries the ``FinalElement`` payload.
+///
+/// The ``FinalElement`` associated type controls what data, if any, the writer
+/// transmits alongside the end signal. The default is `Void`. Use a custom
+/// type to carry data along with the end signal, or `Never` for endless
+/// streams. When ``FinalElement`` is `Never`, ``finish(finalElement:)`` cannot
+/// be called and the writer can be written to indefinitely.
+public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable, ~Escapable {
+  /// The type of elements this writer writes.
+  associatedtype WriteElement: ~Copyable
 
-    /// The container type the writer uses to receive elements from the caller.
-    associatedtype Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable
+  /// The container type the writer uses to receive elements from the caller.
+  associatedtype Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable
 
-    /// The type of error thrown during writing.
-    associatedtype WriteFailure: Error
+  /// The error type that writing operations throw.
+  associatedtype WriteFailure: Error
 
-    /// Provides a buffer for writing elements to the destination.
-    ///
-    /// The writer supplies a buffer that the `body` closure fills with
-    /// elements. After the closure returns, the writer handles the actual
-    /// write operation.
-    ///
-    /// - Parameter body: A closure that receives a mutable buffer to fill.
-    /// - Returns: The value returned by the body closure.
-    /// - Throws: An `EitherError` containing either a `WriteFailure` from the
-    ///   write operation or a `Failure` from the body closure.
-    mutating func write<Return, Failure: Error>(
-        _ body: (inout Buffer) async throws(Failure) -> Return
-    ) async throws(EitherError<WriteFailure, Failure>) -> Return
+  /// The data the writer delivers alongside the end-of-stream signal.
+  ///
+  /// Defaults to `Void`. Use a custom type to carry data along with the end
+  /// signal.
+  associatedtype FinalElement: ~Copyable = Void
+
+  /// Provides a buffer for writing elements to the destination.
+  ///
+  /// The writer supplies a buffer, sized by the implementation, that
+  /// `body` uses to append elements. The writer manages the buffer
+  /// allocation and handles the writing operation once `body` completes.
+  /// Oversized payloads are split across multiple calls.
+  ///
+  /// - Parameter body: A closure that receives a buffer for appending elements
+  ///   to write. The closure returns a result of type `Return`.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// var writer: SomeAsyncWriter = ...
+  ///
+  /// try await writer.write { buffer in
+  ///     for item in items {
+  ///         buffer.append(item)
+  ///     }
+  ///     return buffer.count
+  /// }
+  /// ```
+  ///
+  /// - Returns: The value the body closure returns.
+  ///
+  /// - Throws: An `EitherError` containing either a `WriteFailure` from the write operation
+  ///   or a `Failure` from the body closure.
+  mutating func write<Return: ~Copyable, Failure: Error>(
+    _ body: (inout Buffer) async throws(Failure) -> Return
+  ) async throws(EitherError<WriteFailure, Failure>) -> Return
+
+  /// Closes the writer, delivering a ``FinalElement`` payload alongside the
+  /// end-of-stream signal.
+  ///
+  /// - Parameter finalElement: The ``FinalElement`` payload to deliver with
+  ///   the end signal.
+  /// - Throws: A ``WriteFailure`` from the underlying write operation.
+  consuming func finish(
+    finalElement: consuming FinalElement
+  ) async throws(WriteFailure)
 }
 ```
+
+### Final-element payload
+
+Every protocol carries a `FinalElement` associated type, the data, if any,
+that the stream delivers alongside its end-of-stream signal. The default is
+`Void`, which carries no extra payload; the signal itself is the only
+information conveyed. Besides `Void` final elements there are two other
+possibilities:
+
+ * **`FinalElement == Never`** marks a stream as endless. For readers, the
+   terminal signal can never fire (because `Never?` only inhabits `nil`), so
+   callers can rely statically on the absence of termination — useful for
+   clocks, log tails, and other endless sources. The same applies symmetrically
+   to writers: with `FinalElement == Never`, `finish` cannot be called, so the
+   writer can be written to indefinitely but never explicitly terminated.
+   Examples include logging sinks, metrics emitters, and continuous output
+   streams.
+ * **A custom payload type** lets the stream attach structured data to the
+   close: HTTP trailers, a checksum, a frame's status code. An example is HTTP,
+   which specializes `FinalElement` to `HTTPFields?` so the last DATA frame and
+   the trailers can be fused into a single transport operation.
+
+For readers, the terminal `read` call may also carry a final chunk of payload
+elements alongside the end signal; the caller must process both. For writers,
+`finish` is a consuming operation that delivers the `FinalElement` payload and
+signals end-of-stream. `CallerAsyncWriter.finish(buffer:finalElement:)` also
+carries a final buffer, so the last buffer and the terminator can be fused
+into a single transport operation. `AsyncWriter.finish(finalElement:)` carries
+only the terminator; conformers that can fuse may defer flushing the most
+recent `write(_:)` until `finish` is called, achieving the same coalescing.
+
+Convenience extensions on the writer protocols expose a closure-less `finish()`
+when `FinalElement == Void`, so callers that don't need a custom payload can
+omit the explicit `()` argument.
 
 ### Bridging between `AsyncReader` and `AsyncSequence`
 
@@ -484,106 +705,118 @@ core protocols are established.
 
 ### Iteration and collection helpers
 
-Two common patterns emerge immediately when working with `AsyncReader`: iterating
-over all chunks until the stream ends, and collecting elements into a buffer up
-to a specified limit. We envision convenience extensions for both:
+Two common patterns emerge immediately when working with `AsyncReader`:
+iterating over all chunks until the stream ends, and collecting elements into
+a buffer up to a specified limit. We envision convenience extensions for both,
+both of which surface the `FinalElement` payload to the caller:
 
 ```swift
 extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
-    /// Iterates over all chunks, executing `body` for each buffer until the
-    /// stream ends.
+    /// Iterates every chunk, executing `body` for each, until the reader
+    /// signals end-of-stream. Returns the `FinalElement` delivered with the
+    /// terminal chunk.
     public consuming func forEachBuffer<Failure: Error>(
         body: (inout Buffer) async throws(Failure) -> Void
-    ) async throws(EitherError<ReadFailure, Failure>)
+    ) async throws(EitherError<ReadFailure, Failure>) -> FinalElement?
 }
 
 extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
-    /// Collects elements up to `limit`, then passes the accumulated
-    /// elements to `body` as an `InputSpan`.
-    public mutating func collect<Result, Failure: Error>(
+    /// Collects up to `limit` elements, then passes the accumulated elements
+    /// to `body` as an `InputSpan`. Returns the body's result together with
+    /// the `FinalElement`.
+    public consuming func collect<Result, Failure: Error>(
         upTo limit: Int,
         body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Result
-    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> Result
+    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> (Result, FinalElement?)
 }
 ```
 
-`forEachBuffer` provides a simple way to consume an entire stream without manually
-looping over `read` calls and checking for empty buffers. `collect` accumulates
-elements from multiple reads into a single buffer before processing, which is
-useful when an algorithm needs all data in contiguous memory (for example,
-parsing a complete message frame).
+`forEachBuffer` provides a simple way to consume an entire stream without
+manually looping over `read` calls and threading the end signal. `collect`
+accumulates elements from multiple reads into a single buffer before
+processing, which is useful when an algorithm needs all data in contiguous
+memory (for example, parsing a complete message frame). A second
+`where FinalElement == Void` overload of `collect` lets callers that don't
+need the payload omit the tuple.
 
-These helpers are intentionally excluded from this proposal because their error
-handling semantics (particularly `collect`'s nested `EitherError` and the
+These helpers are intentionally excluded from this proposal because their
+error-handling shapes (particularly `collect`'s nested `EitherError` and the
 `AsyncReaderLeftOverElementsError` overflow behavior) benefit from real-world
 usage feedback before stabilization.
 
 ### Piping a reader into a writer
 
-A common pattern when bridging streams is piping all elements from a reader to
-a writer. We envision convenience extensions on each reader protocol that
-consume the reader and forward its elements into a matching writer.
+A common pattern when bridging streams is piping all elements from a reader
+to a writer. We envision convenience extensions on each reader protocol that
+consume both sides and forward the elements — including the `FinalElement`
+payload, fused with the writer's `finish` where the protocols allow it.
 
-When the buffer ownership of the reader and writer aligns, the buffer can flow
-directly between the two without an intermediate stage:
+When the buffer ownership of the reader and writer aligns, the buffer can
+flow directly between the two without an intermediate stage:
 
 ```swift
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
-    /// Pipes all elements from this reader into the given callee-owned writer
-    /// until the stream ends.
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given caller-owned
+    /// writer, fusing the terminal chunk with `finish` so the transport
+    /// sees a single close.
     public consuming func pipe<Writer>(
-        into writer: inout Writer
-    ) async throws where Writer: AsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+        into writer: consuming Writer
+    ) async throws
+    where Writer: CallerAsyncWriter & ~Copyable,
+          Writer.WriteElement == ReadElement,
+          Writer.FinalElement == FinalElement
 }
 
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
-    /// Pipes all elements from this reader into the given caller-owned writer
-    /// until the stream ends.
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given callee-owned
+    /// writer.
     public consuming func pipe<Writer>(
-        into writer: inout Writer
-    ) async throws where Writer: CallerAsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+        into writer: consuming Writer
+    ) async throws
+    where Writer: AsyncWriter & ~Copyable,
+          Writer.WriteElement == ReadElement,
+          Writer.FinalElement == FinalElement
 }
 ```
 
-The two remaining combinations require a transfer between separate buffers. We
-distinguish them with explicit argument labels so the cost is visible at the
-call site:
+The two remaining combinations require a transfer between separate buffers.
+We distinguish them with explicit argument labels so the cost is visible at
+the call site:
 
 ```swift
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
-    /// Pipes all elements from this reader into the given callee-owned writer,
-    /// copying each element from the reader's buffer into the writer's buffer.
-    ///
-    /// Both protocols supply their own buffer, so each element is moved between
-    /// them. The writer's buffer may be smaller than the reader's, in which case
-    /// multiple `write` calls are issued per chunk produced by the reader.
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given callee-owned
+    /// writer, copying each element from the reader's buffer into the
+    /// writer's buffer.
     public consuming func pipe<Writer>(
-        copyingInto writer: inout Writer
-    ) async throws where Writer: AsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+        copyingInto writer: consuming Writer
+    ) async throws
+    where Writer: AsyncWriter & ~Copyable,
+          Writer.WriteElement == ReadElement,
+          Writer.FinalElement == FinalElement
 }
 
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
-    /// Pipes all elements from this reader into the given caller-owned writer
-    /// through an intermediate buffer of the requested capacity.
-    ///
-    /// Neither protocol supplies a buffer, so this method allocates a single
-    /// `UniqueArray` and reuses it across iterations. The writer must drain all
-    /// elements during each `write(buffer:)` call.
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+    /// Pipes all elements from this reader into the given caller-owned
+    /// writer through an intermediate buffer of the requested capacity.
     public consuming func pipe<Writer>(
-        bufferingInto writer: inout Writer,
+        bufferingInto writer: consuming Writer,
         intermediateCapacity: Int
-    ) async throws where Writer: CallerAsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement
+    ) async throws
+    where Writer: CallerAsyncWriter & ~Copyable,
+          Writer.WriteElement == ReadElement,
+          Writer.FinalElement == FinalElement
 }
 ```
 
-These helpers eliminate the boilerplate of manually looping, threading an
-end-of-stream signal, and shuttling buffers between the two sides. Defining
-`pipe` on the reader matches the precedent that the operation hangs off the
-consumed source rather than the long-lived destination.
+These helpers eliminate the boilerplate of manually looping, threading the
+end signal, and shuttling buffers between the two sides. Defining `pipe` on
+the reader matches the precedent that the operation hangs off the consumed
+source rather than the long-lived destination.
 
 Like the iteration and collection helpers above, these are intentionally
-excluded from the initial proposal so that their error handling semantics can
-mature through real-world use before stabilization.
+excluded from the initial proposal so that their error-handling and
+fused-close semantics can mature through real-world use before stabilization.
 
 ### Owned buffer transfer protocols
 
@@ -725,6 +958,42 @@ cases (as demonstrated in the Motivation section), the full 2×2 matrix is
 necessary. With clear signposting of which protocols are "preferred," the
 developer experience remains approachable for the majority while not tying the
 hands of those with specialized requirements.
+
+### Omitting the `FinalElement` associated type
+
+An earlier shape of this proposal had no `FinalElement` concept at all: the
+read side signaled end-of-stream by returning an empty buffer; the write side
+signaled it implicitly by deinitializing or consuming the writer. That design
+is simpler to teach but fails on two fronts.
+
+**It cannot express transports that deliver structured data with the close.**
+Many real protocols attach a payload to the end-of-stream signal:
+
+ * **HTTP** sends trailing fields after the last DATA frame, these are arbitrary
+   header-like key/value pairs (checksums, signed digests, gRPC status) that
+   are only available once the body has been transmitted. Without
+   `FinalElement`, an HTTP body reader has no way to surface the trailers to
+   its caller alongside the last chunk; the application would need a separate
+   out-of-band channel.
+ * **gRPC** carries the call's terminal status (OK / error code + message) in
+   the trailers of every server-streaming response. The body protocol *must*
+   be able to deliver that status to the caller.
+
+These are not exotic edge cases, they are two of the most common streaming
+transports a Swift server library will need to support.
+
+**It cannot fuse the last write with the close signal.** HTTP/2, HTTP/3, and
+QUIC all let the sender attach an END_STREAM flag to the same frame that
+carries the final body bytes. Without an explicit `finish` operation that
+takes both the last chunk and the terminator, the writer would have to emit
+two separate transport operations: one `write` for the final bytes, and a
+later deinit-driven close. That doubles the syscall / framing cost on the hot
+path of every request and forfeits the kernel-side coalescing these protocols
+were specifically designed to enable.
+
+Defaulting `FinalElement` to `Void` keeps the trivial case ergonomic, a plain
+file or byte-stream conformer needn't think about the associated type, while
+making the HTTP- and gRPC-shaped use cases expressible at all.
 
 ### Not using closures to provide temporary access to buffers
 

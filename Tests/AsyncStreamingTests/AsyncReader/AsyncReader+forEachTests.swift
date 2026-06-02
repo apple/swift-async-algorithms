@@ -53,7 +53,8 @@ struct AsyncReaderforEachBufferTests {
       callCount += 1
     }
 
-    #expect(callCount == 0)
+    // The reader still emits a terminal call (with an empty buffer + finalElement).
+    #expect(callCount == 1)
   }
 
   @Test
@@ -65,7 +66,7 @@ struct AsyncReaderforEachBufferTests {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
     do {
-      try await reader.forEachBuffer { (_) throws(TestError) -> Void in
+      _ = try await reader.forEachBuffer { (_) throws(TestError) -> Void in
         throw TestError.failed
       }
       Issue.record("Expected error to be thrown")
@@ -84,7 +85,7 @@ struct AsyncReaderforEachBufferTests {
     var count = 0
 
     do {
-      try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
+      _ = try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
         count += buffer.count
       }
     } catch {
@@ -99,7 +100,7 @@ struct AsyncReaderforEachBufferTests {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
     var results: [Int] = []
 
-    await reader.forEachBuffer { buffer in
+    _ = await reader.forEachBuffer { buffer in
       await Task.yield()
       for i in buffer.indices {
         results.append(buffer[i])

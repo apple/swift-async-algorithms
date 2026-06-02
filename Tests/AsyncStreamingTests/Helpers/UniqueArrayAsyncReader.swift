@@ -18,16 +18,20 @@ struct UniqueArrayAsyncReader: ~Copyable, AsyncReader {
   typealias ReadElement = Int
   typealias Buffer = UniqueArray<Int>
   typealias ReadFailure = Never
+  typealias FinalElement = Void
 
   var storage: UniqueArray<Int>
+  var didEmitFinal: Bool = false
 
   mutating func read<Return: ~Copyable, Failure: Error>(
-    body: (inout UniqueArray<Int>) async throws(Failure) -> Return
+    body: (inout UniqueArray<Int>, Void?) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
+    precondition(!self.didEmitFinal, "read called after end-of-stream")
+    self.didEmitFinal = true
     do {
       var uniqueArray = self.storage.clone()
       self.storage = .init()
-      return try await body(&uniqueArray)
+      return try await body(&uniqueArray, .some(()))
     } catch {
       throw .second(error)
     }

@@ -18,8 +18,10 @@ struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
   typealias WriteElement = Int
   typealias Buffer = UniqueArray<Int>
   typealias WriteFailure = Never
+  typealias FinalElement = Void
 
   var storage: UniqueArray<Int>
+  var didFinish: Bool = false
 
   init(capacity: Int = 100) {
     self.storage = UniqueArray(minimumCapacity: capacity)
@@ -36,6 +38,12 @@ struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
     } catch {
       throw .second(error)
     }
+  }
+
+  consuming func finish(
+    finalElement: consuming Void
+  ) async throws(Never) {
+    self.didFinish = true
   }
 }
 #endif

@@ -80,10 +80,6 @@ struct CallerAsyncReaderTests {
     #expect(buffer2[0] == 4)
     #expect(buffer2[1] == 5)
     #expect(buffer2[2] == 6)
-
-    var buffer3 = UniqueArray<Int>(minimumCapacity: 3)
-    await reader.read(into: &buffer3)
-    #expect(buffer3.count == 0)
   }
 }
 #endif

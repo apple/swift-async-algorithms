@@ -21,7 +21,9 @@ struct AsyncReaderTests {
   func read() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
-    let result = try! await reader.read { buffer in
+    var observedFinal = false
+    let result: UniqueArray<Int> = try! await reader.read { (buffer, finalElement) in
+      observedFinal = finalElement != nil
       return buffer.clone()
     }
 
@@ -31,25 +33,21 @@ struct AsyncReaderTests {
     #expect(result[2] == 3)
     #expect(result[3] == 4)
     #expect(result[4] == 5)
+    #expect(observedFinal)
   }
 
   @Test
-  func readEmptyAtEnd() async {
+  func readDeliversTerminator() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
-    // Read all data
-    let first = try! await reader.read { buffer in
+    var observedFinal = false
+    let count: Int = try! await reader.read { (buffer, finalElement) in
+      observedFinal = finalElement != nil
       return buffer.count
     }
 
-    #expect(first == 3)
-
-    // Next read should return empty span
-    let second = try! await reader.read { buffer in
-      return buffer.count
-    }
-
-    #expect(second == 0)
+    #expect(count == 3)
+    #expect(observedFinal)
   }
 }
 #endif

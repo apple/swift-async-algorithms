@@ -14,88 +14,124 @@
 import ContainersPreview
 import BasicContainers
 
-@available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
+// TODO: The `Writer` generic parameter on every `pipe` variant in this file
+// should additionally be constrained `& ~Escapable`. We currently can't
+// express that because of a Swift lifetime-checker limitation: with
+// `FinalElement: ~Copyable`, the `consuming FinalElement?` parameter on the
+// reader's `read` closure changes the closure's lifetime category, and
+// capturing a `~Escapable Writer` inside that closure (which `pipe` does, via
+// the `writerOpt` Optional that alternates between `write` and `finish`
+// calls) trips "lifetime-dependent variable 'writer' escapes its scope".
+// When that restriction is relaxed (or `pipe` is restructured to avoid
+// capturing the writer across the closure boundary) the constraint should be
+// added back so `pipe` works for `~Escapable` writers too.
+
+@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
 extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
-  /// Pipes all elements from this reader into the given writer.
+  /// Pipes all elements from this reader into the given writer, then signals
+  /// end-of-stream with a `finish` call on the writer.
   ///
-  /// This method consumes the reader and writes all of its elements into the writer's
-  /// destination. It continuously reads chunks into buffers supplied by the writer and
-  /// flushes them until this reader's stream ends.
+  /// Consumes both the reader and the writer. The reader fills the writer's
+  /// buffer on each iteration; once the reader signals end-of-stream, the
+  /// writer's ``AsyncWriter/finish(finalElement:)`` is called with the reader's
+  /// ``CallerAsyncReader/FinalElement``.
   ///
   /// ## Example
   ///
   /// ```swift
   /// let dataReader: DataCallerAsyncReader = ...
-  /// var fileWriter: FileAsyncWriter = ...
+  /// let fileWriter: FileAsyncWriter = ...
   ///
-  /// // Copy all data from reader to writer
-  /// try await dataReader.pipe(into: &fileWriter)
+  /// try await dataReader.pipe(into: fileWriter)
   /// ```
   ///
-  /// - Parameter writer: An ``AsyncWriter`` to receive the elements. The writer is mutated
-  ///   in place and remains usable after this operation.
+  /// - Parameter writer: An ``AsyncWriter`` to receive the elements. The
+  ///   writer is consumed.
   ///
   /// - Throws: An error originating from the read or write operations.
   public consuming func pipe<Writer>(
-    into writer: inout Writer
+    into writer: consuming Writer
   ) async throws(EitherError<Writer.WriteFailure, ReadFailure>)
-  where Writer: AsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement {
-    var shouldContinue = true
-    while shouldContinue {
-      try await writer
-        .write { (buffer: inout Writer.Buffer) throws(ReadFailure) in
-          try await self.read(into: &buffer)
-          if buffer.count == 0 {
-            shouldContinue = false
-          }
+  where
+    Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement == ReadElement,
+    Writer.FinalElement == FinalElement
+  {
+    var reader = self
+    var writerOpt: Writer? = .some(writer)
+    var done = false
+    while !done {
+      var pendingFinal: FinalElement? = nil
+      try await writerOpt!
+        .write { (buffer: inout Writer.Buffer) throws(ReadFailure) -> Void in
+          pendingFinal = try await reader.read(into: &buffer)
         }
+      if let final = pendingFinal {
+        let w = writerOpt.take()!
+        do throws(Writer.WriteFailure) {
+          try await w.finish(finalElement: final)
+        } catch {
+          throw .first(error)
+        }
+        done = true
+      }
     }
   }
 
   /// Pipes all elements from this reader into the given writer through an intermediate buffer.
   ///
-  /// This method consumes the reader and writes all of its elements into the writer's
-  /// destination. Because neither the reader nor the writer supplies a buffer, this
-  /// method allocates an intermediate buffer of the requested capacity and reuses it
-  /// across iterations: each iteration fills the buffer from the reader and then hands
-  /// it to the writer to drain.
+  /// Consumes both the reader and the writer. Because neither protocol supplies
+  /// a buffer, this method allocates an intermediate buffer of the requested
+  /// capacity and reuses it across iterations. The terminal chunk is fused
+  /// with the writer's ``CallerAsyncWriter/finish(buffer:finalElement:)``.
   ///
   /// ## Example
   ///
   /// ```swift
   /// let dataReader: DataCallerAsyncReader = ...
-  /// var fileWriter: FileCallerAsyncWriter = ...
+  /// let fileWriter: FileCallerAsyncWriter = ...
   ///
-  /// // Copy all data from reader to writer using a 4 KB intermediate buffer
-  /// try await dataReader.pipe(bufferingInto: &fileWriter, intermediateCapacity: 4096)
+  /// try await dataReader.pipe(bufferingInto: fileWriter, intermediateCapacity: 4096)
   /// ```
   ///
   /// - Parameters:
-  ///   - writer: A ``CallerAsyncWriter`` to receive the elements. The writer is mutated
-  ///     in place and remains usable after this operation.
-  ///   - intermediateCapacity: The capacity of the intermediate buffer that mediates
-  ///     between the reader and writer. Larger values reduce the number of read and
-  ///     write calls at the cost of memory.
+  ///   - writer: A ``CallerAsyncWriter`` to receive the elements. The writer
+  ///     is consumed.
+  ///   - intermediateCapacity: The capacity of the intermediate buffer that
+  ///     mediates between the reader and writer.
   ///
   /// - Throws: An error originating from the read or write operations.
   public consuming func pipe<Writer>(
-    bufferingInto writer: inout Writer,
+    bufferingInto writer: consuming Writer,
     intermediateCapacity: Int
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
-  where Writer: CallerAsyncWriter & ~Copyable & ~Escapable, Writer.WriteElement == ReadElement {
+  where
+    Writer: CallerAsyncWriter & ~Copyable,
+    Writer.WriteElement == ReadElement,
+    Writer.FinalElement == FinalElement
+  {
+    var reader = self
+    var writerOpt: Writer? = .some(writer)
     var buffer = UniqueArray<ReadElement>(minimumCapacity: intermediateCapacity)
-    var shouldContinue = true
-    while shouldContinue {
+    var done = false
+    while !done {
+      let final: FinalElement?
       do throws(ReadFailure) {
-        try await self.read(into: &buffer)
+        final = try await reader.read(into: &buffer)
       } catch {
         throw .first(error)
       }
-      if buffer.count == 0 {
-        shouldContinue = false
-      } else {
+      if let final {
+        let w = writerOpt.take()!
         do throws(Writer.WriteFailure) {
-          try await writer.write(buffer: &buffer)
+          try await w.finish(buffer: &buffer, finalElement: final)
+        } catch {
+          throw .second(error)
+        }
+        done = true
+      } else if buffer.count > 0 {
+        do throws(Writer.WriteFailure) {
+          try await writerOpt!.write(buffer: &buffer)
           assert(buffer.count == 0, "CallerAsyncWriter must drain the buffer during write(buffer:)")
         } catch {
           throw .second(error)
