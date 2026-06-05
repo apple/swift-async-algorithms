@@ -37,7 +37,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var buf = UniqueArray(copying: [1, 2, 3])
       try await callerWriter.write(buffer: &buf)
       var empty = UniqueArray<Int>()
-      try await callerWriter.finish(buffer: &empty, finalElement: .some(()))
+      try await callerWriter.finish(buffer: &empty, finalElement: ())
 
       try await readerA.collect(upTo: 5) { span in
         #expect(span.count == 3)
@@ -70,7 +70,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var buf = UniqueArray(copying: elements)
       try await callerWriter.write(buffer: &buf)
       var empty = UniqueArray<Int>()
-      try await callerWriter.finish(buffer: &empty, finalElement: .some(()))
+      try await callerWriter.finish(buffer: &empty, finalElement: ())
 
       try await readerA.collect(upTo: 100) { span in
         #expect(span.count == 100)
@@ -93,7 +93,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
 
       let callerWriter = writerB.asAsyncWriter().asCallerAsyncWriter()
       var empty = UniqueArray<Int>()
-      try await callerWriter.finish(buffer: &empty, finalElement: .some(()))
+      try await callerWriter.finish(buffer: &empty, finalElement: ())
 
       try await readerA.collect(upTo: 5) { span in
         #expect(span.count == 0)
@@ -113,7 +113,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
 
       let callerWriter = writerB.asAsyncWriter().asCallerAsyncWriter()
       var trailing = UniqueArray(copying: [42, 43, 44])
-      try await callerWriter.finish(buffer: &trailing, finalElement: .some(()))
+      try await callerWriter.finish(buffer: &trailing, finalElement: ())
 
       try await readerA.collect(upTo: 5) { span in
         #expect(span.count == 3)
