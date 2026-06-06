@@ -727,7 +727,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     public consuming func collect<Result, Failure: Error>(
         upTo limit: Int,
         body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Result
-    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> (Result, FinalElement?)
+    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> (Result, FinalElement)
 }
 ```
 

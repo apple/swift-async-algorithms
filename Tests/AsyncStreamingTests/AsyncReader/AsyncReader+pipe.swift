@@ -17,70 +17,162 @@ import Testing
 
 @Suite
 struct AsyncReaderPipeTests {
+  // MARK: - pipe(into:) — into a CallerAsyncWriter
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeIntoCopiesAllElements() async throws {
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
-    )
-    let writer = UniqueArrayCallerAsyncWriter()
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 8, high: 32)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(into: writer)
+      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
+      try await writerA.write(buffer: &array)
+      writerA.finish()
+      try await readerB.pipe(into: writerB)
+
+      try await readerA.collect(upTo: 5) { span in
+        #expect(span.count == 5)
+        #expect(span[0] == 1)
+        #expect(span[1] == 2)
+        #expect(span[2] == 3)
+        #expect(span[3] == 4)
+        #expect(span[4] == 5)
+      }
+    }
   }
 
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeIntoWithEmptyReader() async throws {
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray<Int>()
-    )
-    let writer = UniqueArrayCallerAsyncWriter()
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 8, high: 32)
+    ) { writerA, readerA, writerB, readerB in
+      let writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(into: writer)
+      writerA.finish()
+      try await readerB.pipe(into: writerB)
+
+      try await readerA.collect(upTo: 5) { span in
+        #expect(span.count == 0)
+      }
+    }
   }
 
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeIntoPreservesElementOrder() async throws {
-    let elements = Array(1...50)
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray(capacity: elements.count, copying: elements)
-    )
-    let writer = UniqueArrayCallerAsyncWriter(capacity: elements.count)
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 16, high: 100)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(into: writer)
+      let elements = Array(1...50)
+      var array = UniqueArray(copying: elements)
+      try await writerA.write(buffer: &array)
+      writerA.finish()
+      try await readerB.pipe(into: writerB)
+
+      try await readerA.collect(upTo: 50) { span in
+        #expect(span.count == 50)
+        for i in 0..<50 {
+          #expect(span[i] == elements[i])
+        }
+      }
+    }
   }
 
+  // MARK: - pipe(copyingInto:) — into an AsyncWriter via the adapter
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeCopyingIntoCopiesAllElements() async throws {
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
-    )
-    let writer = UniqueArrayAsyncWriter()
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 8, high: 32)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(copyingInto: writer)
+      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
+      try await writerA.write(buffer: &array)
+      writerA.finish()
+      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+
+      try await readerA.collect(upTo: 5) { span in
+        #expect(span.count == 5)
+        #expect(span[0] == 1)
+        #expect(span[1] == 2)
+        #expect(span[2] == 3)
+        #expect(span[3] == 4)
+        #expect(span[4] == 5)
+      }
+    }
   }
 
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeCopyingIntoWithEmptyReader() async throws {
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray<Int>()
-    )
-    let writer = UniqueArrayAsyncWriter()
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 8, high: 32)
+    ) { writerA, readerA, writerB, readerB in
+      let writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(copyingInto: writer)
+      writerA.finish()
+      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+
+      try await readerA.collect(upTo: 5) { span in
+        #expect(span.count == 0)
+      }
+    }
   }
 
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
   func pipeCopyingIntoChunksTerminalChunkAcrossMultipleWrites() async throws {
-    // The reader's terminal chunk is 200 elements; the writer hands out
-    // 64-element buffers. Verify pipe runs without dropping bytes — the
-    // payload-bearing version of this scenario in FinalElementPipeTests
-    // checks the actual contents delivered.
-    let elements = Array(1...200)
-    let reader = UniqueArrayAsyncReader(
-      storage: UniqueArray(capacity: elements.count, copying: elements)
-    )
-    let writer = UniqueArrayAsyncWriter(capacity: 256)
+    // 200 elements through a small (16-element) AsyncWriter buffer
+    // forces the pipe loop to drain across multiple writes.
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 32, high: 256)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      let readerA = readerA
+      let writerB = writerB
+      let readerB = readerB
 
-    try await reader.pipe(copyingInto: writer)
+      let elements = Array(1...200)
+      var array = UniqueArray(copying: elements)
+      try await writerA.write(buffer: &array)
+      writerA.finish()
+      try await readerB.pipe(copyingInto: writerB.asAsyncWriter(initialCapacity: 16))
+
+      try await readerA.collect(upTo: 200) { span in
+        #expect(span.count == 200)
+        for i in 0..<200 {
+          #expect(span[i] == elements[i])
+        }
+      }
+    }
   }
 }
 #endif

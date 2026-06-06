@@ -68,6 +68,7 @@ let package = Package(
       dependencies: [
         .product(name: "BasicContainers", package: "swift-collections"),
         .product(name: "ContainersPreview", package: "swift-collections"),
+        .product(name: "DequeModule", package: "swift-collections"),
       ],
       swiftSettings: [
         .enableExperimentalFeature("SuppressedAssociatedTypesWithDefaults"),
