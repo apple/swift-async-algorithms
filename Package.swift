@@ -70,6 +70,7 @@ let package = Package(
         .product(name: "ContainersPreview", package: "swift-collections"),
         .product(name: "DequeModule", package: "swift-collections"),
       ],
+      exclude: ["NNNN-async-streaming.md"],
       swiftSettings: [
         .enableExperimentalFeature("SuppressedAssociatedTypesWithDefaults"),
         .enableExperimentalFeature("LifetimeDependence"),
