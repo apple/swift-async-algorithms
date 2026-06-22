@@ -53,8 +53,34 @@ struct AsyncReaderforEachBufferTests {
       callCount += 1
     }
 
-    // The reader still emits a terminal call (with an empty buffer + finalElement).
-    #expect(callCount == 1)
+    // The reader signals end-of-stream with an empty buffer; body should not be called.
+    #expect(callCount == 0)
+  }
+
+  @Test
+  func forEachBufferDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
+    var observedCounts: [Int] = []
+
+    _ = await reader.forEachBuffer { buffer in
+      observedCounts.append(buffer.count)
+    }
+
+    #expect(observedCounts.allSatisfy { $0 > 0 })
+  }
+
+  @Test
+  func forEachBufferThrowingDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
+    enum TestError: Error {}
+
+    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
+    var observedCounts: [Int] = []
+
+    _ = try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
+      observedCounts.append(buffer.count)
+    }
+
+    #expect(observedCounts.allSatisfy { $0 > 0 })
   }
 
   @Test

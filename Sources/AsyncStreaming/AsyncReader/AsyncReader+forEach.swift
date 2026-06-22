@@ -11,7 +11,7 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
-import ContainersPreview
+public import ContainersPreview
 
 // swift-format-ignore: AmbiguousTrailingClosureOverload
 @available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
@@ -47,7 +47,9 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
     var done = false
     while !done {
       try await self.read { (next, finalElement) throws(Failure) -> Void in
-        try await body(&next)
+        if !next.isEmpty {
+          try await body(&next)
+        }
         if let finalElement {
           final = finalElement
           done = true
@@ -79,21 +81,15 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
   public consuming func forEachBuffer(
     body: (inout Buffer) async -> Void
   ) async -> FinalElement where ReadFailure == Never {
-    var finalElement: FinalElement? = nil
-    while finalElement == nil {
-      do {
-        try await self.read { (next, final) -> Void in
-          await body(&next)
-          if let final {
-            finalElement = final
-          }
-        }
-      } catch {
-        fatalError()
+    do {
+      let final: FinalElement? = try await self.forEachBuffer { (buffer) async throws(Never) -> Void in
+        await body(&buffer)
       }
+      // The force-unwrap is safe since final element must be set at this point
+      return final!
+    } catch {
+      fatalError()
     }
-    // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
   }
 }
 #endif
