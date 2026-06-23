@@ -449,7 +449,7 @@ struct DuplexAsyncChannelTests {
     // it through a generic function that only sees the protocol.
     func finishViaProtocol<W: CallerAsyncWriter & ~Copyable>(
       _ writer: consuming W,
-      finalElement: consuming W.FinalElement?
+      finalElement: consuming W.FinalElement
     ) async throws(W.WriteFailure) where W.WriteElement == Int {
       var buf = UniqueArray<Int>(minimumCapacity: 3)
       buf.append(7)
@@ -466,7 +466,7 @@ struct DuplexAsyncChannelTests {
       _ = readerA
       _ = writerB
 
-      try await finishViaProtocol(writerA, finalElement: .some(()))
+      try await finishViaProtocol(writerA, finalElement: ())
 
       var collected: [Int] = []
       var sawFinal = false
