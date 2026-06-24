@@ -707,7 +707,7 @@ core protocols are established.
 
 Two common patterns emerge immediately when working with `AsyncReader`:
 iterating over all chunks until the stream ends, and collecting elements into
-a buffer up to a specified limit. We envision convenience extensions for both,
+a caller-provided container. We envision convenience extensions for both,
 both of which surface the `FinalElement` payload to the caller:
 
 ```swift
@@ -721,23 +721,45 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
 }
 
 extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
-    /// Collects up to `limit` elements, then passes the accumulated elements
-    /// to `body` as an `InputSpan`. Returns the body's result together with
-    /// the `FinalElement`.
-    public consuming func collect<Result, Failure: Error>(
-        upTo limit: Int,
-        body: (consuming InputSpan<ReadElement>) async throws(Failure) -> Result
-    ) async throws(EitherError<EitherError<ReadFailure, AsyncReaderLeftOverElementsError>, Failure>) -> (Result, FinalElement)
+    /// Collects elements into `target` up to its free capacity. The reader
+    /// can deliver fewer; producing more throws.
+    public consuming func collect<
+        Container: RangeReplaceableContainer<ReadElement> & ~Copyable & ~Escapable
+    >(
+        into target: inout Container
+    ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement
+
+    /// Collects exactly `target.freeCapacity` elements into `target`. Producing
+    /// fewer throws ``AsyncReaderInsufficientElementsError``; producing more
+    /// throws ``AsyncReaderLeftOverElementsError``.
+    public consuming func collect<
+        Container: RangeReplaceableContainer<ReadElement> & ~Copyable & ~Escapable
+    >(
+        exactlyInto target: inout Container
+    ) async throws(
+        EitherError<ReadFailure, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>>
+    ) -> FinalElement
+
+    /// Collects elements into a dynamic container, growing it up to
+    /// `maximumSize`. Producing more than `maximumSize` throws.
+    public consuming func collect<
+        Container: DynamicContainer<ReadElement> & ~Copyable
+    >(
+        into target: inout Container,
+        maximumSize: Int
+    ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement
 }
 ```
 
 `forEachBuffer` provides a simple way to consume an entire stream without
-manually looping over `read` calls and threading the end signal. `collect`
-accumulates elements from multiple reads into a single buffer before
-processing, which is useful when an algorithm needs all data in contiguous
-memory (for example, parsing a complete message frame). A second
-`where FinalElement == Void` overload of `collect` lets callers that don't
-need the payload omit the tuple.
+manually looping over `read` calls and threading the end signal. The three
+`collect` overloads cover the common ways a caller wants to gather a stream's
+elements into an existing container: `collect(into:)` opportunistically fills
+a fixed-capacity container, `collect(exactlyInto:)` requires the reader to
+match the container's free capacity (useful when parsing a known-length
+frame), and `collect(into:maximumSize:)` grows a dynamic container with an
+upper bound. All three preserve the container's existing contents and append
+collected elements to the end.
 
 These helpers are intentionally excluded from this proposal because their
 error-handling shapes (particularly `collect`'s nested `EitherError` and the

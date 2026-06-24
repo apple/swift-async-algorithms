@@ -39,12 +39,9 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var empty = UniqueArray<Int>()
       try await callerWriter.finish(buffer: &empty, finalElement: ())
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 3)
-        #expect(span[0] == 1)
-        #expect(span[1] == 2)
-        #expect(span[2] == 3)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(Array(draining: &target) == [1, 2, 3])
     }
   }
 
@@ -72,12 +69,9 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var empty = UniqueArray<Int>()
       try await callerWriter.finish(buffer: &empty, finalElement: ())
 
-      try await readerA.collect(upTo: 100) { span in
-        #expect(span.count == 100)
-        for i in 0..<100 {
-          #expect(span[i] == elements[i])
-        }
-      }
+      var target = RigidArray<Int>(capacity: 100)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == elements)
     }
   }
 
@@ -95,9 +89,9 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var empty = UniqueArray<Int>()
       try await callerWriter.finish(buffer: &empty, finalElement: ())
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 0)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(target.count == 0)
     }
   }
 
@@ -115,12 +109,9 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
       var trailing = UniqueArray(copying: [42, 43, 44])
       try await callerWriter.finish(buffer: &trailing, finalElement: ())
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 3)
-        #expect(span[0] == 42)
-        #expect(span[1] == 43)
-        #expect(span[2] == 44)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(Array(draining: &target) == [42, 43, 44])
     }
   }
 }
