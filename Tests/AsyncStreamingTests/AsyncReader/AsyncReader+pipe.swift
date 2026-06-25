@@ -36,14 +36,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 5)
-        #expect(span[0] == 1)
-        #expect(span[1] == 2)
-        #expect(span[2] == 3)
-        #expect(span[3] == 4)
-        #expect(span[4] == 5)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
     }
   }
 
@@ -62,9 +57,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 0)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(target.count == 0)
     }
   }
 
@@ -86,12 +81,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      try await readerA.collect(upTo: 50) { span in
-        #expect(span.count == 50)
-        for i in 0..<50 {
-          #expect(span[i] == elements[i])
-        }
-      }
+      var target = RigidArray<Int>(capacity: 50)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == elements)
     }
   }
 
@@ -114,14 +106,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 5)
-        #expect(span[0] == 1)
-        #expect(span[1] == 2)
-        #expect(span[2] == 3)
-        #expect(span[3] == 4)
-        #expect(span[4] == 5)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
     }
   }
 
@@ -140,9 +127,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 0)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(target.count == 0)
     }
   }
 
@@ -166,12 +153,9 @@ struct AsyncReaderPipeTests {
       writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter(initialCapacity: 16))
 
-      try await readerA.collect(upTo: 200) { span in
-        #expect(span.count == 200)
-        for i in 0..<200 {
-          #expect(span[i] == elements[i])
-        }
-      }
+      var target = RigidArray<Int>(capacity: 200)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == elements)
     }
   }
 }

@@ -39,12 +39,9 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       }
       try await asyncWriter.finish()
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 3)
-        #expect(span[0] == 1)
-        #expect(span[1] == 2)
-        #expect(span[2] == 3)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(Array(draining: &target) == [1, 2, 3])
     }
   }
 
@@ -99,9 +96,9 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       let asyncWriter = writerB.asAsyncWriter()
       try await asyncWriter.finish()
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 0)
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(into: &target)
+      #expect(target.count == 0)
     }
   }
 
@@ -124,12 +121,9 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       }
       try await asyncWriter.finish()
 
-      try await readerA.collect(upTo: 5) { span in
-        #expect(span.count == 5)
-        for i in 0..<5 {
-          #expect(span[i] == i + 1)
-        }
-      }
+      var target = RigidArray<Int>(capacity: 5)
+      try await readerA.collect(exactlyInto: &target)
+      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
     }
   }
 }
