@@ -95,4 +95,34 @@ final class TestAdjacentPairs: XCTestCase {
     task.cancel()
     await fulfillment(of: [finished], timeout: 1.0)
   }
+
+  @available(macOS 26.0, iOS 26.0, tvOS 26.0, watchOS 26.0, visionOS 26.0, *)
+  @MainActor
+  func test_adjacentPairs_next_with_nil_isolation_produces_correct_pairs() async throws {
+    let reportingSequence = ReportingAsyncSequence([1, 2])
+    let adjacentPairs = reportingSequence.adjacentPairs()
+    let iterated = expectation(description: "iterates once")
+
+    let t = Task.immediate {
+      for await (previous, current) in adjacentPairs {
+        XCTAssertEqual(previous, 1)
+        XCTAssertEqual(current, 2)
+        iterated.fulfill()
+      }
+    }
+
+    XCTAssert(reportingSequence.elements.isEmpty, "With a proper implementation of next(isolaton:), elements should be immediately consumed")
+    let nonIsolatedNextCalled = reportingSequence.events.contains {
+      switch $0 {
+      case .next:
+        true
+      default:
+        false
+      }
+    }
+    XCTAssertFalse(nonIsolatedNextCalled, "Next without isolation should not be called with a fully isolated pipeline")
+
+    await fulfillment(of: [iterated], timeout: 1.0)
+    t.cancel()
+  }
 }
