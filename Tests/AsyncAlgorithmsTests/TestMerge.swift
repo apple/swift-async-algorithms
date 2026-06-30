@@ -170,6 +170,30 @@ final class TestMerge2: XCTestCase {
     XCTAssertEqual(collected.intersection(expected), expected)
   }
 
+  func test_merge_propagates_failure_when_first_is_throwing_and_second_is_non_throwing() async {
+    let first = [1].async.map { try throwOn(1, $0) }
+    let second = [2].async
+
+    do {
+      for try await _ in merge(first, second) {}
+      XCTFail("Merged sequence should throw when the first sequence throws")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+  }
+
+  func test_merge_propagates_failure_when_first_is_non_throwing_and_second_is_throwing() async {
+    let first = [1].async
+    let second = [2].async.map { try throwOn(2, $0) }
+
+    do {
+      for try await _ in merge(first, second) {}
+      XCTFail("Merged sequence should throw when the second sequence throws")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+  }
+
   #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_merge_makes_sequence_with_ordered_elements_when_sources_follow_a_timeline() {
     validate {
