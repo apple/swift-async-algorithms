@@ -102,6 +102,10 @@ extension AsyncMerge2Sequence {
     public mutating func next() async rethrows -> Element? {
       try await internalClass.next()
     }
+
+    public mutating func next(isolation actor: isolated (any Actor)? = #isolation) async rethrows -> Element? {
+      try await internalClass.next()
+    }
   }
 }
 
