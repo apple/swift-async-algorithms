@@ -42,6 +42,7 @@ This package is the home for these APIs. Development and API design take place o
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
 - [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
+- [`share()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Share.md): Share the values of an asynchronous sequence across multiple concurrent consumers, each independently making forward progress.
 
 #### Asynchronous Sequences that transact in time
 
