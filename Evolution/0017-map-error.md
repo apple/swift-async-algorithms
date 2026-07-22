@@ -1,6 +1,6 @@
 # Map Error
 
-* Proposal: [SAA-NNNN](NNNN-map-error.md)
+* Proposal: [SAA-0017](0017-map-error.md)
 * Authors: [Clive Liu](https://github.com/clive819) [Philippe Hausler](https://github.com/phausler)
 * Review Manager: TBD
 * Status: **Awaiting review**
