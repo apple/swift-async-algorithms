@@ -74,17 +74,24 @@ where
           base2: base2,
           base3: base3
         )
-        // It is safe to hold the lock across this method
-        // since the closure is guaranteed to be run straight away
         return try await withUnsafeThrowingContinuation { continuation in
-          let action = self.stateMachine.next(for: continuation)
-          self.lock.unlock()
+          let action = self.lock.withLock {
+            self.stateMachine.next(for: continuation)
+          }
 
           switch action {
           case let .resumeUpstreamContinuations(upstreamContinuations):
             // This is signalling the child tasks that are consuming the upstream
             // sequences to signal demand.
             upstreamContinuations.forEach { $0.resume(returning: ()) }
+
+          case let .resumeDownstreamContinuation(result):
+            switch result {
+            case let .success(element):
+              continuation.resume(returning: element)
+            case let .failure(error):
+              continuation.resume(throwing: error)
+            }
           }
         }
 
@@ -102,17 +109,25 @@ where
         throw error
 
       case .suspendDownstreamTask:
-        // It is safe to hold the lock across this method
-        // since the closure is guaranteed to be run straight away
+        self.lock.unlock()
         return try await withUnsafeThrowingContinuation { continuation in
-          let action = self.stateMachine.next(for: continuation)
-          self.lock.unlock()
+          let action = self.lock.withLock {
+            self.stateMachine.next(for: continuation)
+          }
 
           switch action {
           case let .resumeUpstreamContinuations(upstreamContinuations):
             // This is signalling the child tasks that are consuming the upstream
             // sequences to signal demand.
             upstreamContinuations.forEach { $0.resume(returning: ()) }
+
+          case let .resumeDownstreamContinuation(result):
+            switch result {
+            case let .success(element):
+              continuation.resume(returning: element)
+            case let .failure(error):
+              continuation.resume(throwing: error)
+            }
           }
         }
       }
@@ -201,6 +216,7 @@ where
 
     // We need to inform our state machine that we started the Task
     stateMachine.taskStarted(task)
+    self.lock.unlock()
   }
 
   private func iterateAsyncSequence<AsyncSequence: _Concurrency.AsyncSequence>(
