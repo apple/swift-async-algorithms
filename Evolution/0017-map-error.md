@@ -7,7 +7,7 @@
 
 ## Introduction
 
-Asynchronous sequences often particpate in carefully crafted systems of algorithms spliced together. Some of those algorithms require that both the element type and the failure type are the same as each-other. In order to line those types up for the element we have the map algorithm today, however there are other times at which when using more specific APIs that transforming the Failure type is needed.
+Asynchronous sequences often participate in carefully crafted systems of algorithms spliced together. Some of those algorithms require that both the element type and the failure type are the same as each-other. In order to line those types up for the element we have the map algorithm today, however there are other times at which when using more specific APIs that transforming the Failure type is needed.
 
 ## Motivation
 
