@@ -15,6 +15,7 @@ This package has three main goals:
 ### Getting Started
 
 - <doc:AdjacentPairs>
+- <doc:Buffer>
 - <doc:BufferedBytes>
 - <doc:Chain>
 - <doc:Channel>
@@ -24,9 +25,11 @@ This package has three main goals:
 - <doc:Compacted>
 - <doc:Debounce>
 - <doc:Effects>
+- <doc:FlatMapLatest>
 - <doc:Intersperse>
 - <doc:Joined>
 - <doc:Lazy>
+- <doc:MapError>
 - <doc:Merge>
 - <doc:Reductions>
 - <doc:RemoveDuplicates>
