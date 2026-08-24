@@ -75,6 +75,37 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
   @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
   @Test
+  func readThrowsCancellationWhenTaskStartsCancelled() async {
+    await withTaskGroup(of: Void.self) { group in
+      group.cancelAll()
+      // A child added to an already-cancelled group starts cancelled, so the
+      // cancellation handler runs before the reader continuation is installed.
+      group.addTask {
+        await MultiProducerSingleConsumerAsyncChannel.withChannel(
+          of: Int.self,
+          backpressureStrategy: .watermark(low: 1, high: 2)
+        ) { channel, source in
+          var channel = channel
+          _ = consume source
+
+          do {
+            _ = try await channel.read { _, _ in
+              Issue.record("read body must not run after cancellation")
+            }
+            Issue.record("expected CancellationError")
+          } catch let EitherError<EitherError<Never, CancellationError>, Never>.first(.second(error)) {
+            _ = error
+          } catch {
+            Issue.record("unexpected error: \(error)")
+          }
+        }
+      }
+      await group.waitForAll()
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @Test
   func readReturnsEmptyBufferOnEOSAfterFinish() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
       of: Int.self,

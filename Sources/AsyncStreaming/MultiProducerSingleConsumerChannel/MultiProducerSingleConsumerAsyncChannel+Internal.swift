@@ -272,6 +272,8 @@ extension MultiProducerSingleConsumerAsyncChannel {
           switch consume action {
           case .resumeReader(let c):
             c.resume()
+          case .resumeReaderWithCancellationError(let c):
+            c.resume(throwing: .second(CancellationError()))
           case .none:
             break
           }
@@ -800,6 +802,9 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
     @usableFromInline
     enum SuspendReadAction: ~Copyable, Sendable {
       case resumeReader(UnsafeContinuation<Void, EitherError<Failure, CancellationError>>)
+      case resumeReaderWithCancellationError(
+        UnsafeContinuation<Void, EitherError<Failure, CancellationError>>
+      )
     }
 
     @inlinable
@@ -825,7 +830,13 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         return .resumeReader(continuation)
 
       case .finished(let s):
+        let sourceFinished = s.sourceFinished
         self = .init(state: .finished(s))
+        // Cancellation may finish the channel before this continuation is installed.
+        // In that case, resume the late continuation with the cancellation error.
+        if !sourceFinished {
+          return .resumeReaderWithCancellationError(continuation)
+        }
         return .resumeReader(continuation)
       }
     }
