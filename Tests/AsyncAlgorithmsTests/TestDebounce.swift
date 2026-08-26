@@ -58,6 +58,17 @@ final class TestDebounce: XCTestCase {
     }
   }
 
+  func test_upstreamFailureWithoutOutstandingDemand() throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
+      throw XCTSkip("Skipped due to Clock/Instant/Duration availability")
+    }
+    validate {
+      "a^"
+      $0.inputs[0].debounce(for: .steps(0), clock: $0.clock)
+      "a,,,^"
+    }
+  }
+
   func test_noValues() throws {
     guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
       throw XCTSkip("Skipped due to Clock/Instant/Duration availability")

@@ -399,9 +399,9 @@ struct DebounceStateMachine<Base: AsyncSequence & Sendable, C: Clock>: Sendable 
       return .none
 
     case .waitingForDemand(let task, .none, let clockContinuation, .none):
-      // We don't have any buffered element so we can just go ahead
-      // and transition to finished and cancel everything
-      self.state = .finished
+      // We don't have outstanding demand to deliver the error to, so store it
+      // until the downstream calls next and cancel everything.
+      self.state = .upstreamFailure(error: error)
 
       return .cancelTaskAndClockContinuation(
         task: task,
