@@ -446,8 +446,9 @@ extension DuplexAsyncChannel {
     ///   in `read`) — and whose outer `.second` arm carries the failure
     ///   thrown by `body`.
     ///
-    /// - Important: After the reader observes a non-`nil` `finalElement`,
-    ///   calling `read(body:)` again is a programmer error.
+    /// - Important: After the reader observes a non-`nil` `finalElement` or
+    ///   `read(body:)` throws a read-side error, calling `read(body:)` again is
+    ///   a programmer error.
     @inlinable
     public mutating func read<Return: ~Copyable, BodyFailure: Error>(
       body: (inout UniqueDeque<Element>, consuming FinalElement?) async throws(BodyFailure) -> Return
@@ -513,13 +514,8 @@ extension DuplexAsyncChannel {
             throw .second(error)
           }
 
-        case .returnNil:
-          var empty = UniqueDeque<Element>()
-          do throws(BodyFailure) {
-            return try await body(&empty, nil)
-          } catch {
-            throw .second(error)
-          }
+        case .throwCancellation:
+          throw .first(.second(CancellationError()))
 
         case .suspend:
           do {

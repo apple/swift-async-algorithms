@@ -392,6 +392,9 @@ extension MultiProducerSingleConsumerAsyncChannel {
           throw .second(error)
         }
 
+      case .throwCancellation:
+        throw .first(.second(CancellationError()))
+
       case .suspend:
         do {
           try await self.storage.suspendRead()

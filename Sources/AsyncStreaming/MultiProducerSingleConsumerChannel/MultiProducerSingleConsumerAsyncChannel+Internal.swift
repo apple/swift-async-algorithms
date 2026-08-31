@@ -681,6 +681,8 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       /// The channel was finished with a failure and the buffer is now drained;
       /// throw the failure to the reader.
       case throwFailure(Failure?, [(UInt64, @Sendable () -> Void)])
+      /// Cancellation finished the channel before it could be delivered to the reader.
+      case throwCancellation
     }
 
     @inlinable
@@ -746,8 +748,14 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         )
 
       case .finished(let s):
-        self = .init(state: .finished(s))
-        preconditionFailure("MultiProducerSingleConsumerAsyncChannel.read called after termination")
+        switch s {
+        case .cancelled:
+          self = .init(state: .finished(.consumed))
+          return .throwCancellation
+        case .consumed:
+          self = .init(state: .finished(.consumed))
+          preconditionFailure("MultiProducerSingleConsumerAsyncChannel.read called after termination")
+        }
       }
     }
 
