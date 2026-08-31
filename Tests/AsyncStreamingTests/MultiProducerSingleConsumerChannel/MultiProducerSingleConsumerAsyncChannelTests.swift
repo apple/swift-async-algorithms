@@ -17,6 +17,8 @@ import ContainersPreview
 import DequeModule
 import Testing
 
+private struct MultiProducerSingleConsumerAsyncChannelTestError: Error {}
+
 @Suite(.serialized)
 struct MultiProducerSingleConsumerAsyncChannelTests {
   // MARK: - AsyncReader.read
@@ -101,6 +103,100 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
         }
       }
       await group.waitForAll()
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @Test
+  func readDoesNotThrowCancellationWhenSourceFinishes() async throws {
+    try await MultiProducerSingleConsumerAsyncChannel.withChannel(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 1, high: 2)
+    ) { channel, source in
+      var channel = channel
+      var source = source
+      source.finish()
+
+      var sawFinalElement = false
+      try await channel.read { buffer, finalElement in
+        #expect(buffer.isEmpty)
+        sawFinalElement = finalElement != nil
+      }
+      #expect(sawFinalElement)
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @Test
+  func readAfterCancellationPreconditions() async {
+    let result = await #expect(processExitsWith: .failure, observing: [\.standardErrorContent]) {
+      await withTaskGroup(of: Void.self) { group in
+        group.cancelAll()
+        group.addTask {
+          await MultiProducerSingleConsumerAsyncChannel.withChannel(
+            of: Int.self,
+            backpressureStrategy: .watermark(low: 1, high: 2)
+          ) { channel, source in
+            var channel = channel
+            _ = consume source
+
+            try? await channel.read { _, _ in }
+            try? await channel.read { _, _ in }
+          }
+        }
+        await group.waitForAll()
+      }
+    }
+    if let result {
+      let standardError = String(decoding: result.standardErrorContent, as: UTF8.self)
+      #expect(standardError.contains("MultiProducerSingleConsumerAsyncChannel.read called after termination"))
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @Test
+  func readAfterFinalElementPreconditions() async {
+    let result = await #expect(processExitsWith: .failure, observing: [\.standardErrorContent]) {
+      try await MultiProducerSingleConsumerAsyncChannel.withChannel(
+        of: Int.self,
+        backpressureStrategy: .watermark(low: 1, high: 2)
+      ) { channel, source in
+        var channel = channel
+        var source = source
+        source.finish()
+
+        try await channel.read { _, finalElement in
+          #expect(finalElement != nil)
+        }
+        try await channel.read { _, _ in }
+      }
+    }
+    if let result {
+      let standardError = String(decoding: result.standardErrorContent, as: UTF8.self)
+      #expect(standardError.contains("MultiProducerSingleConsumerAsyncChannel.read called after termination"))
+    }
+  }
+
+  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @Test
+  func readAfterFailurePreconditions() async {
+    let result = await #expect(processExitsWith: .failure, observing: [\.standardErrorContent]) {
+      await MultiProducerSingleConsumerAsyncChannel.withChannel(
+        of: Int.self,
+        throwing: MultiProducerSingleConsumerAsyncChannelTestError.self,
+        backpressureStrategy: .watermark(low: 1, high: 2)
+      ) { channel, source in
+        var channel = channel
+        var source = source
+        source.finish(throwing: MultiProducerSingleConsumerAsyncChannelTestError())
+
+        try? await channel.read { _, _ in }
+        try? await channel.read { _, _ in }
+      }
+    }
+    if let result {
+      let standardError = String(decoding: result.standardErrorContent, as: UTF8.self)
+      #expect(standardError.contains("MultiProducerSingleConsumerAsyncChannel.read called after termination"))
     }
   }
 

@@ -412,12 +412,12 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       case .channeling(let s):
         let producers = Array(s.suspendedProducers.lazy.map { $0.1 })
         let onTerminations = s.onTerminations
-        self = .init(state: .finished(.init(sourceFinished: false)))
+        self = .init(state: .finished(.consumed))
         return .failProducersAndCallOnTerminations(producers, onTerminations)
 
       case .sourceFinished(let s):
         let onTerminations = s.onTerminations
-        self = .init(state: .finished(.init(sourceFinished: true)))
+        self = .init(state: .finished(.consumed))
         return .callOnTerminations(onTerminations)
 
       case .finished(let s):
@@ -681,7 +681,6 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
       /// The channel was finished with a failure and the buffer is now drained;
       /// throw the failure to the reader.
       case throwFailure(Failure?, [(UInt64, @Sendable () -> Void)])
-      case returnNil
     }
 
     @inlinable
@@ -733,7 +732,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         let fe = s.finalElement.swap(newValue: nil)
         let onTerminations = s.onTerminations
         let failure = s.failure
-        self = .init(state: .finished(.init(sourceFinished: true)))
+        self = .init(state: .finished(.consumed))
 
         if let failure {
           return .throwFailure(failure, onTerminations)
@@ -748,7 +747,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
       case .finished(let s):
         self = .init(state: .finished(s))
-        return .returnNil
+        preconditionFailure("MultiProducerSingleConsumerAsyncChannel.read called after termination")
       }
     }
 
@@ -830,14 +829,16 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         return .resumeReader(continuation)
 
       case .finished(let s):
-        let sourceFinished = s.sourceFinished
-        self = .init(state: .finished(s))
-        // Cancellation may finish the channel before this continuation is installed.
-        // In that case, resume the late continuation with the cancellation error.
-        if !sourceFinished {
+        switch s {
+        case .cancelled:
+          // Cancellation may finish the channel before this continuation is installed.
+          // Consume that pending cancellation exactly once.
+          self = .init(state: .finished(.consumed))
           return .resumeReaderWithCancellationError(continuation)
+        case .consumed:
+          self = .init(state: .finished(.consumed))
+          preconditionFailure("MultiProducerSingleConsumerAsyncChannel.read called after termination")
         }
-        return .resumeReader(continuation)
       }
     }
 
@@ -861,10 +862,11 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         let reader = s.readerContinuation.take()
         let producers = Array(s.suspendedProducers.lazy.map { $0.1 })
         let onTerminations = s.onTerminations
-        self = .init(state: .finished(.init(sourceFinished: false)))
         if let reader {
+          self = .init(state: .finished(.consumed))
           return .resumeReaderWithCancellationError(reader, producers, onTerminations)
         }
+        self = .init(state: .finished(.cancelled))
         return .failProducersAndCallOnTerminations(producers, onTerminations)
 
       case .sourceFinished(let s):
@@ -991,12 +993,9 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
     }
 
     @usableFromInline
-    struct Finished: ~Copyable, Sendable {
-      @usableFromInline
-      var sourceFinished: Bool
-
-      @inlinable
-      init(sourceFinished: Bool) { self.sourceFinished = sourceFinished }
+    enum Finished: Sendable {
+      case cancelled
+      case consumed
     }
 
     case channeling(Channeling)
