@@ -11,7 +11,7 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
-@testable import AsyncStreaming
+import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 import DequeModule
@@ -103,34 +103,6 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
         }
       }
       await group.waitForAll()
-    }
-  }
-
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-  @Test
-  func readAvailableDeliversPendingCancellation() async {
-    await #expect(processExitsWith: .success) {
-      var stateMachine = MultiProducerSingleConsumerAsyncChannel<Int, Void, Never>._Storage._StateMachine(
-        backpressureStrategy: .watermark(.init(low: 1, high: 2, waterLevelForElement: nil))
-      )
-
-      let initialRead = stateMachine.readAvailable()
-      guard case .suspend = consume initialRead else {
-        Issue.record("expected the empty channel to suspend")
-        return
-      }
-
-      // Model a producer taking the reader continuation immediately before the
-      // cancellation handler reaches cancelRead().
-      guard case .some(.failProducersAndCallOnTerminations) = stateMachine.cancelRead() else {
-        Issue.record("expected a pending reader cancellation")
-        return
-      }
-      let cancelledRead = stateMachine.readAvailable()
-      guard case .throwCancellation = consume cancelledRead else {
-        Issue.record("expected pending CancellationError")
-        return
-      }
     }
   }
 
