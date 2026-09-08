@@ -12,6 +12,10 @@
 import XCTest
 import AsyncAlgorithms
 
+private struct DebounceTestError: Error, Equatable, Sendable {
+  let value: Int
+}
+
 final class TestDebounce: XCTestCase {
   #if canImport(Darwin) || canImport(Glibc) || canImport(Musl) || canImport(Bionic) || canImport(wasi_pthread)
   func test_delayingValues() throws {
@@ -67,6 +71,61 @@ final class TestDebounce: XCTestCase {
       $0.inputs[0].debounce(for: .steps(0), clock: $0.clock)
       "a,,,^"
     }
+  }
+
+  func test_upstreamFailureWithoutElementsPreservesError() async throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
+      throw XCTSkip("Skipped due to Clock/Instant/Duration availability")
+    }
+
+    let expectedError = DebounceTestError(value: 1)
+    let (stream, source) = AsyncThrowingStream<Int, Error>.makeStream()
+    source.finish(throwing: expectedError)
+
+    var iterator = stream.debounce(for: .milliseconds(10), clock: .continuous).makeAsyncIterator()
+    do {
+      _ = try await iterator.next()
+      XCTFail("Expected the upstream error")
+    } catch let error as DebounceTestError {
+      XCTAssertEqual(error, expectedError)
+    }
+
+    let result = try await iterator.next()
+    XCTAssertNil(result)
+  }
+
+  func test_upstreamFailureAfterElementAndWithoutDemandPreservesError() async throws {
+    guard #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) else {
+      throw XCTSkip("Skipped due to Clock/Instant/Duration availability")
+    }
+
+    let expectedError = DebounceTestError(value: 2)
+    let (stream, source) = AsyncThrowingStream<Int, Error>.makeStream()
+    source.yield(1)
+    let finisher = Task {
+      try? await Task.sleep(for: .milliseconds(100))
+      source.finish(throwing: expectedError)
+    }
+    defer { finisher.cancel() }
+
+    var iterator = stream.debounce(for: .milliseconds(10), clock: .continuous).makeAsyncIterator()
+    let first = try await iterator.next()
+    XCTAssertEqual(first, 1)
+
+    // The upstream fails while the consumer has no outstanding demand.
+    try await Task.sleep(for: .milliseconds(300))
+
+    do {
+      _ = try await iterator.next()
+      XCTFail("Expected the upstream error")
+    } catch let error as DebounceTestError {
+      XCTAssertEqual(error, expectedError)
+    }
+
+    // Consuming the failure completes the iterator; it must not produce another value
+    // or resume completion more than once.
+    let result = try await iterator.next()
+    XCTAssertNil(result)
   }
 
   func test_noValues() throws {
