@@ -689,9 +689,8 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
     mutating func readAvailable() -> ReadAvailableAction {
       switch consume self._state {
       case .channeling(var s):
-        let isProducerBufferEmpty = s.buffer.withValue {
-          $0.borrow()!.value.isEmpty
-        }
+        // Optional chaining borrows the deque; unwrap only the Boolean result.
+        let isProducerBufferEmpty = s.buffer.withValue { $0?.isEmpty }!
         guard isProducerBufferEmpty else {
           // We are going to swap the two buffers around. The cached buffer
           // may not exist yet on the first read; fall back to a fresh empty
@@ -823,7 +822,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
         guard s.readerContinuation == nil else {
           fatalError("MultiProducerSingleConsumerAsyncChannel internal inconsistency: concurrent readers")
         }
-        let isEmpty = s.buffer.withValue { $0.borrow()!.value.isEmpty }
+        let isEmpty = s.buffer.withValue { $0?.isEmpty }!
         if !isEmpty {
           self = .init(state: .channeling(s))
           return .resumeReader(continuation)

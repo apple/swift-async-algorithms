@@ -12,6 +12,7 @@
 #if UnstableAsyncStreaming && compiler(>=6.4)
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 
 extension Array {
   init(_ span: Span<Element>) {

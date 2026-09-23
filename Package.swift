@@ -145,6 +145,7 @@ let package = Package(
         "AsyncStreaming",
         .product(name: "BasicContainers", package: "swift-collections"),
         .product(name: "ContainersPreview", package: "swift-collections"),
+        .product(name: "SpanPreview", package: "swift-collections"),
       ],
       swiftSettings: [
         .enableExperimentalFeature("SuppressedAssociatedTypesWithDefaults"),
@@ -165,7 +166,7 @@ if Context.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
   package.dependencies += [
     .package(
       url: "https://github.com/apple/swift-collections.git",
-      from: "1.5.1",
+      from: "1.7.0",
       traits: [.trait(name: "UnstableContainersPreview", condition: .when(traits: ["UnstableAsyncStreaming"]))]
     )
   ]
