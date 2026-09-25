@@ -125,12 +125,39 @@ where Base.Element: Sendable, Inner.Element: Sendable {
       let innerTask,
       let innerCont,
       let downstreamCont,
-      let buffer,
+      var buffer,
       let generation,
       let outerFinished
     ):
       precondition(downstreamCont == nil, "Already have downstream continuation")
-      precondition(buffer.isEmpty, "Buffer should be empty if suspending")
+
+      // Producers may buffer elements or finish between `next()` releasing
+      // the lock and this call; serve the demand from the current state.
+      if let result = buffer.popFirst() {
+        state = .running(
+          outerTask: outerTask,
+          outerContinuation: outerCont,
+          innerTask: innerTask,
+          innerContinuation: innerCont,
+          downstreamContinuation: nil,
+          buffer: buffer,
+          generation: generation,
+          outerFinished: outerFinished
+        )
+        switch result {
+        case .success(let element):
+          continuation.resume(returning: element)
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+        return .none
+      }
+
+      if outerFinished && innerTask == nil {
+        state = .finished
+        continuation.resume(returning: nil)
+        return .none
+      }
 
       state = .running(
         outerTask: outerTask,
