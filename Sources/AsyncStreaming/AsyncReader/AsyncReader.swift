@@ -33,7 +33,7 @@ public import ContainersPreview
 ///
 /// After the reader has emitted a non-`nil` `finalElement`, calling
 /// ``read(body:)`` again is a programmer error.
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public protocol AsyncReader<ReadElement, ReadFailure, FinalElement>: ~Copyable, ~Escapable {
   /// The type of elements this reader reads.
   // TODO: Check if we should support ~Escapable elements

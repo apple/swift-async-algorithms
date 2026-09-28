@@ -19,7 +19,7 @@ import Testing
 struct AsyncReaderPipeTests {
   // MARK: - pipe(into:) — into a CallerAsyncWriter
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoCopiesAllElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -33,7 +33,7 @@ struct AsyncReaderPipeTests {
 
       var array = UniqueArray(copying: [1, 2, 3, 4, 5])
       try await writerA.write(buffer: &array)
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
       var target = RigidArray<Int>(capacity: 5)
@@ -42,7 +42,7 @@ struct AsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoWithEmptyReader() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -54,7 +54,7 @@ struct AsyncReaderPipeTests {
       let writerB = writerB
       let readerB = readerB
 
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
       var target = RigidArray<Int>(capacity: 5)
@@ -63,7 +63,7 @@ struct AsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoPreservesElementOrder() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -78,7 +78,7 @@ struct AsyncReaderPipeTests {
       let elements = Array(1...50)
       var array = UniqueArray(copying: elements)
       try await writerA.write(buffer: &array)
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
       var target = RigidArray<Int>(capacity: 50)
@@ -89,7 +89,7 @@ struct AsyncReaderPipeTests {
 
   // MARK: - pipe(copyingInto:) — into an AsyncWriter via the adapter
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeCopyingIntoCopiesAllElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -103,7 +103,7 @@ struct AsyncReaderPipeTests {
 
       var array = UniqueArray(copying: [1, 2, 3, 4, 5])
       try await writerA.write(buffer: &array)
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
 
       var target = RigidArray<Int>(capacity: 5)
@@ -112,7 +112,7 @@ struct AsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeCopyingIntoWithEmptyReader() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -124,7 +124,7 @@ struct AsyncReaderPipeTests {
       let writerB = writerB
       let readerB = readerB
 
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
 
       var target = RigidArray<Int>(capacity: 5)
@@ -133,7 +133,7 @@ struct AsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeCopyingIntoChunksTerminalChunkAcrossMultipleWrites() async throws {
     // 200 elements through a small (16-element) AsyncWriter buffer
@@ -150,7 +150,7 @@ struct AsyncReaderPipeTests {
       let elements = Array(1...200)
       var array = UniqueArray(copying: elements)
       try await writerA.write(buffer: &array)
-      writerA.finish()
+      try await writerA.finish()
       try await readerB.pipe(copyingInto: writerB.asAsyncWriter(initialCapacity: 16))
 
       var target = RigidArray<Int>(capacity: 200)

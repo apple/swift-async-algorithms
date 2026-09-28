@@ -47,7 +47,7 @@ public import ContainersPreview
 /// Each direction's writer terminates its half of the channel
 /// independently by calling ``Writer/finish(finalElement:)`` or
 /// ``Writer/finish(throwing:)``.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct DuplexAsyncChannel<
   Element: Sendable,
   FinalElement: Sendable,
@@ -129,7 +129,7 @@ public struct DuplexAsyncChannel<
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension DuplexAsyncChannel where FinalElement == Void {
   /// Creates a new duplex channel with a `Void` end-of-stream payload and
   /// runs `body` with all four handles.
@@ -164,7 +164,7 @@ extension DuplexAsyncChannel where FinalElement == Void {
 
 // MARK: - Backpressure strategy
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension DuplexAsyncChannel {
   /// A backpressure strategy applied independently to each direction of
   /// the duplex.
@@ -228,7 +228,7 @@ extension DuplexAsyncChannel {
 
 // MARK: - Writer
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension DuplexAsyncChannel {
   /// The writer half of one side of a ``DuplexAsyncChannel``.
   ///
@@ -392,7 +392,7 @@ extension DuplexAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension DuplexAsyncChannel.Writer where FinalElement == Void {
   /// Finishes this direction with an empty `Void` end-of-stream payload.
   ///
@@ -407,7 +407,7 @@ extension DuplexAsyncChannel.Writer where FinalElement == Void {
 
 // MARK: - Reader
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension DuplexAsyncChannel {
   /// The reader half of one side of a ``DuplexAsyncChannel``.
   ///

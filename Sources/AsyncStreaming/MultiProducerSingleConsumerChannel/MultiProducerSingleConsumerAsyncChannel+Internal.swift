@@ -14,7 +14,7 @@ public import DequeModule
 public import Synchronization
 public import ContainersPreview
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   enum _InternalBackpressureStrategy: Sendable, CustomStringConvertible {
@@ -105,7 +105,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   @usableFromInline
   final class _Storage: Sendable {
@@ -308,7 +308,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel._Storage {
   @usableFromInline
   struct _StateMachine: ~Copyable, Sendable {
@@ -888,7 +888,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
   @usableFromInline
   enum _State: ~Copyable, Sendable {
@@ -1012,7 +1012,7 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage._StateMachine {
 }
 
 /// A producer suspended waiting for backpressure to allow further sends.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 @usableFromInline
 enum _MultiProducerSingleConsumerSuspendedProducer: @unchecked Sendable {
   case closure((Result<Void, any Error>) -> Void)
@@ -1022,7 +1022,7 @@ enum _MultiProducerSingleConsumerSuspendedProducer: @unchecked Sendable {
 /// Helper to move a non-Sendable value across isolation regions (mirror of
 /// the helper in AsyncAlgorithms; kept private to AsyncStreaming to avoid
 /// reaching into another module's internals).
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 @usableFromInline
 struct _Disconnected<Value: ~Copyable>: ~Copyable, Sendable {
   private nonisolated(unsafe) var value: Value

@@ -14,6 +14,7 @@ import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 struct UniqueArrayCallerAsyncReader: ~Copyable, CallerAsyncReader {
   typealias ReadElement = Int
   typealias ReadFailure = Never

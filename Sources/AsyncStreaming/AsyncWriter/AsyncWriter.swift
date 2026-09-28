@@ -29,7 +29,7 @@ public import ContainersPreview
 /// type to carry data along with the end signal, or `Never` for endless
 /// streams. When ``FinalElement`` is `Never`, ``finish(finalElement:)`` cannot
 /// be called and the writer can be written to indefinitely.
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable, ~Escapable {
   /// The type of elements this writer writes.
   // TODO: Check if we should support ~Escapable elements
@@ -91,7 +91,7 @@ public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable
   ) async throws(WriteFailure)
 }
 
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension AsyncWriter where Self: ~Copyable, Self: ~Escapable, FinalElement == Void {
   /// Concludes the writer with no payload.
   ///
