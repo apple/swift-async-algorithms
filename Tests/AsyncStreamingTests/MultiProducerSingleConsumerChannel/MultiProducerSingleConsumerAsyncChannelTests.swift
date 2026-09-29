@@ -23,7 +23,7 @@ private struct MultiProducerSingleConsumerAsyncChannelTestError: Error {}
 struct MultiProducerSingleConsumerAsyncChannelTests {
   // MARK: - AsyncReader.read
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readReturnsAllBufferedElementsInOrder() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -47,7 +47,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readSuspendsUntilElementArrives() async throws {
     try await withThrowingTaskGroup(of: [Int].self) { group in
@@ -75,7 +75,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readThrowsCancellationWhenTaskStartsCancelled() async {
     await withTaskGroup(of: Void.self) { group in
@@ -106,7 +106,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readDoesNotThrowCancellationWhenSourceFinishes() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -126,7 +126,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readAfterCancellationPreconditions() async {
     await #expect(processExitsWith: .failure) {
@@ -149,7 +149,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readAfterFinalElementPreconditions() async {
     await #expect(processExitsWith: .failure) {
@@ -169,7 +169,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readAfterFailurePreconditions() async {
     await #expect(processExitsWith: .failure) {
@@ -188,7 +188,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readReturnsEmptyBufferAndFinalElementOnEOSAfterFinish() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -216,7 +216,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readThrowsFailureAfterFinishWithError() async throws {
     struct TestError: Error, Equatable {}
@@ -251,7 +251,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readBodyErrorsWrappedInSecond() async throws {
     struct BodyError: Error, Equatable {}
@@ -280,7 +280,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readPartialConsumptionRemainsVisibleOnNextRead() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -310,7 +310,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readResumesSuspendedProducersWhenWaterLevelDrops() async throws {
     try await withThrowingTaskGroup(of: Void.self) { group in
@@ -350,7 +350,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readWaterLevelForElementCalledPerElementInBatch() async throws {
     nonisolated(unsafe) var callCount = 0
@@ -383,7 +383,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readBufferIsReusedAcrossReads() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -435,7 +435,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readDeliversFinalElementOnFinish() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -470,7 +470,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
   // MARK: - CallerAsyncWriter.write
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeAppendsAllElementsAndClearsBuffer() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -498,7 +498,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeAfterFinishThrows() async throws {
     await MultiProducerSingleConsumerAsyncChannel.withChannel(
@@ -530,7 +530,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeSuspendsOnBackpressureAndResumesAfterRead() async throws {
     try await withThrowingTaskGroup(of: Void.self) { group in
@@ -562,7 +562,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeReadRoundtripPreservesOrder() async throws {
     let total = 100

@@ -32,7 +32,7 @@ public import ContainersPreview
 /// end-of-stream signal. A producer terminates the channel by calling
 /// either ``Source/finish(finalElement:)`` to signal end-of-stream
 /// or ``Source/finish(throwing:)`` to terminate with a failure.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct MultiProducerSingleConsumerAsyncChannel<
   Element,
   FinalElement,
@@ -95,7 +95,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel where FinalElement == Void {
   /// Creates a new channel with a `Void` end-of-stream payload and runs
   /// `body` with the channel and its initial source.
@@ -125,7 +125,7 @@ extension MultiProducerSingleConsumerAsyncChannel where FinalElement == Void {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   /// A handle for sending elements to the channel.
   public struct Source: ~Copyable, Sendable {
@@ -289,7 +289,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel.Source where FinalElement == Void {
   /// Finishes the channel with an empty `Void` end-of-stream payload.
   ///
@@ -304,7 +304,7 @@ extension MultiProducerSingleConsumerAsyncChannel.Source where FinalElement == V
 
 // MARK: - Reading
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension MultiProducerSingleConsumerAsyncChannel {
   /// Reads the next chunk of elements from the channel.
   ///
@@ -409,7 +409,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
 
 /// An error that ``MultiProducerSingleConsumerAsyncChannel/Source/write(buffer:)``
 /// throws when its source has already finished.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error {
   @usableFromInline
   init() {}

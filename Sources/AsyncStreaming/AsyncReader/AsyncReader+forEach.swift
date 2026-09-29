@@ -11,10 +11,10 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
-public import ContainersPreview
+import ContainersPreview
 
 // swift-format-ignore: AmbiguousTrailingClosureOverload
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
   /// Iterates over all chunks from the reader, executing the provided body for
   /// each buffer until the stream signals end-of-stream.

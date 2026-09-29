@@ -18,6 +18,7 @@ import Testing
 
 @Suite
 struct AsyncReaderCollectIntoTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectFillsTargetWhenReaderHasFewerElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
@@ -31,6 +32,7 @@ struct AsyncReaderCollectIntoTests {
     #expect(collected == [1, 2, 3])
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
@@ -41,6 +43,7 @@ struct AsyncReaderCollectIntoTests {
     #expect(target.count == 3)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectThrowsWhenReaderProducesMoreThanFreeCapacity() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
@@ -55,6 +58,7 @@ struct AsyncReaderCollectIntoTests {
     }
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectIntoEmptyReader() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
@@ -68,6 +72,7 @@ struct AsyncReaderCollectIntoTests {
 
 @Suite
 struct AsyncReaderCollectExactlyTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectExactlyFillsTargetWhenReaderProducesExactCount() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
@@ -81,6 +86,7 @@ struct AsyncReaderCollectExactlyTests {
     #expect(collected == [1, 2, 3])
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectExactlyThrowsWhenReaderProducesFewer() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
@@ -98,6 +104,7 @@ struct AsyncReaderCollectExactlyTests {
     }
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectExactlyThrowsWhenReaderProducesMore() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
@@ -118,6 +125,7 @@ struct AsyncReaderCollectExactlyTests {
 
 @Suite
 struct AsyncReaderCollectIntoMaximumSizeTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectGrowsContainerWhenReaderHasFewerThanMaximum() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
@@ -131,6 +139,7 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
     #expect(collected == [1, 2, 3])
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectFillsContainerExactlyAtMaximum() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
@@ -141,6 +150,7 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
     #expect(target.count == 3)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectThrowsWhenReaderProducesMoreThanMaximum() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
@@ -155,6 +165,7 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
     }
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectAppendsToExistingContents() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 2, copying: [3, 4]))

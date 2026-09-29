@@ -16,6 +16,7 @@ import ContainersPreview
 
 struct WriterCapacityError: Error {}
 
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 struct UniqueArrayCallerAsyncWriter: ~Copyable, CallerAsyncWriter {
   typealias WriteElement = Int
   typealias WriteFailure = Never

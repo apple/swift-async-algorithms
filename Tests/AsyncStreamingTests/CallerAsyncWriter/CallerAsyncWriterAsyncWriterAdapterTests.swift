@@ -21,7 +21,7 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
   // we drive it through the duplex's CallerAsyncWriter side and verify
   // the elements arrive on the peer reader.
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeAndFinishRoundTrip() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -45,7 +45,7 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func multipleWritesAreFlushedEagerly() async throws {
     // The adapter must NOT defer the most recent write — each write call
@@ -83,7 +83,7 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishWithoutWriteDeliversEmptyTerminator() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -102,7 +102,7 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func customBufferTypePreservesElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(

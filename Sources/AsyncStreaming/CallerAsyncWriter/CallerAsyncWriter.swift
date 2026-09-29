@@ -35,7 +35,7 @@ import BasicContainers
 /// Conformers must accept zero, one, or many `write(buffer:)` calls, optionally
 /// followed by a single `finish(buffer:finalElement:)` call. After `finish`
 /// returns, the writer is consumed and no further calls are valid.
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable, ~Escapable {
   /// The type of elements this writer writes.
   // TODO: Check if we should support ~Escapable elements
@@ -90,7 +90,7 @@ public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Co
   ) async throws(WriteFailure) where Buffer.Element: ~Copyable
 }
 
-@available(macOS 26.2, iOS 26.2, watchOS 26.2, tvOS 26.2, visionOS 26.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension CallerAsyncWriter where Self: ~Copyable, Self: ~Escapable, FinalElement == Void {
   /// Concludes the writer with no final buffer and no extra payload.
   ///

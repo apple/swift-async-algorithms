@@ -19,7 +19,7 @@ import Testing
 struct CallerAsyncReaderPipeTests {
   // MARK: - pipe(into:) — into an AsyncWriter via the adapter
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoCopiesAllElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -40,7 +40,7 @@ struct CallerAsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoWithEmptyReader() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -59,7 +59,7 @@ struct CallerAsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoLoopsAcrossMultipleBuffers() async throws {
     // 200 elements through a small AsyncWriter buffer forces the pipe
@@ -85,7 +85,7 @@ struct CallerAsyncReaderPipeTests {
 
   // MARK: - pipe(bufferingInto:) — into a CallerAsyncWriter
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeBufferingIntoCopiesAllElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -106,7 +106,7 @@ struct CallerAsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeBufferingIntoWithEmptyReader() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -125,7 +125,7 @@ struct CallerAsyncReaderPipeTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeBufferingIntoReusesIntermediateBufferAcrossMultipleIterations() async throws {
     // 100 elements through a 16-element intermediate buffer forces the

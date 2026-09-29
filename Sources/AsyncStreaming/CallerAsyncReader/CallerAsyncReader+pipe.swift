@@ -26,7 +26,7 @@ import BasicContainers
 // capturing the writer across the closure boundary) the constraint should be
 // added back so `pipe` works for `~Escapable` writers too.
 
-@available(macOS 10.14.4, iOS 12.2, watchOS 5.2, tvOS 12.2, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
   /// Pipes all elements from this reader into the given writer, then signals
   /// end-of-stream with a `finish` call on the writer.

@@ -17,6 +17,7 @@ import Testing
 
 @Suite
 struct CallerAsyncWriterTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
@@ -27,6 +28,7 @@ struct CallerAsyncWriterTests {
     #expect(writer.storage.count == 5)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeEmptyBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
@@ -37,6 +39,7 @@ struct CallerAsyncWriterTests {
     #expect(writer.storage.count == 0)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeLargeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter(capacity: 100)

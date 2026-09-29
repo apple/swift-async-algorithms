@@ -24,7 +24,7 @@ public import ContainersPreview
 /// from the caller-supplied buffer into the underlying writer's
 /// closure-supplied buffer. The underlying writer's deferred-flush
 /// behavior, if any, is preserved.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct AsyncWriterCallerAsyncWriterAdapter<
   Underlying: AsyncWriter & ~Copyable
 >: ~Copyable, CallerAsyncWriter {
@@ -77,7 +77,7 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension AsyncWriter where Self: ~Copyable {
   /// Adapts this ``AsyncWriter`` to a ``CallerAsyncWriter``.
   ///

@@ -21,7 +21,7 @@ import Testing
 struct DuplexAsyncChannelTests {
   // MARK: - Round-trip
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func roundTripForwardDirection() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -45,7 +45,7 @@ struct DuplexAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func roundTripReverseDirection() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -69,7 +69,7 @@ struct DuplexAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func directionsAreIndependent() async throws {
     // Bytes sent on the forward direction must NOT appear on the side that
@@ -107,7 +107,7 @@ struct DuplexAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func concurrentReadsOnBothDirections() async throws {
     try await withThrowingTaskGroup(of: [Int].self) { group in
@@ -137,13 +137,13 @@ struct DuplexAsyncChannelTests {
         var fwd = UniqueArray<Int>(minimumCapacity: 10)
         for i in 0..<10 { fwd.append(i) }
         try await writerA.write(buffer: &fwd)
-        writerA.finish()
+        try await writerA.finish()
 
         // Reverse: write 100..<110 from main scope.
         var rev = UniqueArray<Int>(minimumCapacity: 10)
         for i in 100..<110 { rev.append(i) }
         try await writerB.write(buffer: &rev)
-        writerB.finish()
+        try await writerB.finish()
 
         // Drain forward from the main scope.
         var forwardCollected: [Int] = []
@@ -165,7 +165,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Half-close
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishingOneDirectionLeavesTheOtherOpen() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -181,7 +181,7 @@ struct DuplexAsyncChannelTests {
       var fwdBuf = UniqueArray<Int>(minimumCapacity: 1)
       fwdBuf.append(7)
       try await writerA.write(buffer: &fwdBuf)
-      writerA.finish()
+      try await writerA.finish()
 
       // Reverse direction still works.
       var revBuf = UniqueArray<Int>(minimumCapacity: 1)
@@ -208,7 +208,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Final element
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finalElementDeliveredOnFinish() async throws {
     try await DuplexAsyncChannel<Int, String, Never>.withDuplex(
@@ -244,7 +244,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Failure isolation
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func failureOnOneDirectionDoesNotPoisonTheOther() async throws {
     struct TestError: Error, Equatable {}
@@ -254,7 +254,7 @@ struct DuplexAsyncChannelTests {
       throwing: TestError.self,
       backpressureStrategy: .watermark(low: 2, high: 4)
     ) { writerA, readerA, writerB, readerB in
-      var writerA = writerA
+      let writerA = writerA
       var readerA = readerA
       var writerB = writerB
       var readerB = readerB
@@ -263,7 +263,7 @@ struct DuplexAsyncChannelTests {
       var revBuf = UniqueArray<Int>(minimumCapacity: 1)
       revBuf.append(42)
       try await writerB.write(buffer: &revBuf)
-      writerB.finish()
+      try await writerB.finish()
 
       // Fail forward direction.
       writerA.finish(throwing: TestError())
@@ -293,7 +293,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Backpressure isolation
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func backpressureOnOneDirectionDoesNotBlockTheOther() async throws {
     // Forward writer is suspended on backpressure (writes more than the
@@ -343,7 +343,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Multi-producer per direction
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func clonedWriterCanProduceConcurrently() async throws {
     // Two writes happen sequentially through the original writer and its
@@ -371,8 +371,8 @@ struct DuplexAsyncChannelTests {
 
       // Either writer can close the direction independently. The other
       // writer is still alive but the channel is now finishing.
-      writerA.finish()
-      clone.finish()
+      try await writerA.finish()
+      try await clone.finish()
 
       nonisolated(unsafe) var collected = Set<Int>()
       var done = false
@@ -389,7 +389,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Body-error wrapping
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readBodyErrorsWrappedInSecond() async throws {
     struct BodyError: Error, Equatable {}
@@ -422,7 +422,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Scope cleanup
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func scopeFinalizesBothDirectionsOnReturn() async throws {
     nonisolated(unsafe) var aTerminated = false
@@ -442,7 +442,7 @@ struct DuplexAsyncChannelTests {
 
   // MARK: - Protocol conformance
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writerConformsToCallerAsyncWriter() async throws {
     // Exercise CallerAsyncWriter.finish(buffer:finalElement:) by calling
@@ -486,7 +486,7 @@ struct DuplexAsyncChannelTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func readerConformsToAsyncReader() async throws {
     // Exercise AsyncReader.read through a generic function that only

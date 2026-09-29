@@ -17,6 +17,7 @@ import Testing
 
 @Suite
 struct AsyncWriterTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeElements() async {
     var writer = UniqueArrayAsyncWriter()
@@ -33,6 +34,7 @@ struct AsyncWriterTests {
     #expect(writer.storage[2] == 3)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeEmptyBuffer() async {
     var writer = UniqueArrayAsyncWriter()
@@ -42,6 +44,7 @@ struct AsyncWriterTests {
     #expect(writer.storage.count == 0)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeReturnsValue() async {
     var writer = UniqueArrayAsyncWriter()
@@ -56,6 +59,7 @@ struct AsyncWriterTests {
     #expect(writer.storage.count == 2)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeWithThrowingBody() async {
     enum TestError: Error, Equatable {
@@ -74,6 +78,7 @@ struct AsyncWriterTests {
     }
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeMultipleTimes() async {
     var writer = UniqueArrayAsyncWriter()
@@ -95,12 +100,14 @@ struct AsyncWriterTests {
     #expect(writer.storage[3] == 4)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishVoidConvenience() async {
     let writer = UniqueArrayAsyncWriter()
     await writer.finish()
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishDeliversFinalElement() async {
     let writer = UniqueArrayAsyncWriter()

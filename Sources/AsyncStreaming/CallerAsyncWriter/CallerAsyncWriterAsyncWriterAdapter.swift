@@ -27,7 +27,7 @@ public import BasicContainers
 /// ``CallerAsyncWriter/finish(buffer:finalElement:)`` always receives an
 /// empty buffer. Conformers that need fused close should implement
 /// ``AsyncWriter`` directly rather than going through this adapter.
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct CallerAsyncWriterAsyncWriterAdapter<
   Underlying: CallerAsyncWriter & ~Copyable,
   Buffer: DynamicContainer<Underlying.WriteElement> & ~Copyable
@@ -76,7 +76,7 @@ public struct CallerAsyncWriterAsyncWriterAdapter<
   }
 }
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension CallerAsyncWriter where Self: ~Copyable {
   /// Adapts this ``CallerAsyncWriter`` to an ``AsyncWriter``, using
   /// ``UniqueArray`` as the buffer container.

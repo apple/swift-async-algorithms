@@ -23,7 +23,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
   // asAsyncWriter() to get an AsyncWriter, then wrap THAT via
   // asCallerAsyncWriter() to exercise this adapter end-to-end.
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeAndFinishRoundTrip() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -45,7 +45,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeLoopsAcrossMultipleUnderlyingBuffers() async throws {
     // The CallerAsyncWriterAsyncWriterAdapter underneath uses a
@@ -75,7 +75,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishWithoutWriteDeliversEmptyTerminator() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -95,7 +95,7 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
     }
   }
 
-  @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishDeliversTrailingBufferAndPayload() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
