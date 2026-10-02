@@ -37,13 +37,13 @@ public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error
 /// Afterwards, you can pass the source to the producer and the channel to the consumer.
 ///
 /// ```
-/// let channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
+/// var channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
 ///     of: Int.self,
 ///     backpressureStrategy: .watermark(low: 2, high: 4)
 /// )
 ///
 /// // The channel and source can be extracted from the returned type
-/// let channel = consume channelAndSource.channel
+/// let channel = channelAndSource.takeChannel()
 /// let source = consume channelAndSource.source
 /// ```
 ///
@@ -127,11 +127,11 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   /// components from it.
   ///
   /// ```swift
-  /// let channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
+  /// var channelAndSource = MultiProducerSingleConsumerAsyncChannel.makeChannel(
   ///     of: Int.self,
   ///     backpressureStrategy: .watermark(low: 5, high: 10)
   /// )
-  /// var channel = consume channelAndSource.channel
+  /// var channel = channelAndSource.takeChannel()
   /// var source = consume channelAndSource.source
   /// ```
   @frozen
