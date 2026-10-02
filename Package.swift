@@ -14,7 +14,7 @@ let AsyncAlgorithms_v1_3 =
 #else
 let AsyncAlgorithms_v1_1 = "AvailabilityMacro=AsyncAlgorithms 1.1:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
 let AsyncAlgorithms_v1_2 = "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
-let AsyncAlgorithms_v1_3 = "AvailabilityMacro=AsyncAlgorithms 1.2:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
+let AsyncAlgorithms_v1_3 = "AvailabilityMacro=AsyncAlgorithms 1.3:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0"
 #endif
 
 let availabilityMacros: [SwiftSetting] = [
