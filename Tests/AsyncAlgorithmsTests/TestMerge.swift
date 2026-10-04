@@ -216,6 +216,37 @@ final class TestMerge2: XCTestCase {
   }
 }
 
+#if compiler(>=6.0)
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+final class TestMerge2Isolation: XCTestCase {
+  func test_merge_propagates_failure_when_first_is_throwing_and_second_is_non_throwing() async {
+    let first = [1].async.map { try throwOn(1, $0) }
+    let second = [2].async
+    var iterator = merge(first, second).makeAsyncIterator()
+
+    do {
+      while let _ = try await iterator.next(isolation: nil) {}
+      XCTFail("Merged sequence should throw when the first sequence throws")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+  }
+
+  func test_merge_propagates_failure_when_first_is_non_throwing_and_second_is_throwing() async {
+    let first = [1].async
+    let second = [2].async.map { try throwOn(2, $0) }
+    var iterator = merge(first, second).makeAsyncIterator()
+
+    do {
+      while let _ = try await iterator.next(isolation: nil) {}
+      XCTFail("Merged sequence should throw when the second sequence throws")
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+  }
+}
+#endif
+
 final class TestMerge3: XCTestCase {
   func test_merge_makes_sequence_with_elements_from_sources_when_all_have_same_size() async {
     let first = [1, 2, 3]
