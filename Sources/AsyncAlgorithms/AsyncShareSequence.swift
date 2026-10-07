@@ -67,7 +67,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
   ///
   public func share(
     bufferingPolicy: AsyncBufferSequencePolicy = .bounded(1)
-  ) -> some AsyncSequence<Element, Failure> & Sendable {
+  ) -> AsyncShareSequence<Self> {
     // The iterator is transferred to the isolation of the iterating task
     // this has to be done "unsafely" since we cannot annotate the transfer
     // however since iterating an AsyncSequence types twice has been defined
@@ -115,7 +115,7 @@ where Element: Sendable, Self: SendableMetatype, AsyncIterator: SendableMetatype
 // This type is typically not used directly; instead, use the `share()` method on any
 // async sequence that meets the sendability requirements.
 @available(AsyncAlgorithms 1.1, *)
-struct AsyncShareSequence<Base: AsyncSequence>: Sendable
+public struct AsyncShareSequence<Base: AsyncSequence>: Sendable
 where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: SendableMetatype {
   // Represents a single consumer's connection to the shared sequence.
   //
@@ -699,26 +699,26 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
 
 @available(AsyncAlgorithms 1.1, *)
 extension AsyncShareSequence: AsyncSequence {
-  typealias Element = Base.Element
-  typealias Failure = Base.Failure
+  public typealias Element = Base.Element
+  public typealias Failure = Base.Failure
 
-  struct Iterator: AsyncIteratorProtocol {
+  public struct Iterator: AsyncIteratorProtocol {
     let side: Side
 
     init(_ iteration: Iteration) {
       side = Side(iteration)
     }
 
-    mutating func next() async rethrows -> Element? {
+    public mutating func next() async rethrows -> Element? {
       try await side.next(isolation: nil)
     }
 
-    mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
+    public mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
       try await side.next(isolation: actor)
     }
   }
 
-  func makeAsyncIterator() -> Iterator {
+  public func makeAsyncIterator() -> Iterator {
     Iterator(extent.iteration)
   }
 }
