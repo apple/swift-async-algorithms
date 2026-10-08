@@ -56,6 +56,14 @@ where Base.Element: Sendable, Inner.Element: Sendable {
     )
     case cancelInnerTask(Task<Void, Never>, UnsafeContinuation<Void, Error>?)
     case resumeDownstream(UnsafeContinuation<Element?, Error>, Result<Element?, Error>)
+    case resumeDownstreamAndCancelTasks(
+      UnsafeContinuation<Element?, Error>,
+      Result<Element?, Error>,
+      Task<Void, Never>?,
+      Task<Void, Never>?,
+      UnsafeContinuation<Void, Error>?,
+      UnsafeContinuation<Void, Error>?
+    )
     case resumeOuterContinuation(UnsafeContinuation<Void, Error>)
     case cancelTasks(
       Task<Void, Never>?,
@@ -457,12 +465,17 @@ where Base.Element: Sendable, Inner.Element: Sendable {
       }
 
       state = .finished
-      let action: Action = .cancelTasks(outerTask, innerTask, outerCont, innerCont)
-
       guard let downstreamCont = downstreamCont else {
-        return action
+        return .cancelTasks(outerTask, innerTask, outerCont, innerCont)
       }
-      return .resumeDownstream(downstreamCont, .failure(error))
+      return .resumeDownstreamAndCancelTasks(
+        downstreamCont,
+        .failure(error),
+        outerTask,
+        innerTask,
+        outerCont,
+        innerCont
+      )
 
     default:
       return .none
@@ -500,12 +513,17 @@ where Base.Element: Sendable, Inner.Element: Sendable {
     switch state {
     case .running(let outerTask, let outerCont, let innerTask, let innerCont, let downstreamCont, _, _, _):
       state = .finished
-      let action: Action = .cancelTasks(outerTask, innerTask, outerCont, innerCont)
-
       guard let downstreamCont = downstreamCont else {
-        return action
+        return .cancelTasks(outerTask, innerTask, outerCont, innerCont)
       }
-      return .resumeDownstream(downstreamCont, .failure(error))
+      return .resumeDownstreamAndCancelTasks(
+        downstreamCont,
+        .failure(error),
+        outerTask,
+        innerTask,
+        outerCont,
+        innerCont
+      )
 
     default:
       return .none
@@ -516,12 +534,10 @@ where Base.Element: Sendable, Inner.Element: Sendable {
     switch state {
     case .running(let outerTask, let outerCont, let innerTask, let innerCont, let downstreamCont, _, _, _):
       state = .finished
-      let action: Action = .cancelTasks(outerTask, innerTask, outerCont, innerCont)
-
-      if let downstreamCont = downstreamCont {
-        return .resumeDownstream(downstreamCont, .success(nil))
+      guard let downstreamCont = downstreamCont else {
+        return .cancelTasks(outerTask, innerTask, outerCont, innerCont)
       }
-      return action
+      return .resumeDownstreamAndCancelTasks(downstreamCont, .success(nil), outerTask, innerTask, outerCont, innerCont)
 
     default:
       state = .finished
