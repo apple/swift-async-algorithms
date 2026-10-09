@@ -113,8 +113,8 @@ internal struct _AsyncBytesBuffer {
     if finished {
       return nil
     }
-    try Task.checkCancellation()
     do {
+      try Task.checkCancellation()
       let readSize: Int = try await readFunction(storage.buffer)
       if readSize == 0 {
         finished = true

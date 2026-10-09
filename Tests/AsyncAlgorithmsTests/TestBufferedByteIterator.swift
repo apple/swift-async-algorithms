@@ -203,4 +203,53 @@ final class TestBufferedByteIterator: XCTestCase {
     task.cancel()
     await fulfillment(of: [finished], timeout: 1.0)
   }
+
+  /// Once `next()` has thrown, an iterator is done. A cancelled one used to
+  /// throw `CancellationError` on every later call instead, because the
+  /// cancellation check sat outside the block that marks the buffer finished.
+  func test_cancellation_finishes_the_iterator() async {
+    let reads = Isolated(0)
+    let outcomes = await inCancelledTask(steps: 3) {
+      var iterator = AsyncBufferedByteIterator(capacity: 1) { buffer in
+        await reads.update(await reads.value + 1)
+        buffer.storeBytes(of: UInt8(42), as: UInt8.self)
+        return 1
+      }
+      var seen: [String] = []
+      for _ in 0..<3 {
+        do {
+          seen.append(try await iterator.next().map { "\($0)" } ?? "nil")
+        } catch is CancellationError {
+          seen.append("CancellationError")
+        } catch {
+          seen.append("\(type(of: error))")
+        }
+      }
+      return seen
+    }
+    XCTAssertEqual(outcomes, ["CancellationError", "nil", "nil"])
+    let readCount = await reads.value
+    XCTAssertEqual(readCount, 0, "a cancelled iterator never calls the read function")
+  }
+
+  /// Runs `body` in a task that is cancelled before it touches an iterator.
+  ///
+  /// The body sleeps first, which either throws at once because the cancellation
+  /// got there first or is woken by `cancel()`. Either way what follows runs in a
+  /// task that is definitely cancelled, with no race to lose.
+  private func inCancelledTask(
+    steps: Int,
+    _ body: @escaping @Sendable () async -> [String]
+  ) async -> [String] {
+    let (reports, report) = AsyncStream<[String]>.makeStream()
+    let task = Task {
+      try? await Task.sleep(nanoseconds: 30_000_000_000)
+      report.yield(await body())
+    }
+    task.cancel()
+    var results = reports.makeAsyncIterator()
+    let outcomes = await results.next() ?? []
+    XCTAssertEqual(outcomes.count, steps)
+    return outcomes
+  }
 }
