@@ -226,6 +226,39 @@ final class TestFlatMapLatest: XCTestCase {
     // Determine success by running without crashing
     for try await _ in combined {}
   }
+
+  func test_rapid_switching_single_consumer_stress() async throws {
+    // Regression test: rapid inner sequence switching used to trap in
+    // `next(for:)` or hang; the timeout guards against the hang variant.
+    let finished = expectation(description: "all iterations finished")
+    let consumer = Task {
+      for _ in 0..<1000 {
+        let toggles = AsyncStream<Bool> { continuation in
+          for index in 0..<20 {
+            continuation.yield(index.isMultiple(of: 2))
+          }
+          continuation.finish()
+        }
+
+        let sequence = toggles.flatMapLatest { enabled in
+          AsyncStream<Int> { continuation in
+            if enabled {
+              for value in 0..<200 {
+                continuation.yield(value)
+              }
+            }
+            continuation.finish()
+          }
+        }
+
+        for await _ in sequence {}
+      }
+      finished.fulfill()
+    }
+    defer { consumer.cancel() }
+
+    await fulfillment(of: [finished], timeout: 120)
+  }
 }
 
 private struct FlatMapLatestFailure: Error, Equatable {}
