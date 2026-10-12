@@ -63,58 +63,31 @@ where
     // We need to handle cancellation here because we are creating a continuation
     // and because we need to cancel the `Task` we created to consume the upstream
     try await withTaskCancellationHandler {
-      self.lock.lock()
-      let action = self.stateMachine.next()
+      let action = self.lock.withLock {
+        let action = self.stateMachine.next()
 
-      switch action {
-      case .startTaskAndSuspendDownstreamTask(let base1, let base2, let base3):
-        self.startTask(
-          stateMachine: &self.stateMachine,
-          base1: base1,
-          base2: base2,
-          base3: base3
-        )
-        // It is safe to hold the lock across this method
-        // since the closure is guaranteed to be run straight away
-        return try await withUnsafeThrowingContinuation { continuation in
-          let action = self.stateMachine.next(for: continuation)
-          self.lock.unlock()
-
-          switch action {
-          case let .resumeUpstreamContinuations(upstreamContinuations):
-            // This is signalling the child tasks that are consuming the upstream
-            // sequences to signal demand.
-            upstreamContinuations.forEach { $0.resume(returning: ()) }
-          }
+        if case let .startTaskAndSuspendDownstreamTask(base1, base2, base3) = action {
+          self.startTask(base1: base1, base2: base2, base3: base3)
         }
 
-      case let .returnElement(element):
-        self.lock.unlock()
+        return action
+      }
 
+      switch action {
+      case .startTaskAndSuspendDownstreamTask:
+        return try await self.suspendNext()
+
+      case let .returnElement(element):
         return try element._rethrowGet()
 
       case .returnNil:
-        self.lock.unlock()
         return nil
 
       case let .throwError(error):
-        self.lock.unlock()
         throw error
 
       case .suspendDownstreamTask:
-        // It is safe to hold the lock across this method
-        // since the closure is guaranteed to be run straight away
-        return try await withUnsafeThrowingContinuation { continuation in
-          let action = self.stateMachine.next(for: continuation)
-          self.lock.unlock()
-
-          switch action {
-          case let .resumeUpstreamContinuations(upstreamContinuations):
-            // This is signalling the child tasks that are consuming the upstream
-            // sequences to signal demand.
-            upstreamContinuations.forEach { $0.resume(returning: ()) }
-          }
-        }
+        return try await self.suspendNext()
       }
     } onCancel: {
       let action = self.lock.withLock { self.stateMachine.cancelled() }
@@ -145,8 +118,30 @@ where
     }
   }
 
+  private func suspendNext() async rethrows -> Element? {
+    try await withUnsafeThrowingContinuation { continuation in
+      let action = self.lock.withLock {
+        self.stateMachine.next(for: continuation)
+      }
+
+      switch action {
+      case let .resumeUpstreamContinuations(upstreamContinuations):
+        // This is signalling the child tasks that are consuming the upstream
+        // sequences to signal demand.
+        upstreamContinuations.forEach { $0.resume(returning: ()) }
+
+      case let .resumeDownstreamContinuation(result):
+        switch result {
+        case let .success(element):
+          continuation.resume(returning: element)
+        case let .failure(error):
+          continuation.resume(throwing: error)
+        }
+      }
+    }
+  }
+
   private func startTask(
-    stateMachine: inout MergeStateMachine<Base1, Base2, Base3>,
     base1: Base1,
     base2: Base2,
     base3: Base3?
@@ -199,8 +194,9 @@ where
       }
     }
 
-    // We need to inform our state machine that we started the Task
-    stateMachine.taskStarted(task)
+    // We need to inform our state machine that we started the Task before
+    // the child task can interact with it.
+    self.stateMachine.taskStarted(task)
   }
 
   private func iterateAsyncSequence<AsyncSequence: _Concurrency.AsyncSequence>(

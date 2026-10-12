@@ -604,20 +604,38 @@ where
     case resumeUpstreamContinuations(
       upstreamContinuations: [UnsafeContinuation<Void, Error>]
     )
+    /// Indicates that the downstream continuation should be resumed immediately.
+    case resumeDownstreamContinuation(Result<Element?, Error>)
   }
 
   mutating func next(for continuation: UnsafeContinuation<Element?, Error>) -> NextForAction {
     switch state {
     case .initial,
-      .merging(_, _, _, _, .some),
-      .upstreamFailure,
-      .finished:
+      .merging(_, _, _, _, .some):
       // All other states are handled by `next` already so we should never get in here with
-      // any of those
+      // either of these.
       preconditionFailure("Internal inconsistency current state \(self.state) and received next(for:)")
 
-    case let .merging(task, buffer, upstreamContinuations, upstreamsFinished, .none):
-      // We suspended the task and need signal the upstreams
+    case .merging(let task, var buffer, let upstreamContinuations, let upstreamsFinished, .none):
+      // The continuation is registered after `next()` releases the lock. While
+      // it was unlocked, an upstream may have produced an element or finished.
+      if let element = buffer.popFirst() {
+        state = .merging(
+          task: task,
+          buffer: buffer,
+          upstreamContinuations: upstreamContinuations,
+          upstreamsFinished: upstreamsFinished,
+          downstreamContinuation: nil
+        )
+        return .resumeDownstreamContinuation(.success(element))
+      }
+
+      if upstreamsFinished == self.numberOfUpstreamSequences {
+        state = .finished
+        return .resumeDownstreamContinuation(.success(nil))
+      }
+
+      // We suspended the task and need signal the upstreams.
       state = .merging(
         task: task,
         buffer: buffer,
@@ -625,10 +643,21 @@ where
         upstreamsFinished: upstreamsFinished,
         downstreamContinuation: continuation
       )
-
       return .resumeUpstreamContinuations(
         upstreamContinuations: upstreamContinuations
       )
+
+    case .upstreamFailure(var buffer, let error):
+      if let element = buffer.popFirst() {
+        state = .upstreamFailure(buffer: buffer, error: error)
+        return .resumeDownstreamContinuation(.success(element))
+      }
+
+      state = .finished
+      return .resumeDownstreamContinuation(.failure(error))
+
+    case .finished:
+      return .resumeDownstreamContinuation(.success(nil))
 
     case .modifying:
       preconditionFailure("Invalid state")
