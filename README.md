@@ -39,9 +39,12 @@ This package is the home for these APIs. Development and API design take place o
 #### Other useful asynchronous sequences
 - [`adjacentPairs()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/AdjacentPairs.md): Collects tuples of adjacent elements.
 - [`chunks(...)` and `chunked(...)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Chunked.md): Collect values into chunks.
+- [`flatMapLatest(_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/FlatMapLatest.md): Transforms elements into asynchronous sequences, emitting elements from only the most recent inner sequence.
 - [`compacted()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Compacted.md): Remove nil values from an asynchronous sequence.
+- [`reductions(_:_:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Reductions.md): Collect the intermediate results of a reduce operation as an asynchronous sequence.
 - [`removeDuplicates()`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/RemoveDuplicates.md): Remove sequentially adjacent duplicate values.
 - [`interspersed(with:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Intersperse.md): Place a value between every two elements of an asynchronous sequence.
+- [`share(bufferingPolicy:)`](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Share.md): Share the elements of an asynchronous sequence with multiple concurrent consumers.
 
 #### Asynchronous Sequences that transact in time
 
