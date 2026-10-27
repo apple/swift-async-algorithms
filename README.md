@@ -82,7 +82,7 @@ Finally, add `import AsyncAlgorithms` to your source code.
 
 ## Getting Started
 
-⚠️ Please note that this package requires Xcode 14 on macOS hosts. Previous versions of Xcode do not contain the required Swift version.
+⚠️ This package requires a Swift 6.2 toolchain or later (`Package.swift` uses `swift-tools-version: 6.2`). On macOS, use an Xcode release that includes Swift 6.2 or later; earlier toolchains cannot parse the current manifest.
 
 ### Building/Testing Using Xcode on macOS
 
