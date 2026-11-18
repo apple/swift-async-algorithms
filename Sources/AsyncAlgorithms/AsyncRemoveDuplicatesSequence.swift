@@ -113,6 +113,9 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
     var last: Element?
 
     @usableFromInline
+    var finished = false
+
+    @usableFromInline
     init(iterator: Base.AsyncIterator, predicate: @escaping @Sendable (Element, Element) async throws -> Bool) {
       self.iterator = iterator
       self.predicate = predicate
@@ -120,12 +123,22 @@ public struct AsyncThrowingRemoveDuplicatesSequence<Base: AsyncSequence>: AsyncS
 
     @inlinable
     public mutating func next() async throws -> Element? {
+      guard !finished else {
+        return nil
+      }
       guard let last = last else {
         last = try await iterator.next()
         return last
       }
       while let element = try await iterator.next() {
-        if try await !predicate(last, element) {
+        let isDuplicate: Bool
+        do {
+          isDuplicate = try await predicate(last, element)
+        } catch {
+          finished = true
+          throw error
+        }
+        if !isDuplicate {
           self.last = element
           return element
         }
