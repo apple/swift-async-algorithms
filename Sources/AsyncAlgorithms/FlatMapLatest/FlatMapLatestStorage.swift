@@ -124,6 +124,9 @@ where Base.Element: Sendable, Inner.Element: Sendable {
   }
 
   private func startInnerTask(_ inner: Inner, generation: Int) {
+    // Hold the lock so the task is registered before its body can take the
+    // lock and transition the state machine (matching `startOuterTask`).
+    lock.lock()
     let task = Task {
       var iterator = inner.makeAsyncIterator()
 
@@ -165,6 +168,7 @@ where Base.Element: Sendable, Inner.Element: Sendable {
       }
     }
     stateMachine.innerTaskStarted(task, generation: generation)
+    lock.unlock()
   }
 
   private func handleAction(_ action: FlatMapLatestStateMachine<Base, Inner>.Action) {
