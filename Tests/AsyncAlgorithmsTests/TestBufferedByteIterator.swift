@@ -203,4 +203,38 @@ final class TestBufferedByteIterator: XCTestCase {
     task.cancel()
     await fulfillment(of: [finished], timeout: 1.0)
   }
+
+  /// Once `next()` has thrown, an iterator is done. A cancelled one used to
+  /// throw `CancellationError` on every later call instead, because the
+  /// cancellation check sat outside the block that marks the buffer finished.
+  func test_cancellation_finishes_the_iterator() async {
+    let reads = Isolated(0)
+    // A child added to an already cancelled group starts out cancelled, so the
+    // iterator is used in a task that is certainly cancelled, with nothing to wait for.
+    let outcomes = await withTaskGroup(of: [String].self) { group in
+      group.cancelAll()
+      group.addTask {
+        var iterator = AsyncBufferedByteIterator(capacity: 1) { buffer in
+          await reads.update(await reads.value + 1)
+          buffer.storeBytes(of: UInt8(42), as: UInt8.self)
+          return 1
+        }
+        var seen: [String] = []
+        for _ in 0..<3 {
+          do {
+            seen.append(try await iterator.next().map { "\($0)" } ?? "nil")
+          } catch is CancellationError {
+            seen.append("CancellationError")
+          } catch {
+            seen.append("\(type(of: error))")
+          }
+        }
+        return seen
+      }
+      return await group.next() ?? []
+    }
+    XCTAssertEqual(outcomes, ["CancellationError", "nil", "nil"])
+    let readCount = await reads.value
+    XCTAssertEqual(readCount, 0, "a cancelled iterator never calls the read function")
+  }
 }
