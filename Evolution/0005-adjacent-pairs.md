@@ -38,7 +38,7 @@ for await (first, second) in (1...5).async.adjacentPairs() {
 // First: 4, Second: 5
 ```
 
-It composes well with the [Dictionary.init(_:uniquingKeysWith:)](https://github.com/apple/swift-async-algorithms/blob/main/Guides/Collections.md) API that deals with `AsyncSequence` of tuples.
+It composes well with the [Dictionary.init(_:uniquingKeysWith:)](https://github.com/apple/swift-async-algorithms/blob/main/Sources/AsyncAlgorithms/AsyncAlgorithms.docc/Guides/Collections.md) API that deals with `AsyncSequence` of tuples.
 
 ```swift
 Dictionary(uniqueKeysWithValues: url.lines.adjacentPairs())
