@@ -226,6 +226,116 @@ final class TestFlatMapLatest: XCTestCase {
     // Determine success by running without crashing
     for try await _ in combined {}
   }
+
+  func test_consumer_cancellation_cancels_inner() async {
+    let (requests, requestContinuation) = AsyncStream<Int>.makeStream()
+    let (inner, innerContinuation) = AsyncStream<Int>.makeStream()
+
+    let started = FlatMapLatestFlag()
+    let cancelled = FlatMapLatestFlag()
+
+    innerContinuation.onTermination = { reason in
+      if case .cancelled = reason { cancelled.set() }
+    }
+
+    let sequence = requests.flatMapLatest { _ in
+      started.set()
+      return inner
+    }
+
+    let task = Task { for await _ in sequence {} }
+    requestContinuation.yield(1)
+    let startedOK = await started.wait()
+    XCTAssertTrue(startedOK, "inner sequence never started")
+
+    task.cancel()
+    let cancelledOK = await cancelled.wait()
+    XCTAssertTrue(cancelledOK, "inner sequence was not cancelled")
+  }
+
+  func test_inner_throwing_cancels_outer() async {
+    let (requests, requestContinuation) = AsyncThrowingStream<Int, Error>.makeStream()
+    let outerCancelled = FlatMapLatestFlag()
+    let receivedError = FlatMapLatestFlag()
+    requestContinuation.onTermination = { reason in
+      if case .cancelled = reason { outerCancelled.set() }
+    }
+    let transformed = requests.flatMapLatest { _ -> AsyncThrowingStream<Int, Error> in
+      AsyncThrowingStream { $0.finish(throwing: FlatMapLatestFailure()) }
+    }
+
+    let task = Task {
+      do {
+        for try await _ in transformed {}
+      } catch is FlatMapLatestFailure {
+        receivedError.set()
+      } catch {}
+    }
+    // Let the consumer suspend in `next()` before the failure arrives.
+    try? await Task.sleep(nanoseconds: 100_000_000)
+    requestContinuation.yield(1)
+
+    let receivedOK = await receivedError.wait()
+    XCTAssertTrue(receivedOK, "consumer never received the error")
+    let outerCancelledOK = await outerCancelled.wait()
+    XCTAssertTrue(outerCancelledOK, "outer sequence was not cancelled")
+    task.cancel()
+  }
+
+  func test_outer_throwing_cancels_inner() async {
+    let (outer, outerContinuation) = AsyncThrowingStream<Int, Error>.makeStream()
+    let (inner, innerContinuation) = AsyncStream<Int>.makeStream()
+    let innerCancelled = FlatMapLatestFlag()
+    let receivedError = FlatMapLatestFlag()
+    innerContinuation.onTermination = { reason in
+      if case .cancelled = reason { innerCancelled.set() }
+    }
+    let transformed = outer.flatMapLatest { _ in inner }
+
+    let task = Task {
+      do {
+        for try await _ in transformed {}
+      } catch is FlatMapLatestFailure {
+        receivedError.set()
+      } catch {}
+    }
+    outerContinuation.yield(1)
+    // Let the consumer suspend in `next()` and the inner sequence start.
+    try? await Task.sleep(nanoseconds: 100_000_000)
+    outerContinuation.finish(throwing: FlatMapLatestFailure())
+
+    let receivedOK = await receivedError.wait()
+    XCTAssertTrue(receivedOK, "consumer never received the error")
+    let innerCancelledOK = await innerCancelled.wait()
+    XCTAssertTrue(innerCancelledOK, "inner sequence was not cancelled")
+    task.cancel()
+  }
+}
+
+private final class FlatMapLatestFlag: @unchecked Sendable {
+  private let lock = NSLock()
+  private var isSet = false
+
+  func set() {
+    lock.lock()
+    isSet = true
+    lock.unlock()
+  }
+
+  private func read() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return isSet
+  }
+
+  func wait(timeout: TimeInterval = 2) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while true {
+      if read() { return true }
+      if Date() >= deadline { return false }
+      try? await Task.sleep(nanoseconds: 10_000_000)
+    }
+  }
 }
 
 private struct FlatMapLatestFailure: Error, Equatable {}
