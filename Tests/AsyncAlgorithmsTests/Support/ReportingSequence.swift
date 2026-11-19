@@ -46,11 +46,13 @@ final class ReportingSequence<Element>: Sequence, IteratorProtocol {
 final class ReportingAsyncSequence<Element: Sendable>: AsyncSequence, AsyncIteratorProtocol, @unchecked Sendable {
   enum Event: Equatable, CustomStringConvertible {
     case next
+    case nextIsolation
     case makeAsyncIterator
 
     var description: String {
       switch self {
       case .next: return "next()"
+      case .nextIsolation: return "next(isolation:)"
       case .makeAsyncIterator: return "makeAsyncIterator()"
       }
     }
@@ -61,6 +63,14 @@ final class ReportingAsyncSequence<Element: Sendable>: AsyncSequence, AsyncItera
 
   init(_ elements: [Element]) {
     self.elements = elements
+  }
+
+  func next(isolation actor: isolated (any Actor)?) async -> Element? {
+    events.append(.nextIsolation)
+    guard elements.count > 0 else {
+      return nil
+    }
+    return elements.removeFirst()
   }
 
   func next() async -> Element? {
