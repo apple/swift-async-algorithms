@@ -15,7 +15,7 @@ import ContainersPreview
 
 // swift-format-ignore: AmbiguousTrailingClosureOverload
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
   /// Iterates over all chunks from the reader, executing the provided body for
   /// each buffer until the stream signals end-of-stream.
   ///

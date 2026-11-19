@@ -55,6 +55,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
   where
     Writer: CallerAsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -105,6 +106,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
   where
     Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -133,6 +135,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(Writer.WriteFailure)
   where
     Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
     Writer.WriteElement == ReadElement
   {
     var consumer = readerBuffer.consumeAll()
