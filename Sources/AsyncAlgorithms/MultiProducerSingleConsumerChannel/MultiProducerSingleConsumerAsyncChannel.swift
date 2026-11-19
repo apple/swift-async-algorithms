@@ -202,9 +202,7 @@ public struct MultiProducerSingleConsumerAsyncChannel<Element, Failure: Error>: 
   /// - Parameter isolation: The callers isolation.
   /// - Returns: The next buffered element.
   @inlinable
-  public mutating func next(
-    isolation: isolated (any Actor)? = #isolation
-  ) async throws(Failure) -> Element? {
+  nonisolated(nonsending) public mutating func next() async throws(Failure) -> Element? {
     do {
       return try await self.storage.next()
     } catch {
@@ -711,9 +709,7 @@ extension MultiProducerSingleConsumerAsyncChannel.ChannelAsyncSequence where Ele
     }
 
     @inlinable
-    mutating func next(
-      isolation actor: isolated (any Actor)? = #isolation
-    ) async throws(Failure) -> Element? {
+    nonisolated(nonsending) mutating func next() async throws(Failure) -> Element? {
       do {
         return try await self._backing.storage.next(isolation: actor)
       } catch {
