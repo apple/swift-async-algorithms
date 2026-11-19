@@ -386,7 +386,9 @@ extension DuplexAsyncChannel {
       buffer: inout Buffer,
       finalElement: consuming FinalElement
     ) async throws {
-      try await self.write(buffer: &buffer)
+      if !buffer.isEmpty {
+        try await self.write(buffer: &buffer)
+      }
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
   }
