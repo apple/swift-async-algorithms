@@ -387,6 +387,93 @@ struct DuplexAsyncChannelTests {
     }
   }
 
+  /// Finishes `writer` through the `CallerAsyncWriter` protocol, where there is
+  /// no concrete `finish()` overload to pick instead.
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  private static func finishThroughProtocol<Writer: CallerAsyncWriter & ~Copyable>(
+    _ writer: consuming Writer
+  ) async throws(Writer.WriteFailure) where Writer.FinalElement == Void {
+    try await writer.finish()
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func cloneFinishesThroughGenericCallerAsyncWriterAfterOtherWriterFinished() async throws {
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 5, high: 50)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      var readerB = readerB
+      _ = readerA
+      _ = writerB
+
+      let clone = writerA.clone()
+      var buffer = UniqueArray<Int>(minimumCapacity: 3)
+      for value in 0..<3 { buffer.append(value) }
+      try await writerA.write(buffer: &buffer)
+
+      try await writerA.finish()
+      try await Self.finishThroughProtocol(clone)
+
+      var collected: [Int] = []
+      var done = false
+      while !done {
+        try await readerB.read { buffer, finalElement in
+          var consumer = buffer.consumeAll()
+          while let value = consumer.next() { collected.append(value) }
+          if finalElement != nil { done = true }
+        }
+      }
+      #expect(collected == [0, 1, 2])
+    }
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func cloneFinishesThroughAsyncWriterAdapterAfterOtherWriterFinished() async throws {
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 5, high: 50)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      _ = readerA
+      _ = writerB
+      _ = readerB
+
+      let clone = writerA.clone()
+      try await writerA.finish()
+      try await clone.asAsyncWriter().finish()
+    }
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func cloneFinishWithElementsAfterOtherWriterFinishedStillThrows() async throws {
+    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
+      of: Int.self,
+      backpressureStrategy: .watermark(low: 5, high: 50)
+    ) { writerA, readerA, writerB, readerB in
+      var writerA = writerA
+      _ = readerA
+      _ = writerB
+      _ = readerB
+
+      let clone = writerA.clone()
+      try await writerA.finish()
+
+      // Elements that can no longer be delivered must not be dropped silently.
+      var buffer = UniqueArray<Int>(minimumCapacity: 1)
+      buffer.append(1)
+      do {
+        try await clone.finish(buffer: &buffer, finalElement: ())
+        Issue.record("Expected error")
+      } catch {
+        #expect(error is MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError)
+      }
+    }
+  }
+
   // MARK: - Body-error wrapping
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
