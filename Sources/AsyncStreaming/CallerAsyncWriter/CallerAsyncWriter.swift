@@ -91,7 +91,7 @@ public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Co
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension CallerAsyncWriter where Self: ~Copyable, Self: ~Escapable, FinalElement == Void {
+extension CallerAsyncWriter where Self: ~Copyable, Self: ~Escapable, WriteElement: ~Copyable, FinalElement == Void {
   /// Concludes the writer with no final buffer and no extra payload.
   ///
   /// Available only when ``FinalElement`` is `Void`. Equivalent to calling

@@ -45,7 +45,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
   ///   elements than `target` could accept.
   public consuming func collect<Container: RangeReplaceableContainer<ReadElement> & ~Copyable & ~Escapable>(
     into target: inout Container
-  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement {
+  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement where Container.Element: ~Copyable {
     var reader = self
     var finalElement: FinalElement? = nil
     while finalElement == nil {
@@ -84,7 +84,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     exactlyInto target: inout Container
   ) async throws(EitherError<
     ReadFailure, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
-  >) -> FinalElement {
+  >) -> FinalElement where Container.Element: ~Copyable {
     var reader = self
     var finalElement: FinalElement? = nil
     while finalElement == nil {
@@ -129,7 +129,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
   public consuming func collect<Container: DynamicContainer<ReadElement> & ~Copyable>(
     into target: inout Container,
     maximumSize: Int
-  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement {
+  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement where Container.Element: ~Copyable {
     precondition(maximumSize >= 0, "maximumSize must be non-negative")
     var reader = self
     var finalElement: FinalElement? = nil
