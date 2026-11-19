@@ -29,15 +29,6 @@ extension Array {
     }
   }
 
-  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  init<C: RangeReplaceableContainer<Element> & ~Copyable & ~Escapable>(draining container: inout C) {
-    self.init()
-    var consumer = container.consumeAll()
-    while let value = consumer.next() {
-      self.append(value)
-    }
-  }
-
   mutating func append(span: Span<Element>) {
     for index in span.indices {
       self.append(span[index])

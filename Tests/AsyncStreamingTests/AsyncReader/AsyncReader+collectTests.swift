@@ -16,53 +16,74 @@ import BasicContainers
 import ContainersPreview
 import Testing
 
+// The tests that take `chunks` run once with all the values in one read and
+// once split over two reads, so that `collect` both appends a chunk that is not
+// the last one and handles the final element arriving with a later chunk.
+// Each test checks that every element it created was freed, on the success and
+// the error paths alike.
+
 @Suite
 struct AsyncReaderCollectIntoTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectFillsTargetWhenReaderHasFewerElements() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 10)
-
-    try await reader.collect(into: &target)
-
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
-  }
-
-  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
-
-    try await reader.collect(into: &target)
-
-    #expect(target.count == 3)
-  }
-
-  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectThrowsWhenReaderProducesMoreThanFreeCapacity() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
-
+    let tracker = LifetimeTracker()
     do {
+      let reader = UniqueArrayAsyncReader(values: [1, 2, 3], tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 10)
+
       try await reader.collect(into: &target)
-      Issue.record("Expected error")
-    } catch {
-      let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
-      #expect(error == expected)
+
+      #expect([Int](drainingValues: &target) == [1, 2, 3])
     }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 3)
+
+      try await reader.collect(into: &target)
+
+      #expect(target.count == 3)
+      #expect(target.values == [1, 2, 3])
+    }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectThrowsWhenReaderProducesMoreThanFreeCapacity(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 2)
+
+      do {
+        try await reader.collect(into: &target)
+        Issue.record("Expected error")
+      } catch {
+        let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
+        #expect(error == expected)
+      }
+      // The left-over elements are freed; only the ones in the target remain.
+      #expect(tracker.live == target.count)
+    }
+    #expect(tracker.created == 5)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectIntoEmptyReader() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
-    var target = RigidArray<Int>(capacity: 5)
+    let reader = UniqueArrayAsyncReader(values: [])
+    var target = RigidArray<NoncopyableInt>(capacity: 5)
 
     try await reader.collect(into: &target)
 
@@ -73,110 +94,143 @@ struct AsyncReaderCollectIntoTests {
 @Suite
 struct AsyncReaderCollectExactlyTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyFillsTargetWhenReaderProducesExactCount() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectExactlyFillsTargetWhenReaderProducesExactCount(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 3)
 
-    try await reader.collect(exactlyInto: &target)
+      try await reader.collect(exactlyInto: &target)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+      #expect([Int](drainingValues: &target) == [1, 2, 3])
+    }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyThrowsWhenReaderProducesFewer() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 5)
-
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectExactlyThrowsWhenReaderProducesFewer(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
     do {
-      try await reader.collect(exactlyInto: &target)
-      Issue.record("Expected error")
-    } catch {
-      let expected = EitherError<
-        Never,
-        EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
-      >.second(.second(AsyncReaderInsufficientElementsError()))
-      #expect(error == expected)
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 5)
+
+      do {
+        try await reader.collect(exactlyInto: &target)
+        Issue.record("Expected error")
+      } catch {
+        let expected = EitherError<
+          Never,
+          EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
+        >.second(.second(AsyncReaderInsufficientElementsError()))
+        #expect(error == expected)
+      }
+      // The elements of the short final chunk are freed; only the ones in the target remain.
+      #expect(tracker.live == target.count)
     }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyThrowsWhenReaderProducesMore() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
-
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectExactlyThrowsWhenReaderProducesMore(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
     do {
-      try await reader.collect(exactlyInto: &target)
-      Issue.record("Expected error")
-    } catch {
-      let expected = EitherError<
-        Never,
-        EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
-      >.second(.first(AsyncReaderLeftOverElementsError()))
-      #expect(error == expected)
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = RigidArray<NoncopyableInt>(capacity: 2)
+
+      do {
+        try await reader.collect(exactlyInto: &target)
+        Issue.record("Expected error")
+      } catch {
+        let expected = EitherError<
+          Never,
+          EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
+        >.second(.first(AsyncReaderLeftOverElementsError()))
+        #expect(error == expected)
+      }
+      // The left-over elements are freed; only the ones in the target remain.
+      #expect(tracker.live == target.count)
     }
+    #expect(tracker.created == 5)
+    #expect(tracker.live == 0)
   }
 }
 
 @Suite
 struct AsyncReaderCollectIntoMaximumSizeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectGrowsContainerWhenReaderHasFewerThanMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = UniqueArray<Int>()
-
-    try await reader.collect(into: &target, maximumSize: 10)
-
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
-  }
-
-  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectFillsContainerExactlyAtMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
-    var target = UniqueArray<Int>()
-
-    try await reader.collect(into: &target, maximumSize: 3)
-
-    #expect(target.count == 3)
-  }
-
-  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectThrowsWhenReaderProducesMoreThanMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = UniqueArray<Int>()
-
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectGrowsContainerWhenReaderHasFewerThanMaximum(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
     do {
-      try await reader.collect(into: &target, maximumSize: 2)
-      Issue.record("Expected error")
-    } catch {
-      let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
-      #expect(error == expected)
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = UniqueArray<NoncopyableInt>()
+
+      try await reader.collect(into: &target, maximumSize: 10)
+
+      #expect([Int](drainingValues: &target) == [1, 2, 3])
     }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test(arguments: [[[10, 20, 30]], [[10, 20], [30]]])
+  func collectFillsContainerExactlyAtMaximum(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = UniqueArray<NoncopyableInt>()
+
+      try await reader.collect(into: &target, maximumSize: 3)
+
+      #expect(target.count == 3)
+      #expect(target.values == [10, 20, 30])
+    }
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectThrowsWhenReaderProducesMoreThanMaximum(chunks: [[Int]]) async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      var target = UniqueArray<NoncopyableInt>()
+
+      do {
+        try await reader.collect(into: &target, maximumSize: 2)
+        Issue.record("Expected error")
+      } catch {
+        let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
+        #expect(error == expected)
+      }
+      // The left-over elements are freed; only the ones in the target remain.
+      #expect(tracker.live == target.count)
+    }
+    #expect(tracker.created == 5)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectAppendsToExistingContents() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 2, copying: [3, 4]))
-    var target = UniqueArray<Int>(capacity: 2, copying: [1, 2])
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(values: [3, 4], tracker: tracker)
+      var target = UniqueArray<NoncopyableInt>(values: [1, 2], tracker: tracker)
 
-    try await reader.collect(into: &target, maximumSize: 10)
+      try await reader.collect(into: &target, maximumSize: 10)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3, 4])
+      #expect([Int](drainingValues: &target) == [1, 2, 3, 4])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
   }
 }
 

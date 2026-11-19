@@ -22,115 +22,99 @@ struct AsyncReaderPipeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoCopiesAllElements() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { writerA, readerA, writerB, readerB in
-      var writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
-      try await writerA.write(buffer: &array)
-      try await writerA.finish()
-      try await readerB.pipe(into: writerB)
+    try await UniqueArrayAsyncReader(values: [1, 2, 3, 4, 5], tracker: tracker)
+      .pipe(into: UniqueArrayCallerAsyncWriter(sink: sink))
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
-    }
+    #expect(sink.values == [1, 2, 3, 4, 5])
+    #expect(sink.finished)
+    #expect(tracker.created == 5)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoWithEmptyReader() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { writerA, readerA, writerB, readerB in
-      let writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      try await writerA.finish()
-      try await readerB.pipe(into: writerB)
+    try await UniqueArrayAsyncReader(values: [], tracker: tracker)
+      .pipe(into: UniqueArrayCallerAsyncWriter(sink: sink))
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(into: &target)
-      #expect(target.count == 0)
-    }
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
+    #expect(tracker.created == 0)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoPreservesElementOrder() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 16, high: 100)
-    ) { writerA, readerA, writerB, readerB in
-      var writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      let elements = Array(1...50)
-      var array = UniqueArray(copying: elements)
-      try await writerA.write(buffer: &array)
-      try await writerA.finish()
-      try await readerB.pipe(into: writerB)
-
-      var target = RigidArray<Int>(capacity: 50)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
+    let elements = Array(1...50)
+    let chunks = stride(from: 0, to: elements.count, by: 10).map { start in
+      Array(elements[start..<min(start + 10, elements.count)])
     }
+    try await UniqueArrayAsyncReader(chunks: chunks, tracker: tracker)
+      .pipe(into: UniqueArrayCallerAsyncWriter(sink: sink))
+
+    #expect(sink.values == elements)
+    #expect(sink.finished)
+    #expect(tracker.created == 50)
+    #expect(tracker.live == 0)
   }
 
-  // MARK: - pipe(copyingInto:) — into an AsyncWriter via the adapter
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeIntoWritesThenFinishesAcrossChunks() async throws {
+    // A multi-chunk reader drives both the mid-stream `write(buffer:)` and the
+    // terminal `finish(buffer:finalElement:)` paths.
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
+
+    try await UniqueArrayAsyncReader(chunks: [[1, 2], [3]], tracker: tracker)
+      .pipe(into: UniqueArrayCallerAsyncWriter(sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.finished)
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
+  }
+
+  // MARK: - pipe(copyingInto:) — into an AsyncWriter
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeCopyingIntoCopiesAllElements() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { writerA, readerA, writerB, readerB in
-      var writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
-      try await writerA.write(buffer: &array)
-      try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+    try await UniqueArrayAsyncReader(values: [1, 2, 3, 4, 5], tracker: tracker)
+      .pipe(copyingInto: UniqueArrayCallerAsyncWriter(sink: sink).asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
-    }
+    #expect(sink.values == [1, 2, 3, 4, 5])
+    #expect(sink.finished)
+    #expect(tracker.created == 5)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeCopyingIntoWithEmptyReader() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { writerA, readerA, writerB, readerB in
-      let writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+    try await UniqueArrayAsyncReader(values: [], tracker: tracker)
+      .pipe(copyingInto: UniqueArrayCallerAsyncWriter(sink: sink).asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(into: &target)
-      #expect(target.count == 0)
-    }
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
+    #expect(tracker.created == 0)
+    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -138,25 +122,35 @@ struct AsyncReaderPipeTests {
   func pipeCopyingIntoChunksTerminalChunkAcrossMultipleWrites() async throws {
     // 200 elements through a small (16-element) AsyncWriter buffer
     // forces the pipe loop to drain across multiple writes.
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 32, high: 256)
-    ) { writerA, readerA, writerB, readerB in
-      var writerA = writerA
-      let readerA = readerA
-      let writerB = writerB
-      let readerB = readerB
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
 
-      let elements = Array(1...200)
-      var array = UniqueArray(copying: elements)
-      try await writerA.write(buffer: &array)
-      try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter(initialCapacity: 16))
+    let elements = Array(1...200)
+    try await UniqueArrayAsyncReader(values: elements, tracker: tracker)
+      .pipe(copyingInto: UniqueArrayCallerAsyncWriter(sink: sink).asAsyncWriter(initialCapacity: 16))
 
-      var target = RigidArray<Int>(capacity: 200)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
-    }
+    #expect(sink.values == elements)
+    #expect(sink.finished)
+    #expect(tracker.created == 200)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeCopyingIntoWritesThenFinishesAcrossChunks() async throws {
+    // A multi-chunk reader drives the drain-only path for the mid-stream chunk
+    // and the drain-then-`finish(finalElement:)` path for the terminal chunk,
+    // into an AsyncWriter used directly rather than through the adapter.
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<Void>()
+
+    try await UniqueArrayAsyncReader(chunks: [[1, 2], [3]], tracker: tracker)
+      .pipe(copyingInto: UniqueArrayAsyncWriter(sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.finished)
+    #expect(tracker.created == 3)
+    #expect(tracker.live == 0)
   }
 }
 #endif

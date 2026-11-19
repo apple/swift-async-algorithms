@@ -14,27 +14,38 @@ import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 
+/// An ``AsyncWriter`` of ``NoncopyableInt`` elements. It keeps the written
+/// elements in `storage` and records their values and the final element in
+/// `sink`. Each `write` hands its body an empty buffer with room for
+/// `bufferCapacity` elements.
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
-  typealias WriteElement = Int
-  typealias Buffer = UniqueArray<Int>
+struct UniqueArrayAsyncWriter<FinalElement: ~Copyable>: ~Copyable, AsyncWriter {
+  typealias WriteElement = NoncopyableInt
+  typealias Buffer = UniqueArray<NoncopyableInt>
   typealias WriteFailure = Never
-  typealias FinalElement = Void
 
-  var storage: UniqueArray<Int>
-  var didFinish: Bool = false
+  var storage: UniqueArray<NoncopyableInt>
+  let sink: WriteSink<FinalElement>
+  let bufferCapacity: Int
 
-  init(capacity: Int = 100) {
+  init(capacity: Int = 100, bufferCapacity: Int = 64, sink: WriteSink<FinalElement>) {
     self.storage = UniqueArray(minimumCapacity: capacity)
+    self.bufferCapacity = bufferCapacity
+    self.sink = sink
   }
 
   mutating func write<Return: ~Copyable, Failure: Error>(
-    _ body: (inout UniqueArray<Int>) async throws(Failure) -> Return
+    _ body: (inout UniqueArray<NoncopyableInt>) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
-    var buffer = UniqueArray<Int>(minimumCapacity: 64)
+    var buffer = UniqueArray<NoncopyableInt>(minimumCapacity: self.bufferCapacity)
     do {
       let result = try await body(&buffer)
-      self.storage.append(copying: buffer)
+      var consumer = buffer.consumeAll()
+      while let element = consumer.next() {
+        self.sink.values.append(element.value)
+        self.storage.append(element)
+      }
+      self.sink.writes += 1
       return result
     } catch {
       throw .second(error)
@@ -42,9 +53,17 @@ struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
   }
 
   consuming func finish(
-    finalElement: consuming Void
+    finalElement: consuming FinalElement
   ) async throws(Never) {
-    self.didFinish = true
+    self.sink.finished = true
+    self.sink.finalElement = .some(finalElement)
+  }
+}
+
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+extension UniqueArrayAsyncWriter where FinalElement == Void {
+  init(capacity: Int = 100, bufferCapacity: Int = 64) {
+    self.init(capacity: capacity, bufferCapacity: bufferCapacity, sink: WriteSink())
   }
 }
 #endif
