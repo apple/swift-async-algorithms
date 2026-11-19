@@ -10,9 +10,121 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
-import AsyncAlgorithms
+@testable import AsyncAlgorithms
 
 final class TestMerge2: XCTestCase {
+  func test_merge_registers_downstream_continuation_after_cancellation() async {
+    let first = [1].async
+    let second = [2].async
+    let third = [3].async
+    var stateMachine = MergeStateMachine(base1: first, base2: second, base3: third)
+
+    guard case .startTaskAndSuspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("The initial demand should start the upstream task")
+    }
+    stateMachine.taskStarted(Task {})
+
+    guard case .suspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("A merging state without buffered values should suspend")
+    }
+    _ = stateMachine.cancelled()
+
+    let value: Int? = try! await withUnsafeThrowingContinuation { continuation in
+      let action = stateMachine.next(for: continuation)
+
+      if case .resumeUpstreamContinuations = action {
+        XCTFail("A cancelled merge must not request more upstream values")
+      }
+      continuation.resume(returning: nil)
+    }
+
+    XCTAssertNil(value)
+  }
+
+  func test_merge_registers_downstream_continuation_after_an_upstream_produces_an_element() async {
+    let first = [1].async
+    let second = [2].async
+    let third = [3].async
+    var stateMachine = MergeStateMachine(base1: first, base2: second, base3: third)
+
+    guard case .startTaskAndSuspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("The initial demand should start the upstream task")
+    }
+    stateMachine.taskStarted(Task {})
+
+    guard case .suspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("A merging state without buffered values should suspend")
+    }
+    _ = stateMachine.elementProduced(42)
+
+    let value: Int? = try! await withUnsafeThrowingContinuation { continuation in
+      guard case let .resumeDownstreamContinuation(.success(element)) = stateMachine.next(for: continuation) else {
+        return XCTFail("A produced element should resume the newly registered continuation")
+      }
+      continuation.resume(returning: element)
+    }
+
+    XCTAssertEqual(value, 42)
+  }
+
+  func test_merge_registers_downstream_continuation_after_all_upstreams_finish() async {
+    let first = [1].async
+    let second = [2].async
+    let third = [3].async
+    var stateMachine = MergeStateMachine(base1: first, base2: second, base3: third)
+
+    guard case .startTaskAndSuspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("The initial demand should start the upstream task")
+    }
+    stateMachine.taskStarted(Task {})
+
+    guard case .suspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("A merging state without buffered values should suspend")
+    }
+    _ = stateMachine.upstreamFinished()
+    _ = stateMachine.upstreamFinished()
+    _ = stateMachine.upstreamFinished()
+
+    let value: Int? = try! await withUnsafeThrowingContinuation { continuation in
+      guard case .resumeDownstreamContinuation(.success(let element)) = stateMachine.next(for: continuation) else {
+        return XCTFail("Finished upstreams should resume the newly registered continuation with nil")
+      }
+      continuation.resume(returning: element)
+    }
+
+    XCTAssertNil(value)
+  }
+
+  func test_merge_registers_downstream_continuation_after_an_upstream_throws() async {
+    let first = [1].async
+    let second = [2].async
+    let third = [3].async
+    var stateMachine = MergeStateMachine(base1: first, base2: second, base3: third)
+
+    guard case .startTaskAndSuspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("The initial demand should start the upstream task")
+    }
+    stateMachine.taskStarted(Task {})
+
+    guard case .suspendDownstreamTask = stateMachine.next() else {
+      return XCTFail("A merging state without buffered values should suspend")
+    }
+    _ = stateMachine.upstreamThrew(CancellationError())
+
+    do {
+      let _: Int? = try await withUnsafeThrowingContinuation { continuation in
+        guard case let .resumeDownstreamContinuation(.failure(error)) = stateMachine.next(for: continuation) else {
+          return XCTFail("An upstream failure should resume the newly registered continuation with that error")
+        }
+        continuation.resume(throwing: error)
+      }
+      XCTFail("The downstream continuation should throw the upstream error")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Expected CancellationError, got \(error)")
+    }
+  }
+
   func test_merge_makes_sequence_with_elements_from_sources_when_all_have_same_size() async {
     let first = [1, 2, 3]
     let second = [4, 5, 6]
