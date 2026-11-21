@@ -127,6 +127,16 @@ final class DebounceStorage<Base: AsyncSequence & Sendable, C: Clock>: Sendable 
 
         downstreamContinuation.resume(returning: .success(nil))
 
+      case .cancelTaskAndUpstreamAndClockContinuations(
+        let task,
+        let upstreamContinuation,
+        let clockContinuation
+      ):
+        upstreamContinuation?.resume(throwing: CancellationError())
+        clockContinuation?.resume(throwing: CancellationError())
+
+        task.cancel()
+
       case .none:
         break
       }

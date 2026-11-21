@@ -11,9 +11,37 @@
 
 import XCTest
 import AsyncAlgorithms
+import Synchronization
 
 private struct DebounceTestError: Error, Equatable, Sendable {
   let value: Int
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private final class DebounceReleaseFlag: Sendable {
+  let value = Mutex(false)
+  var isSet: Bool { value.withLock { $0 } }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private struct OneThenSleep: AsyncSequence, Sendable {
+  final class Token: Sendable {
+    let released: DebounceReleaseFlag
+    init(_ released: DebounceReleaseFlag) { self.released = released }
+    deinit { released.value.withLock { $0 = true } }
+  }
+  struct AsyncIterator: AsyncIteratorProtocol {
+    let token: Token
+    var count = 0
+    mutating func next() async -> Int? {
+      count += 1
+      if count == 1 { return 1 }
+      try? await Task.sleep(for: .seconds(3600))
+      return nil
+    }
+  }
+  let released: DebounceReleaseFlag
+  func makeAsyncIterator() -> AsyncIterator { AsyncIterator(token: Token(released)) }
 }
 
 final class TestDebounce: XCTestCase {
@@ -163,5 +191,30 @@ final class TestDebounce: XCTestCase {
       for await _ in c1.debounce(for: .seconds(1), clock: .continuous) {}
     }
     t.cancel()
+  }
+
+  func test_debounce_releasesUpstreamOnCancelBetweenNextCalls() async throws {
+    guard #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) else {
+      throw XCTSkip("Skipped due to Synchronization availability")
+    }
+
+    let released = DebounceReleaseFlag()
+    let sequence = OneThenSleep(released: released).debounce(for: .milliseconds(10))
+    let consumer = Task {
+      var iterator = sequence.makeAsyncIterator()
+      _ = await iterator.next()
+      try? await Task.sleep(for: .milliseconds(100))
+      withUnsafeCurrentTask { $0?.cancel() }
+      return await iterator.next()
+    }
+    let second = await consumer.value
+    XCTAssertNil(second)
+
+    // Cancelling the internal task is asynchronous, so poll for the
+    // upstream iterator to be released instead of asserting right away.
+    for _ in 0..<100 where !released.isSet {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(released.isSet)
   }
 }
