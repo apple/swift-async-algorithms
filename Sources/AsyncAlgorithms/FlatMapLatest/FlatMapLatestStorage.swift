@@ -183,6 +183,20 @@ where Base.Element: Sendable, Inner.Element: Sendable {
     case .resumeDownstream(let continuation, let result):
       continuation.resume(with: result)
 
+    case .resumeDownstreamAndCancelTasks(
+      let continuation,
+      let result,
+      let outer,
+      let inner,
+      let outerCont,
+      let innerCont
+    ):
+      continuation.resume(with: result)
+      outer?.cancel()
+      inner?.cancel()
+      outerCont?.resume(throwing: CancellationError())
+      innerCont?.resume(throwing: CancellationError())
+
     case .resumeOuterContinuation(let continuation):
       continuation.resume()
 
