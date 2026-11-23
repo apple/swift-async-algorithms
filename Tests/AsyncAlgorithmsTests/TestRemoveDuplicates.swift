@@ -55,6 +55,27 @@ final class TestRemoveDuplicates: XCTestCase {
     XCTAssertEqual(actual, expected)
   }
 
+  func test_removeDuplicates_with_throwing_closure_finishes_iteration() async throws {
+    let source = [1, 2, 2, 2, 3, -1, 5, 6, 5, 5]
+    let sequence = source.async.removeDuplicates { prev, next in
+      let next = try throwOn(-1, next)
+      return prev == next
+    }
+    var iterator = sequence.makeAsyncIterator()
+    var actual = [Int]()
+    do {
+      while let item = try await iterator.next() {
+        actual.append(item)
+      }
+      XCTFail()
+    } catch {
+      XCTAssertEqual(Failure(), error as? Failure)
+    }
+    XCTAssertEqual(actual, [1, 2, 3])
+    let pastEnd = try await iterator.next()
+    XCTAssertNil(pastEnd)
+  }
+
   func test_removeDuplicates_with_throwing_upstream() async {
     let source = [1, 2, 2, 2, 3, -1, 5, 6, 5, 5]
     let expected = [1, 2, 3]
