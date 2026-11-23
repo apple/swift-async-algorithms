@@ -31,7 +31,8 @@ public import BasicContainers
 public struct CallerAsyncWriterAsyncWriterAdapter<
   Underlying: CallerAsyncWriter & ~Copyable,
   Buffer: DynamicContainer<Underlying.WriteElement> & ~Copyable
->: ~Copyable, AsyncWriter where Underlying.WriteElement: ~Copyable, Buffer.Element: ~Copyable {
+>: ~Copyable, AsyncWriter
+where Underlying.WriteElement: ~Copyable, Underlying.FinalElement: ~Copyable, Buffer.Element: ~Copyable {
   public typealias WriteElement = Underlying.WriteElement
   public typealias WriteFailure = Underlying.WriteFailure
   public typealias FinalElement = Underlying.FinalElement
@@ -77,7 +78,7 @@ public struct CallerAsyncWriterAsyncWriterAdapter<
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension CallerAsyncWriter where Self: ~Copyable, WriteElement: ~Copyable {
+extension CallerAsyncWriter where Self: ~Copyable, WriteElement: ~Copyable, FinalElement: ~Copyable {
   /// Adapts this ``CallerAsyncWriter`` to an ``AsyncWriter``, using
   /// ``UniqueArray`` as the buffer container.
   ///

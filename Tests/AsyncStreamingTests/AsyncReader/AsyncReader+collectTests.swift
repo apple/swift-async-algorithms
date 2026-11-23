@@ -234,4 +234,67 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
   }
 }
 
+/// `collect` returns the reader's final element, which may be noncopyable.
+@Suite
+struct AsyncReaderCollectFinalElementTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectIntoReturnsNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(
+        chunks: [[1, 2], [3]],
+        finalElement: NoncopyableInt(99, tracker: tracker),
+        tracker: tracker
+      )
+      var target = RigidArray<NoncopyableInt>(capacity: 3)
+      let finalElement = try await reader.collect(into: &target)
+      let finalValue = finalElement.value
+      #expect(finalValue == 99)
+      #expect(target.values == [1, 2, 3])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectExactlyIntoReturnsNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(
+        chunks: [[1, 2], [3]],
+        finalElement: NoncopyableInt(99, tracker: tracker),
+        tracker: tracker
+      )
+      var target = RigidArray<NoncopyableInt>(capacity: 3)
+      let finalElement = try await reader.collect(exactlyInto: &target)
+      let finalValue = finalElement.value
+      #expect(finalValue == 99)
+      #expect(target.values == [1, 2, 3])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectIntoMaximumSizeReturnsNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(
+        chunks: [[1, 2], [3]],
+        finalElement: NoncopyableInt(99, tracker: tracker),
+        tracker: tracker
+      )
+      var target = UniqueArray<NoncopyableInt>()
+      let finalElement = try await reader.collect(into: &target, maximumSize: 3)
+      let finalValue = finalElement.value
+      #expect(finalValue == 99)
+      #expect(target.values == [1, 2, 3])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+}
 #endif

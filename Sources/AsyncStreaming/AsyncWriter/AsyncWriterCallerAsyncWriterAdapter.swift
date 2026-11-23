@@ -27,7 +27,7 @@ public import ContainersPreview
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct AsyncWriterCallerAsyncWriterAdapter<
   Underlying: AsyncWriter & ~Copyable
->: ~Copyable, CallerAsyncWriter where Underlying.WriteElement: ~Copyable {
+>: ~Copyable, CallerAsyncWriter where Underlying.WriteElement: ~Copyable, Underlying.FinalElement: ~Copyable {
   public typealias WriteElement = Underlying.WriteElement
   public typealias WriteFailure = Underlying.WriteFailure
   public typealias FinalElement = Underlying.FinalElement
@@ -78,7 +78,7 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncWriter where Self: ~Copyable, WriteElement: ~Copyable {
+extension AsyncWriter where Self: ~Copyable, WriteElement: ~Copyable, FinalElement: ~Copyable {
   /// Adapts this ``AsyncWriter`` to a ``CallerAsyncWriter``.
   ///
   /// The returned adapter accepts caller-supplied buffers via

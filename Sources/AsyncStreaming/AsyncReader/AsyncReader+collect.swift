@@ -26,7 +26,7 @@ public struct AsyncReaderInsufficientElementsError: Error, Hashable {
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
   /// Collects elements from the reader into the provided container, up to the
   /// container's available space.
   ///
@@ -49,19 +49,24 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
   where Container.Element: ~Copyable {
     var reader = self
     var finalElement: FinalElement? = nil
-    while finalElement == nil {
+    var done = false
+    while !done {
       try await reader.read { (buffer, final) throws(AsyncReaderLeftOverElementsError) -> Void in
         if buffer.count > target.freeCapacity {
           throw AsyncReaderLeftOverElementsError()
         }
         target.append(moving: buffer.startIndex..<buffer.endIndex, from: &buffer)
-        if let final {
-          finalElement = final
+        switch consume final {
+        case .some(let final):
+          finalElement = .some(final)
+          done = true
+        case .none:
+          break
         }
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 
   /// Collects elements from the reader into the provided container, requiring
@@ -88,7 +93,8 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
   >) -> FinalElement where Container.Element: ~Copyable {
     var reader = self
     var finalElement: FinalElement? = nil
-    while finalElement == nil {
+    var done = false
+    while !done {
       try await reader.read {
         (
           buffer,
@@ -101,13 +107,17 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
           throw .second(AsyncReaderInsufficientElementsError())
         }
         target.append(moving: buffer.startIndex..<buffer.endIndex, from: &buffer)
-        if let final {
-          finalElement = final
+        switch consume final {
+        case .some(let final):
+          finalElement = .some(final)
+          done = true
+        case .none:
+          break
         }
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 
   /// Collects elements from the reader into the provided dynamic container,
@@ -135,8 +145,9 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     precondition(maximumSize >= 0, "maximumSize must be non-negative")
     var reader = self
     var finalElement: FinalElement? = nil
+    var done = false
     var remaining = maximumSize
-    while finalElement == nil {
+    while !done {
       try await reader.read { (buffer, final) throws(AsyncReaderLeftOverElementsError) -> Void in
         let chunkCount = buffer.count
         if chunkCount > remaining {
@@ -149,13 +160,17 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
           }
           remaining -= chunkCount
         }
-        if let final {
-          finalElement = final
+        switch consume final {
+        case .some(let final):
+          finalElement = .some(final)
+          done = true
+        case .none:
+          break
         }
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 }
 

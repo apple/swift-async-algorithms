@@ -153,4 +153,52 @@ struct AsyncReaderPipeTests {
     #expect(tracker.live == 0)
   }
 }
+
+/// `pipe` passes a noncopyable final element on to the writer's `finish`.
+@Suite
+struct AsyncReaderPipeFinalElementTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeIntoDeliversNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<NoncopyableInt>()
+
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99, tracker: tracker),
+      tracker: tracker
+    )
+    try await reader.pipe(into: UniqueArrayCallerAsyncWriter(sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 1)
+    #expect(sink.finished)
+    #expect(sink.finalValue == 99)
+    sink.finalElement = nil
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeCopyingIntoDeliversNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<NoncopyableInt>()
+
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99, tracker: tracker),
+      tracker: tracker
+    )
+    try await reader.pipe(copyingInto: UniqueArrayAsyncWriter(bufferCapacity: 2, sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 2)
+    #expect(sink.finished)
+    #expect(sink.finalValue == 99)
+    sink.finalElement = nil
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+}
 #endif

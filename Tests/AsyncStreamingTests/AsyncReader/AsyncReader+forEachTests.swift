@@ -195,4 +195,60 @@ struct AsyncReaderforEachBufferTests {
   }
 }
 
+/// `forEachBuffer` returns the reader's final element, which may be
+/// noncopyable.
+@Suite
+struct AsyncReaderForEachBufferFinalElementTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func forEachBufferReturnsNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(
+        chunks: [[1, 2], [3]],
+        finalElement: NoncopyableInt(99, tracker: tracker),
+        tracker: tracker
+      )
+      var seen: [Int] = []
+      let finalElement = await reader.forEachBuffer { buffer in
+        seen += [Int](drainingValues: &buffer)
+      }
+      let finalValue = finalElement.value
+      #expect(finalValue == 99)
+      #expect(seen == [1, 2, 3])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func throwingForEachBufferReturnsNoncopyableFinalElement() async throws {
+    struct BodyError: Error {}
+    let tracker = LifetimeTracker()
+    do {
+      let reader = UniqueArrayAsyncReader(
+        chunks: [[1, 2], [3]],
+        finalElement: NoncopyableInt(99, tracker: tracker),
+        tracker: tracker
+      )
+      var seen: [Int] = []
+      let finalElement = try await reader.forEachBuffer {
+        (buffer: inout UniqueArray<NoncopyableInt>) throws(BodyError) in
+        seen += [Int](drainingValues: &buffer)
+      }
+      let finalValue: Int?
+      switch consume finalElement {
+      case .some(let element):
+        finalValue = element.value
+      case .none:
+        finalValue = nil
+      }
+      #expect(finalValue == 99)
+      #expect(seen == [1, 2, 3])
+    }
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+}
 #endif

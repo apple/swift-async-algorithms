@@ -24,4 +24,11 @@ final class WriteSink<FinalElement: ~Copyable> {
   /// The final element passed to `finish`.
   var finalElement: FinalElement? = nil
 }
+
+extension WriteSink where FinalElement == NoncopyableInt {
+  /// The value of the final element passed to `finish`, if any.
+  var finalValue: Int? {
+    self.finalElement?.value
+  }
+}
 #endif

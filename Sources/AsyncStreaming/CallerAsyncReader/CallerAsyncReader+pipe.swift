@@ -27,7 +27,8 @@ import BasicContainers
 // added back so `pipe` works for `~Escapable` writers too.
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+extension CallerAsyncReader
+where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable, Self.FinalElement: ~Copyable {
   /// Pipes all elements from this reader into the given writer, then signals
   /// end-of-stream with a `finish` call on the writer.
   ///
@@ -55,6 +56,7 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
   where
     Writer: AsyncWriter & ~Copyable,
     Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -67,7 +69,7 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
         .write { (buffer: inout Writer.Buffer) throws(ReadFailure) -> Void in
           pendingFinal = try await reader.read(into: &buffer)
         }
-      if let final = pendingFinal {
+      if let final = pendingFinal.take() {
         let w = writerOpt.take()!
         do throws(Writer.WriteFailure) {
           try await w.finish(finalElement: final)
@@ -109,6 +111,7 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
   where
     Writer: CallerAsyncWriter & ~Copyable,
     Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -123,7 +126,8 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
       } catch {
         throw .first(error)
       }
-      if let final {
+      switch consume final {
+      case .some(let final):
         let w = writerOpt.take()!
         do throws(Writer.WriteFailure) {
           try await w.finish(buffer: &buffer, finalElement: final)
@@ -131,12 +135,14 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
           throw .second(error)
         }
         done = true
-      } else if buffer.count > 0 {
-        do throws(Writer.WriteFailure) {
-          try await writerOpt!.write(buffer: &buffer)
-          assert(buffer.count == 0, "CallerAsyncWriter must drain the buffer during write(buffer:)")
-        } catch {
-          throw .second(error)
+      case .none:
+        if buffer.count > 0 {
+          do throws(Writer.WriteFailure) {
+            try await writerOpt!.write(buffer: &buffer)
+            assert(buffer.count == 0, "CallerAsyncWriter must drain the buffer during write(buffer:)")
+          } catch {
+            throw .second(error)
+          }
         }
       }
     }

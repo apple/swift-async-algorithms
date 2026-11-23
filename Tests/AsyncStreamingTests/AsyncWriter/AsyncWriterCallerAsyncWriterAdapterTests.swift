@@ -119,4 +119,29 @@ struct AsyncWriterCallerAsyncWriterAdapterTests {
     #expect(tracker.live == 0)
   }
 }
+
+/// The adapter passes a noncopyable final element on to the underlying
+/// writer's `finish`.
+@Suite
+struct AsyncWriterCallerAsyncWriterAdapterFinalElementTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func finishDeliversNoncopyableFinalElement() async throws {
+    let tracker = LifetimeTracker()
+    let sink = WriteSink<NoncopyableInt>()
+
+    var writer = UniqueArrayAsyncWriter(sink: sink).asCallerAsyncWriter()
+    var head = UniqueArray(values: [1, 2], tracker: tracker)
+    await writer.write(buffer: &head)
+    var tail = UniqueArray(values: [3], tracker: tracker)
+    await writer.finish(buffer: &tail, finalElement: NoncopyableInt(99, tracker: tracker))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.finished)
+    #expect(sink.finalValue == 99)
+    sink.finalElement = nil
+    #expect(tracker.created == 4)
+    #expect(tracker.live == 0)
+  }
+}
 #endif
