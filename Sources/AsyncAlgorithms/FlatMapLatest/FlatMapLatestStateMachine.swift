@@ -125,12 +125,34 @@ where Base.Element: Sendable, Inner.Element: Sendable {
       let innerTask,
       let innerCont,
       let downstreamCont,
-      let buffer,
+      var buffer,
       let generation,
       let outerFinished
     ):
       precondition(downstreamCont == nil, "Already have downstream continuation")
-      precondition(buffer.isEmpty, "Buffer should be empty if suspending")
+
+      // A result may have been buffered between `next()` releasing the lock
+      // and this call (for example, a failure stored by `outerThrew(_:)`).
+      // Serve it instead of parking.
+      if let result = buffer.popFirst() {
+        state = .running(
+          outerTask: outerTask,
+          outerContinuation: outerCont,
+          innerTask: innerTask,
+          innerContinuation: innerCont,
+          downstreamContinuation: nil,
+          buffer: buffer,
+          generation: generation,
+          outerFinished: outerFinished
+        )
+        switch result {
+        case .success(let element):
+          continuation.resume(returning: element)
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+        return .none
+      }
 
       state = .running(
         outerTask: outerTask,
@@ -498,13 +520,38 @@ where Base.Element: Sendable, Inner.Element: Sendable {
 
   mutating func outerThrew(_ error: Error) -> Action {
     switch state {
-    case .running(let outerTask, let outerCont, let innerTask, let innerCont, let downstreamCont, _, _, _):
-      state = .finished
-      let action: Action = .cancelTasks(outerTask, innerTask, outerCont, innerCont)
-
+    case .running(
+      let outerTask,
+      let outerCont,
+      let innerTask,
+      let innerCont,
+      let downstreamCont,
+      var buffer,
+      let generation,
+      _
+    ):
       guard let downstreamCont = downstreamCont else {
-        return action
+        // No consumer is waiting: keep the failure, after any buffered
+        // elements, for the next call to `next()` instead of finishing. With
+        // no tasks and `outerFinished` set, `next()` finishes the sequence
+        // once the buffer has been drained.
+        buffer.append(.failure(error))
+        state = .running(
+          outerTask: nil,
+          outerContinuation: nil,
+          innerTask: nil,
+          innerContinuation: nil,
+          downstreamContinuation: nil,
+          buffer: buffer,
+          // Bump the generation so callbacks from the cancelled inner task
+          // are treated as stale and cannot overwrite the stored failure.
+          generation: generation &+ 1,
+          outerFinished: true
+        )
+        return .cancelTasks(outerTask, innerTask, outerCont, innerCont)
       }
+
+      state = .finished
       return .resumeDownstream(downstreamCont, .failure(error))
 
     default:

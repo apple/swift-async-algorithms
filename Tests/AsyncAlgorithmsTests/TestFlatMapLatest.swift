@@ -226,9 +226,75 @@ final class TestFlatMapLatest: XCTestCase {
     // Determine success by running without crashing
     for try await _ in combined {}
   }
+
+  func test_outer_throwing_without_pending_demand_is_delivered() async throws {
+    let gate = AsyncStream<Void>.makeStream()
+    let secondNextCalled = AsyncStream<Void>.makeStream()
+    let innerTerminated = AsyncStream<Void>.makeStream()
+    let base = GatedThrowingSequence(gate: gate.stream, secondNextCalled: secondNextCalled.continuation)
+
+    let transformed = base.flatMapLatest { value in
+      AsyncStream<Int> { continuation in
+        continuation.onTermination = { _ in innerTerminated.continuation.yield() }
+        // Produce one element, but only once the outer task is already
+        // waiting in the base's second `next()`.
+        Task {
+          for await _ in secondNextCalled.stream { break }
+          continuation.yield(value * 10)
+        }
+      }
+    }
+
+    var iterator = transformed.makeAsyncIterator()
+    let first = try await iterator.next()
+    XCTAssertEqual(first, 10)
+
+    // The outer task is suspended in the base and no `next()` is pending.
+    // Let the base throw, then wait until flatMapLatest has handled the
+    // failure (it cancels the inner task, which terminates the inner stream).
+    gate.continuation.yield()
+    for await _ in innerTerminated.stream { break }
+
+    do {
+      let next = try await iterator.next()
+      XCTFail("Should have thrown, got \(String(describing: next))")
+    } catch {
+      XCTAssertEqual(error as? FlatMapLatestFailure, FlatMapLatestFailure())
+    }
+
+    // After the failure has been delivered, the sequence is finished.
+    let afterFailure = try await iterator.next()
+    XCTAssertNil(afterFailure)
+  }
 }
 
 private struct FlatMapLatestFailure: Error, Equatable {}
+
+/// Yields `1`. On the second `next()`, signals `secondNextCalled`,
+/// waits for `gate`, then throws.
+private struct GatedThrowingSequence: AsyncSequence, Sendable {
+  let gate: AsyncStream<Void>
+  let secondNextCalled: AsyncStream<Void>.Continuation
+
+  struct AsyncIterator: AsyncIteratorProtocol {
+    let gate: AsyncStream<Void>
+    let secondNextCalled: AsyncStream<Void>.Continuation
+    var calls = 0
+
+    mutating func next() async throws -> Int? {
+      calls += 1
+      if calls == 1 { return 1 }
+      secondNextCalled.yield()
+      secondNextCalled.finish()
+      for await _ in gate { break }
+      throw FlatMapLatestFailure()
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(gate: gate, secondNextCalled: secondNextCalled)
+  }
+}
 
 extension Int {
   fileprivate func throwIf(_ value: Int) throws -> Int {
