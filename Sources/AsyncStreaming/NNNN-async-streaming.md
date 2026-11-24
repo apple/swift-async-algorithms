@@ -711,7 +711,7 @@ a caller-provided container. We envision convenience extensions for both,
 both of which surface the `FinalElement` payload to the caller:
 
 ```swift
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Iterates every chunk, executing `body` for each, until the reader
     /// signals end-of-stream. Returns the `FinalElement` delivered with the
     /// terminal chunk.
@@ -720,7 +720,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
     ) async throws(EitherError<ReadFailure, Failure>) -> FinalElement?
 }
 
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Collects elements into `target` up to its free capacity. The reader
     /// can deliver fewer; producing more throws.
     public consuming func collect<
@@ -728,6 +728,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     >(
         into target: inout Container
     ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement
+    where Container.Element: ~Copyable
 
     /// Collects exactly `target.freeCapacity` elements into `target`. Producing
     /// fewer throws ``AsyncReaderInsufficientElementsError``; producing more
@@ -739,6 +740,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     ) async throws(
         EitherError<ReadFailure, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>>
     ) -> FinalElement
+    where Container.Element: ~Copyable
 
     /// Collects elements into a dynamic container, growing it up to
     /// `maximumSize`. Producing more than `maximumSize` throws.
@@ -748,6 +750,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
         into target: inout Container,
         maximumSize: Int
     ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement
+    where Container.Element: ~Copyable
 }
 ```
 
@@ -777,7 +780,7 @@ When the buffer ownership of the reader and writer aligns, the buffer can
 flow directly between the two without an intermediate stage:
 
 ```swift
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Pipes all elements from this reader into the given caller-owned
     /// writer, fusing the terminal chunk with `finish` so the transport
     /// sees a single close.
@@ -785,17 +788,21 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
         into writer: consuming Writer
     ) async throws
     where Writer: CallerAsyncWriter & ~Copyable,
+          Writer.WriteElement: ~Copyable,
+          Writer.FinalElement: ~Copyable,
           Writer.WriteElement == ReadElement,
           Writer.FinalElement == FinalElement
 }
 
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Pipes all elements from this reader into the given callee-owned
     /// writer.
     public consuming func pipe<Writer>(
         into writer: consuming Writer
     ) async throws
     where Writer: AsyncWriter & ~Copyable,
+          Writer.WriteElement: ~Copyable,
+          Writer.FinalElement: ~Copyable,
           Writer.WriteElement == ReadElement,
           Writer.FinalElement == FinalElement
 }
@@ -806,7 +813,7 @@ We distinguish them with explicit argument labels so the cost is visible at
 the call site:
 
 ```swift
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Pipes all elements from this reader into the given callee-owned
     /// writer, copying each element from the reader's buffer into the
     /// writer's buffer.
@@ -814,11 +821,13 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
         copyingInto writer: consuming Writer
     ) async throws
     where Writer: AsyncWriter & ~Copyable,
+          Writer.WriteElement: ~Copyable,
+          Writer.FinalElement: ~Copyable,
           Writer.WriteElement == ReadElement,
           Writer.FinalElement == FinalElement
 }
 
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
+extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
     /// Pipes all elements from this reader into the given caller-owned
     /// writer through an intermediate buffer of the requested capacity.
     public consuming func pipe<Writer>(
@@ -826,6 +835,8 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement
         intermediateCapacity: Int
     ) async throws
     where Writer: CallerAsyncWriter & ~Copyable,
+          Writer.WriteElement: ~Copyable,
+          Writer.FinalElement: ~Copyable,
           Writer.WriteElement == ReadElement,
           Writer.FinalElement == FinalElement
 }
