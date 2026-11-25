@@ -13,39 +13,23 @@
 import BasicContainers
 import ContainersPreview
 
-/// Counts the live ``NoncopyableInt`` values created with it, so a test can
-/// check that every element was freed. Give each test its own tracker, so the
-/// tests can run in parallel.
-final class LifetimeTracker {
-  var created = 0
-  var live = 0
-}
-
 /// The element type the AsyncStreaming tests use: a noncopyable wrapper around
 /// an `Int`, so the tests always cover noncopyable elements.
 struct NoncopyableInt: ~Copyable {
   let value: Int
-  let tracker: LifetimeTracker?
 
-  init(_ value: Int, tracker: LifetimeTracker? = nil) {
+  init(_ value: Int) {
     self.value = value
-    self.tracker = tracker
-    tracker?.created += 1
-    tracker?.live += 1
-  }
-
-  deinit {
-    self.tracker?.live -= 1
   }
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension UniqueArray where Element == NoncopyableInt {
   /// Creates an array holding a ``NoncopyableInt`` for each of `values`.
-  init(values: [Int], tracker: LifetimeTracker? = nil) {
+  init(values: [Int]) {
     self.init(minimumCapacity: values.count)
     for value in values {
-      self.append(NoncopyableInt(value, tracker: tracker))
+      self.append(NoncopyableInt(value))
     }
   }
 

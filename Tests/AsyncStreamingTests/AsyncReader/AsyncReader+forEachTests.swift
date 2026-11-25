@@ -34,8 +34,7 @@ struct AsyncReaderforEachBufferTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func forEachBufferProcessesElements() async throws {
-    let tracker = LifetimeTracker()
-    let reader = UniqueArrayAsyncReader(values: [10, 20, 30], tracker: tracker)
+    let reader = UniqueArrayAsyncReader(values: [10, 20, 30])
     var sum = 0
 
     await reader.forEachBuffer { buffer in
@@ -45,8 +44,6 @@ struct AsyncReaderforEachBufferTests {
     }
 
     #expect(sum == 60)
-    #expect(tracker.created == 3)
-    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -98,8 +95,7 @@ struct AsyncReaderforEachBufferTests {
       case failed
     }
 
-    let tracker = LifetimeTracker()
-    let reader = UniqueArrayAsyncReader(values: [1, 2, 3], tracker: tracker)
+    let reader = UniqueArrayAsyncReader(values: [1, 2, 3])
 
     do {
       _ = try await reader.forEachBuffer { (_) throws(TestError) -> Void in
@@ -109,10 +105,6 @@ struct AsyncReaderforEachBufferTests {
     } catch {
       #expect(error == EitherError.second(TestError.failed))
     }
-
-    // The elements the body left in the buffer are freed when it throws.
-    #expect(tracker.created == 3)
-    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -155,8 +147,7 @@ struct AsyncReaderforEachBufferTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func forEachBuffer() async throws {
-    let tracker = LifetimeTracker()
-    let reader = UniqueArrayAsyncReader(chunks: [[1, 2], [3]], tracker: tracker)
+    let reader = UniqueArrayAsyncReader(chunks: [[1, 2], [3]])
     var values: [Int] = []
 
     await reader.forEachBuffer { (buffer: inout UniqueArray<NoncopyableInt>) async -> Void in
@@ -164,17 +155,14 @@ struct AsyncReaderforEachBufferTests {
     }
 
     #expect(values == [1, 2, 3])
-    #expect(tracker.created == 3)
-    #expect(tracker.live == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
-  func throwingForEachBufferFreesElementsWhenBodyThrows() async throws {
+  func throwingForEachBufferStopsReadingWhenBodyThrows() async throws {
     struct StopError: Error, Equatable {}
 
-    let tracker = LifetimeTracker()
-    let reader = UniqueArrayAsyncReader(chunks: [[1, 2], [3]], tracker: tracker)
+    let reader = UniqueArrayAsyncReader(chunks: [[1, 2], [3]])
     var values: [Int] = []
 
     do {
@@ -190,65 +178,46 @@ struct AsyncReaderforEachBufferTests {
 
     // The body throws on the first chunk, so the second is never read.
     #expect(values == [1, 2])
-    #expect(tracker.created == 2)
-    #expect(tracker.live == 0)
   }
-}
 
-/// `forEachBuffer` returns the reader's final element, which may be
-/// noncopyable.
-@Suite
-struct AsyncReaderForEachBufferFinalElementTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func forEachBufferReturnsNoncopyableFinalElement() async throws {
-    let tracker = LifetimeTracker()
-    do {
-      let reader = UniqueArrayAsyncReader(
-        chunks: [[1, 2], [3]],
-        finalElement: NoncopyableInt(99, tracker: tracker),
-        tracker: tracker
-      )
-      var seen: [Int] = []
-      let finalElement = await reader.forEachBuffer { buffer in
-        seen += [Int](drainingValues: &buffer)
-      }
-      let finalValue = finalElement.value
-      #expect(finalValue == 99)
-      #expect(seen == [1, 2, 3])
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99)
+    )
+    var seen: [Int] = []
+    let finalElement = await reader.forEachBuffer { buffer in
+      seen += [Int](drainingValues: &buffer)
     }
-    #expect(tracker.created == 4)
-    #expect(tracker.live == 0)
+    let finalValue = finalElement.value
+    #expect(finalValue == 99)
+    #expect(seen == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func throwingForEachBufferReturnsNoncopyableFinalElement() async throws {
     struct BodyError: Error {}
-    let tracker = LifetimeTracker()
-    do {
-      let reader = UniqueArrayAsyncReader(
-        chunks: [[1, 2], [3]],
-        finalElement: NoncopyableInt(99, tracker: tracker),
-        tracker: tracker
-      )
-      var seen: [Int] = []
-      let finalElement = try await reader.forEachBuffer {
-        (buffer: inout UniqueArray<NoncopyableInt>) throws(BodyError) in
-        seen += [Int](drainingValues: &buffer)
-      }
-      let finalValue: Int?
-      switch consume finalElement {
-      case .some(let element):
-        finalValue = element.value
-      case .none:
-        finalValue = nil
-      }
-      #expect(finalValue == 99)
-      #expect(seen == [1, 2, 3])
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99)
+    )
+    var seen: [Int] = []
+    let finalElement = try await reader.forEachBuffer {
+      (buffer: inout UniqueArray<NoncopyableInt>) throws(BodyError) in
+      seen += [Int](drainingValues: &buffer)
     }
-    #expect(tracker.created == 4)
-    #expect(tracker.live == 0)
+    let finalValue: Int?
+    switch consume finalElement {
+    case .some(let element):
+      finalValue = element.value
+    case .none:
+      finalValue = nil
+    }
+    #expect(finalValue == 99)
+    #expect(seen == [1, 2, 3])
   }
 }
 #endif

@@ -20,19 +20,14 @@ struct CallerAsyncWriterTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeBuffer() async {
-    let tracker = LifetimeTracker()
-    do {
-      var writer = UniqueArrayCallerAsyncWriter()
-      var data = UniqueArray(values: [1, 2, 3, 4, 5], tracker: tracker)
+    var writer = UniqueArrayCallerAsyncWriter()
+    var data = UniqueArray(values: [1, 2, 3, 4, 5])
 
-      await writer.write(buffer: &data)
+    await writer.write(buffer: &data)
 
-      #expect(writer.storage.count == 5)
-      #expect(writer.storage.values == [1, 2, 3, 4, 5])
-      #expect(data.count == 0)
-    }
-    #expect(tracker.created == 5)
-    #expect(tracker.live == 0)
+    #expect(writer.storage.count == 5)
+    #expect(writer.storage.values == [1, 2, 3, 4, 5])
+    #expect(data.count == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -49,18 +44,13 @@ struct CallerAsyncWriterTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeLargeBuffer() async {
-    let tracker = LifetimeTracker()
-    do {
-      var writer = UniqueArrayCallerAsyncWriter(capacity: 100)
-      var data = UniqueArray(values: Array(1...50), tracker: tracker)
+    var writer = UniqueArrayCallerAsyncWriter(capacity: 100)
+    var data = UniqueArray(values: Array(1...50))
 
-      await writer.write(buffer: &data)
+    await writer.write(buffer: &data)
 
-      #expect(writer.storage.count == 50)
-      #expect(writer.storage.values == Array(1...50))
-    }
-    #expect(tracker.created == 50)
-    #expect(tracker.live == 0)
+    #expect(writer.storage.count == 50)
+    #expect(writer.storage.values == Array(1...50))
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)

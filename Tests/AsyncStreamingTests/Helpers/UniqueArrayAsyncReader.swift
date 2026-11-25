@@ -23,26 +23,24 @@ struct UniqueArrayAsyncReader<FinalElement: ~Copyable>: ~Copyable, AsyncReader {
   typealias ReadFailure = Never
 
   let chunks: [[Int]]
-  let tracker: LifetimeTracker?
   var nextChunk = 0
   var finalElement: FinalElement?
 
-  init(chunks: [[Int]], finalElement: consuming FinalElement, tracker: LifetimeTracker? = nil) {
+  init(chunks: [[Int]], finalElement: consuming FinalElement) {
     precondition(!chunks.isEmpty, "a reader delivers at least one chunk")
     self.chunks = chunks
-    self.tracker = tracker
     self.finalElement = .some(finalElement)
   }
 
-  init(values: [Int], finalElement: consuming FinalElement, tracker: LifetimeTracker? = nil) {
-    self.init(chunks: [values], finalElement: finalElement, tracker: tracker)
+  init(values: [Int], finalElement: consuming FinalElement) {
+    self.init(chunks: [values], finalElement: finalElement)
   }
 
   mutating func read<Return: ~Copyable, Failure: Error>(
     body: (inout UniqueArray<NoncopyableInt>, consuming FinalElement?) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
     precondition(self.nextChunk < self.chunks.count, "read called after end-of-stream")
-    var buffer = UniqueArray(values: self.chunks[self.nextChunk], tracker: self.tracker)
+    var buffer = UniqueArray(values: self.chunks[self.nextChunk])
     self.nextChunk += 1
     let final: FinalElement? = self.nextChunk == self.chunks.count ? self.finalElement.take() : nil
     do {
@@ -55,12 +53,12 @@ struct UniqueArrayAsyncReader<FinalElement: ~Copyable>: ~Copyable, AsyncReader {
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension UniqueArrayAsyncReader where FinalElement == Void {
-  init(chunks: [[Int]], tracker: LifetimeTracker? = nil) {
-    self.init(chunks: chunks, finalElement: (), tracker: tracker)
+  init(chunks: [[Int]]) {
+    self.init(chunks: chunks, finalElement: ())
   }
 
-  init(values: [Int], tracker: LifetimeTracker? = nil) {
-    self.init(chunks: [values], finalElement: (), tracker: tracker)
+  init(values: [Int]) {
+    self.init(chunks: [values], finalElement: ())
   }
 }
 #endif

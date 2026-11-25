@@ -25,7 +25,6 @@ struct UniqueArrayCallerAsyncReader<FinalElement: ~Copyable>: ~Copyable, CallerA
   typealias ReadFailure = Never
 
   let values: [Int]
-  let tracker: LifetimeTracker?
   let maximumChunkSize: Int
   var position: Int = 0
   var didEmitFinal: Bool = false
@@ -34,13 +33,11 @@ struct UniqueArrayCallerAsyncReader<FinalElement: ~Copyable>: ~Copyable, CallerA
   init(
     values: [Int],
     finalElement: consuming FinalElement,
-    maximumChunkSize: Int = .max,
-    tracker: LifetimeTracker? = nil
+    maximumChunkSize: Int = .max
   ) {
     precondition(maximumChunkSize > 0, "maximumChunkSize must be positive")
     self.values = values
     self.maximumChunkSize = maximumChunkSize
-    self.tracker = tracker
     self.finalElement = .some(finalElement)
   }
 
@@ -50,7 +47,7 @@ struct UniqueArrayCallerAsyncReader<FinalElement: ~Copyable>: ~Copyable, CallerA
     precondition(!self.didEmitFinal, "read called after end-of-stream")
     let count = min(buffer.freeCapacity, self.maximumChunkSize, self.values.count - self.position)
     for i in 0..<count {
-      buffer.append(NoncopyableInt(self.values[self.position + i], tracker: self.tracker))
+      buffer.append(NoncopyableInt(self.values[self.position + i]))
     }
     self.position += count
     if self.position >= self.values.count {
@@ -63,8 +60,8 @@ struct UniqueArrayCallerAsyncReader<FinalElement: ~Copyable>: ~Copyable, CallerA
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 extension UniqueArrayCallerAsyncReader where FinalElement == Void {
-  init(values: [Int], maximumChunkSize: Int = .max, tracker: LifetimeTracker? = nil) {
-    self.init(values: values, finalElement: (), maximumChunkSize: maximumChunkSize, tracker: tracker)
+  init(values: [Int], maximumChunkSize: Int = .max) {
+    self.init(values: values, finalElement: (), maximumChunkSize: maximumChunkSize)
   }
 }
 #endif

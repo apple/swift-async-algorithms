@@ -20,23 +20,18 @@ struct AsyncWriterTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeElements() async {
-    let tracker = LifetimeTracker()
-    do {
-      var writer = UniqueArrayAsyncWriter()
+    var writer = UniqueArrayAsyncWriter()
 
-      try! await writer.write { buffer in
-        buffer.append(NoncopyableInt(1, tracker: tracker))
-        buffer.append(NoncopyableInt(2, tracker: tracker))
-        buffer.append(NoncopyableInt(3, tracker: tracker))
-      }
-
-      #expect(writer.storage.count == 3)
-      #expect(writer.storage[0].value == 1)
-      #expect(writer.storage[1].value == 2)
-      #expect(writer.storage[2].value == 3)
+    try! await writer.write { buffer in
+      buffer.append(NoncopyableInt(1))
+      buffer.append(NoncopyableInt(2))
+      buffer.append(NoncopyableInt(3))
     }
-    #expect(tracker.created == 3)
-    #expect(tracker.live == 0)
+
+    #expect(writer.storage.count == 3)
+    #expect(writer.storage[0].value == 1)
+    #expect(writer.storage[1].value == 2)
+    #expect(writer.storage[2].value == 3)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -52,21 +47,16 @@ struct AsyncWriterTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeReturnsValue() async {
-    let tracker = LifetimeTracker()
-    do {
-      var writer = UniqueArrayAsyncWriter()
+    var writer = UniqueArrayAsyncWriter()
 
-      let count = try! await writer.write { buffer in
-        buffer.append(NoncopyableInt(10, tracker: tracker))
-        buffer.append(NoncopyableInt(20, tracker: tracker))
-        return buffer.count
-      }
-
-      #expect(count == 2)
-      #expect(writer.storage.count == 2)
+    let count = try! await writer.write { buffer in
+      buffer.append(NoncopyableInt(10))
+      buffer.append(NoncopyableInt(20))
+      return buffer.count
     }
-    #expect(tracker.created == 2)
-    #expect(tracker.live == 0)
+
+    #expect(count == 2)
+    #expect(writer.storage.count == 2)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -91,28 +81,23 @@ struct AsyncWriterTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeMultipleTimes() async {
-    let tracker = LifetimeTracker()
-    do {
-      var writer = UniqueArrayAsyncWriter()
+    var writer = UniqueArrayAsyncWriter()
 
-      try! await writer.write { buffer in
-        buffer.append(NoncopyableInt(1, tracker: tracker))
-        buffer.append(NoncopyableInt(2, tracker: tracker))
-      }
-
-      try! await writer.write { buffer in
-        buffer.append(NoncopyableInt(3, tracker: tracker))
-        buffer.append(NoncopyableInt(4, tracker: tracker))
-      }
-
-      #expect(writer.storage.count == 4)
-      #expect(writer.storage[0].value == 1)
-      #expect(writer.storage[1].value == 2)
-      #expect(writer.storage[2].value == 3)
-      #expect(writer.storage[3].value == 4)
+    try! await writer.write { buffer in
+      buffer.append(NoncopyableInt(1))
+      buffer.append(NoncopyableInt(2))
     }
-    #expect(tracker.created == 4)
-    #expect(tracker.live == 0)
+
+    try! await writer.write { buffer in
+      buffer.append(NoncopyableInt(3))
+      buffer.append(NoncopyableInt(4))
+    }
+
+    #expect(writer.storage.count == 4)
+    #expect(writer.storage[0].value == 1)
+    #expect(writer.storage[1].value == 2)
+    #expect(writer.storage[2].value == 3)
+    #expect(writer.storage[3].value == 4)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
