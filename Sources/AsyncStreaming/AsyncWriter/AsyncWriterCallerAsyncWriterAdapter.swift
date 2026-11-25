@@ -27,7 +27,7 @@ public import ContainersPreview
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct AsyncWriterCallerAsyncWriterAdapter<
   Underlying: AsyncWriter & ~Copyable
->: ~Copyable, CallerAsyncWriter {
+>: ~Copyable, CallerAsyncWriter where Underlying.WriteElement: ~Copyable, Underlying.FinalElement: ~Copyable {
   public typealias WriteElement = Underlying.WriteElement
   public typealias WriteFailure = Underlying.WriteFailure
   public typealias FinalElement = Underlying.FinalElement
@@ -43,7 +43,7 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
   @inlinable
   public mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
     buffer: inout Buffer
-  ) async throws(WriteFailure) {
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
     var consumer = buffer.consumeAll()
     while let head = consumer.next() {
       var pending: WriteElement? = head
@@ -71,14 +71,14 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
   public consuming func finish<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
     buffer: inout Buffer,
     finalElement: consuming FinalElement
-  ) async throws(WriteFailure) {
+  ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
     try await self.write(buffer: &buffer)
     try await self.underlying.finish(finalElement: finalElement)
   }
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncWriter where Self: ~Copyable {
+extension AsyncWriter where Self: ~Copyable, WriteElement: ~Copyable, FinalElement: ~Copyable {
   /// Adapts this ``AsyncWriter`` to a ``CallerAsyncWriter``.
   ///
   /// The returned adapter accepts caller-supplied buffers via

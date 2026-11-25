@@ -22,41 +22,25 @@ struct CallerAsyncReaderPipeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoCopiesAllElements() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let source = UniqueArrayCallerAsyncReader(
-        storage: UniqueArray(copying: [1, 2, 3, 4, 5])
-      )
-      try await source.pipe(into: writerB.asAsyncWriter())
+    let source = UniqueArrayCallerAsyncReader(values: [1, 2, 3, 4, 5])
+    try await source.pipe(into: UniqueArrayCallerAsyncWriter(sink: sink).asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
-    }
+    #expect(sink.values == [1, 2, 3, 4, 5])
+    #expect(sink.finished)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeIntoWithEmptyReader() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let source = UniqueArrayCallerAsyncReader(storage: UniqueArray<Int>())
-      try await source.pipe(into: writerB.asAsyncWriter())
+    let source = UniqueArrayCallerAsyncReader(values: [])
+    try await source.pipe(into: UniqueArrayCallerAsyncWriter(sink: sink).asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(into: &target)
-      #expect(target.count == 0)
-    }
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -64,23 +48,32 @@ struct CallerAsyncReaderPipeTests {
   func pipeIntoLoopsAcrossMultipleBuffers() async throws {
     // 200 elements through a small AsyncWriter buffer forces the pipe
     // loop to iterate multiple times.
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 32, high: 256)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let elements = Array(1...200)
-      let source = UniqueArrayCallerAsyncReader(
-        storage: UniqueArray(copying: elements)
-      )
-      try await source.pipe(into: writerB.asAsyncWriter(initialCapacity: 16))
+    let elements = Array(1...200)
+    let source = UniqueArrayCallerAsyncReader(values: elements)
+    try await source.pipe(
+      into: UniqueArrayCallerAsyncWriter(capacity: 200, sink: sink).asAsyncWriter(initialCapacity: 16)
+    )
 
-      var target = RigidArray<Int>(capacity: 200)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
-    }
+    #expect(sink.values == elements)
+    #expect(sink.finished)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeIntoAsyncWriter() async throws {
+    // Pipes straight into an AsyncWriter, with no adapter in between. The
+    // reader delivers at most two elements per read, so pipe writes [1, 2]
+    // and then [3], and finishes with the final element from the last read.
+    let sink = WriteSink<Void>()
+
+    let source = UniqueArrayCallerAsyncReader(values: [1, 2, 3], maximumChunkSize: 2)
+    try await source.pipe(into: UniqueArrayAsyncWriter(sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 2)
+    #expect(sink.finished)
   }
 
   // MARK: - pipe(bufferingInto:) — into a CallerAsyncWriter
@@ -88,41 +81,25 @@ struct CallerAsyncReaderPipeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeBufferingIntoCopiesAllElements() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let source = UniqueArrayCallerAsyncReader(
-        storage: UniqueArray(copying: [1, 2, 3, 4, 5])
-      )
-      try await source.pipe(bufferingInto: writerB, intermediateCapacity: 16)
+    let source = UniqueArrayCallerAsyncReader(values: [1, 2, 3, 4, 5])
+    try await source.pipe(bufferingInto: UniqueArrayCallerAsyncWriter(sink: sink), intermediateCapacity: 16)
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
-    }
+    #expect(sink.values == [1, 2, 3, 4, 5])
+    #expect(sink.finished)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func pipeBufferingIntoWithEmptyReader() async throws {
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 8, high: 32)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let source = UniqueArrayCallerAsyncReader(storage: UniqueArray<Int>())
-      try await source.pipe(bufferingInto: writerB, intermediateCapacity: 16)
+    let source = UniqueArrayCallerAsyncReader(values: [])
+    try await source.pipe(bufferingInto: UniqueArrayCallerAsyncWriter(sink: sink), intermediateCapacity: 16)
 
-      var target = RigidArray<Int>(capacity: 5)
-      try await readerA.collect(into: &target)
-      #expect(target.count == 0)
-    }
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -130,23 +107,67 @@ struct CallerAsyncReaderPipeTests {
   func pipeBufferingIntoReusesIntermediateBufferAcrossMultipleIterations() async throws {
     // 100 elements through a 16-element intermediate buffer forces the
     // pipe loop to iterate the buffer many times.
-    try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
-      of: Int.self,
-      backpressureStrategy: .watermark(low: 16, high: 200)
-    ) { _, readerA, writerB, _ in
-      let readerA = readerA
-      let writerB = writerB
+    let sink = WriteSink<Void>()
 
-      let elements = Array(1...100)
-      let source = UniqueArrayCallerAsyncReader(
-        storage: UniqueArray(copying: elements)
-      )
-      try await source.pipe(bufferingInto: writerB, intermediateCapacity: 16)
+    let elements = Array(1...100)
+    let source = UniqueArrayCallerAsyncReader(values: elements)
+    try await source.pipe(bufferingInto: UniqueArrayCallerAsyncWriter(sink: sink), intermediateCapacity: 16)
 
-      var target = RigidArray<Int>(capacity: 100)
-      try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
-    }
+    #expect(sink.values == elements)
+    #expect(sink.finished)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeBufferingIntoSplitsAcrossWriteAndFinish() async throws {
+    // The reader delivers at most two elements per read, so [1, 2] goes
+    // through write and [3] through finish.
+    let sink = WriteSink<Void>()
+
+    let source = UniqueArrayCallerAsyncReader(values: [1, 2, 3], maximumChunkSize: 2)
+    try await source.pipe(bufferingInto: UniqueArrayCallerAsyncWriter(sink: sink), intermediateCapacity: 2)
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 1)
+    #expect(sink.finished)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeIntoDeliversNoncopyableFinalElement() async throws {
+    let sink = WriteSink<NoncopyableInt>()
+
+    let source = UniqueArrayCallerAsyncReader(
+      values: [1, 2, 3],
+      finalElement: NoncopyableInt(99),
+      maximumChunkSize: 2
+    )
+    try await source.pipe(into: UniqueArrayAsyncWriter(sink: sink))
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 2)
+    #expect(sink.finished)
+    #expect(sink.finalValue == 99)
+    sink.finalElement = nil
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func pipeBufferingIntoDeliversNoncopyableFinalElement() async throws {
+    let sink = WriteSink<NoncopyableInt>()
+
+    let source = UniqueArrayCallerAsyncReader(
+      values: [1, 2, 3],
+      finalElement: NoncopyableInt(99),
+      maximumChunkSize: 2
+    )
+    try await source.pipe(bufferingInto: UniqueArrayCallerAsyncWriter(sink: sink), intermediateCapacity: 2)
+
+    #expect(sink.values == [1, 2, 3])
+    #expect(sink.writes == 1)
+    #expect(sink.finished)
+    #expect(sink.finalValue == 99)
+    sink.finalElement = nil
   }
 }
 #endif

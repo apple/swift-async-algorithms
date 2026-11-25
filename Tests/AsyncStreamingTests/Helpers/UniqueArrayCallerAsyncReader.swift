@@ -14,30 +14,54 @@ import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 
+/// A ``CallerAsyncReader`` that fills each caller buffer with as many of
+/// `values` as fit, as ``NoncopyableInt`` elements, and returns
+/// `finalElement` from the read that delivers the last one. Pass
+/// `maximumChunkSize` to cap how many it delivers per read, whatever the
+/// buffer's capacity.
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-struct UniqueArrayCallerAsyncReader: ~Copyable, CallerAsyncReader {
-  typealias ReadElement = Int
+struct UniqueArrayCallerAsyncReader<FinalElement: ~Copyable>: ~Copyable, CallerAsyncReader {
+  typealias ReadElement = NoncopyableInt
   typealias ReadFailure = Never
-  typealias FinalElement = Void
 
-  var storage: UniqueArray<Int>
+  let values: [Int]
+  let maximumChunkSize: Int
   var position: Int = 0
   var didEmitFinal: Bool = false
+  var finalElement: FinalElement?
+
+  init(
+    values: [Int],
+    finalElement: consuming FinalElement,
+    maximumChunkSize: Int = .max
+  ) {
+    precondition(maximumChunkSize > 0, "maximumChunkSize must be positive")
+    self.values = values
+    self.maximumChunkSize = maximumChunkSize
+    self.finalElement = .some(finalElement)
+  }
 
   mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
     into buffer: inout Buffer
-  ) async throws(ReadFailure) -> Void? where Buffer.Element: ~Copyable {
+  ) async throws(ReadFailure) -> FinalElement? where Buffer.Element: ~Copyable {
     precondition(!self.didEmitFinal, "read called after end-of-stream")
-    let count = min(buffer.freeCapacity, storage.count - position)
+    let count = min(buffer.freeCapacity, self.maximumChunkSize, self.values.count - self.position)
     for i in 0..<count {
-      buffer.append(storage[position + i])
+      buffer.append(NoncopyableInt(self.values[self.position + i]))
     }
-    position += count
-    if position >= storage.count {
+    self.position += count
+    if self.position >= self.values.count {
       self.didEmitFinal = true
-      return .some(())
+      return self.finalElement.take()
     }
     return nil
+  }
+}
+
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+extension UniqueArrayCallerAsyncReader where FinalElement == Void {
+  init(values: [Int], maximumChunkSize: Int = .max) {
+    self.init(values: values, finalElement: (), maximumChunkSize: maximumChunkSize)
   }
 }
 #endif

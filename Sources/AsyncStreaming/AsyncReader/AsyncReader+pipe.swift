@@ -26,7 +26,8 @@ import ContainersPreview
 // back so `pipe` works for `~Escapable` writers too.
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+extension AsyncReader
+where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable, Self.FinalElement: ~Copyable {
   /// Pipes all elements from this reader into the given writer, fusing the
   /// terminal chunk with a `finish` on the writer.
   ///
@@ -55,6 +56,8 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
   where
     Writer: CallerAsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -62,12 +65,14 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
     var writerOpt: Writer? = .some(writer)
     var done = false
     while !done {
-      try await reader.read { (buffer: inout Buffer, finalElement: FinalElement?) throws(Writer.WriteFailure) -> Void in
-        if let finalElement {
+      try await reader.read {
+        (buffer: inout Buffer, finalElement: consuming FinalElement?) throws(Writer.WriteFailure) -> Void in
+        switch consume finalElement {
+        case .some(let finalElement):
           let w = writerOpt.take()!
           try await w.finish(buffer: &buffer, finalElement: finalElement)
           done = true
-        } else {
+        case .none:
           try await writerOpt!.write(buffer: &buffer)
         }
       }
@@ -105,6 +110,8 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
   where
     Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable,
     Writer.WriteElement == ReadElement,
     Writer.FinalElement == FinalElement
   {
@@ -113,12 +120,15 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
     var done = false
     while !done {
       try await reader.read {
-        (readerBuffer: inout Buffer, finalElement: FinalElement?) throws(Writer.WriteFailure) -> Void in
+        (readerBuffer: inout Buffer, finalElement: consuming FinalElement?) throws(Writer.WriteFailure) -> Void in
         try await Self.drain(readerBuffer: &readerBuffer, into: &writerOpt!)
-        if let finalElement {
+        switch consume finalElement {
+        case .some(let finalElement):
           let w = writerOpt.take()!
           try await w.finish(finalElement: finalElement)
           done = true
+        case .none:
+          break
         }
       }
     }
@@ -133,6 +143,8 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement:
   ) async throws(Writer.WriteFailure)
   where
     Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable,
     Writer.WriteElement == ReadElement
   {
     var consumer = readerBuffer.consumeAll()

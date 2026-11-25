@@ -23,15 +23,15 @@ struct AsyncWriterTests {
     var writer = UniqueArrayAsyncWriter()
 
     try! await writer.write { buffer in
-      buffer.append(1)
-      buffer.append(2)
-      buffer.append(3)
+      buffer.append(NoncopyableInt(1))
+      buffer.append(NoncopyableInt(2))
+      buffer.append(NoncopyableInt(3))
     }
 
     #expect(writer.storage.count == 3)
-    #expect(writer.storage[0] == 1)
-    #expect(writer.storage[1] == 2)
-    #expect(writer.storage[2] == 3)
+    #expect(writer.storage[0].value == 1)
+    #expect(writer.storage[1].value == 2)
+    #expect(writer.storage[2].value == 3)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
@@ -50,8 +50,8 @@ struct AsyncWriterTests {
     var writer = UniqueArrayAsyncWriter()
 
     let count = try! await writer.write { buffer in
-      buffer.append(10)
-      buffer.append(20)
+      buffer.append(NoncopyableInt(10))
+      buffer.append(NoncopyableInt(20))
       return buffer.count
     }
 
@@ -84,34 +84,44 @@ struct AsyncWriterTests {
     var writer = UniqueArrayAsyncWriter()
 
     try! await writer.write { buffer in
-      buffer.append(1)
-      buffer.append(2)
+      buffer.append(NoncopyableInt(1))
+      buffer.append(NoncopyableInt(2))
     }
 
     try! await writer.write { buffer in
-      buffer.append(3)
-      buffer.append(4)
+      buffer.append(NoncopyableInt(3))
+      buffer.append(NoncopyableInt(4))
     }
 
     #expect(writer.storage.count == 4)
-    #expect(writer.storage[0] == 1)
-    #expect(writer.storage[1] == 2)
-    #expect(writer.storage[2] == 3)
-    #expect(writer.storage[3] == 4)
+    #expect(writer.storage[0].value == 1)
+    #expect(writer.storage[1].value == 2)
+    #expect(writer.storage[2].value == 3)
+    #expect(writer.storage[3].value == 4)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishVoidConvenience() async {
     let writer = UniqueArrayAsyncWriter()
+    let sink = writer.sink
+
     await writer.finish()
+
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func finishDeliversFinalElement() async {
     let writer = UniqueArrayAsyncWriter()
+    let sink = writer.sink
+
     await writer.finish(finalElement: ())
+
+    #expect(sink.finished)
+    #expect(sink.finalElement != nil)
   }
 }
 #endif

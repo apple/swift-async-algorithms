@@ -21,33 +21,31 @@ struct AsyncReaderCollectIntoTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectFillsTargetWhenReaderHasFewerElements() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 10)
+    let reader = UniqueArrayAsyncReader(values: [1, 2, 3])
+    var target = RigidArray<NoncopyableInt>(capacity: 10)
 
     try await reader.collect(into: &target)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+    #expect([Int](drainingValues: &target) == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = RigidArray<NoncopyableInt>(capacity: 3)
 
     try await reader.collect(into: &target)
 
     #expect(target.count == 3)
+    #expect(target.values == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectThrowsWhenReaderProducesMoreThanFreeCapacity() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectThrowsWhenReaderProducesMoreThanFreeCapacity(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = RigidArray<NoncopyableInt>(capacity: 2)
 
     do {
       try await reader.collect(into: &target)
@@ -61,36 +59,47 @@ struct AsyncReaderCollectIntoTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectIntoEmptyReader() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
-    var target = RigidArray<Int>(capacity: 5)
+    let reader = UniqueArrayAsyncReader(values: [])
+    var target = RigidArray<NoncopyableInt>(capacity: 5)
 
     try await reader.collect(into: &target)
 
     #expect(target.count == 0)
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectIntoReturnsNoncopyableFinalElement() async throws {
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99)
+    )
+    var target = RigidArray<NoncopyableInt>(capacity: 3)
+    let finalElement = try await reader.collect(into: &target)
+    let finalValue = finalElement.value
+    #expect(finalValue == 99)
+    #expect(target.values == [1, 2, 3])
   }
 }
 
 @Suite
 struct AsyncReaderCollectExactlyTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyFillsTargetWhenReaderProducesExactCount() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectExactlyFillsTargetWhenReaderProducesExactCount(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = RigidArray<NoncopyableInt>(capacity: 3)
 
     try await reader.collect(exactlyInto: &target)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+    #expect([Int](drainingValues: &target) == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyThrowsWhenReaderProducesFewer() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 5)
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectExactlyThrowsWhenReaderProducesFewer(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = RigidArray<NoncopyableInt>(capacity: 5)
 
     do {
       try await reader.collect(exactlyInto: &target)
@@ -105,10 +114,10 @@ struct AsyncReaderCollectExactlyTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectExactlyThrowsWhenReaderProducesMore() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectExactlyThrowsWhenReaderProducesMore(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = RigidArray<NoncopyableInt>(capacity: 2)
 
     do {
       try await reader.collect(exactlyInto: &target)
@@ -121,40 +130,52 @@ struct AsyncReaderCollectExactlyTests {
       #expect(error == expected)
     }
   }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectExactlyIntoReturnsNoncopyableFinalElement() async throws {
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99)
+    )
+    var target = RigidArray<NoncopyableInt>(capacity: 3)
+    let finalElement = try await reader.collect(exactlyInto: &target)
+    let finalValue = finalElement.value
+    #expect(finalValue == 99)
+    #expect(target.values == [1, 2, 3])
+  }
 }
 
 @Suite
 struct AsyncReaderCollectIntoMaximumSizeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectGrowsContainerWhenReaderHasFewerThanMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = UniqueArray<Int>()
+  @Test(arguments: [[[1, 2, 3]], [[1, 2], [3]]])
+  func collectGrowsContainerWhenReaderHasFewerThanMaximum(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = UniqueArray<NoncopyableInt>()
 
     try await reader.collect(into: &target, maximumSize: 10)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+    #expect([Int](drainingValues: &target) == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectFillsContainerExactlyAtMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
-    var target = UniqueArray<Int>()
+  @Test(arguments: [[[10, 20, 30]], [[10, 20], [30]]])
+  func collectFillsContainerExactlyAtMaximum(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = UniqueArray<NoncopyableInt>()
 
     try await reader.collect(into: &target, maximumSize: 3)
 
     #expect(target.count == 3)
+    #expect(target.values == [10, 20, 30])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-  @Test
-  func collectThrowsWhenReaderProducesMoreThanMaximum() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = UniqueArray<Int>()
+  @Test(arguments: [[[1, 2, 3, 4, 5]], [[1, 2], [3, 4, 5]]])
+  func collectThrowsWhenReaderProducesMoreThanMaximum(chunks: [[Int]]) async throws {
+    let reader = UniqueArrayAsyncReader(chunks: chunks)
+    var target = UniqueArray<NoncopyableInt>()
 
     do {
       try await reader.collect(into: &target, maximumSize: 2)
@@ -168,16 +189,26 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func collectAppendsToExistingContents() async throws {
-    let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 2, copying: [3, 4]))
-    var target = UniqueArray<Int>(capacity: 2, copying: [1, 2])
+    let reader = UniqueArrayAsyncReader(values: [3, 4])
+    var target = UniqueArray<NoncopyableInt>(values: [1, 2])
 
     try await reader.collect(into: &target, maximumSize: 10)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3, 4])
+    #expect([Int](drainingValues: &target) == [1, 2, 3, 4])
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func collectIntoMaximumSizeReturnsNoncopyableFinalElement() async throws {
+    let reader = UniqueArrayAsyncReader(
+      chunks: [[1, 2], [3]],
+      finalElement: NoncopyableInt(99)
+    )
+    var target = UniqueArray<NoncopyableInt>()
+    let finalElement = try await reader.collect(into: &target, maximumSize: 3)
+    let finalValue = finalElement.value
+    #expect(finalValue == 99)
+    #expect(target.values == [1, 2, 3])
   }
 }
-
 #endif

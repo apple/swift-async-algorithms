@@ -21,18 +21,20 @@ struct CallerAsyncWriterTests {
   @Test
   func writeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
-    var data = UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
+    var data = UniqueArray(values: [1, 2, 3, 4, 5])
 
     await writer.write(buffer: &data)
 
     #expect(writer.storage.count == 5)
+    #expect(writer.storage.values == [1, 2, 3, 4, 5])
+    #expect(data.count == 0)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writeEmptyBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter()
-    var data = UniqueArray<Int>()
+    var data = UniqueArray<NoncopyableInt>()
 
     await writer.write(buffer: &data)
 
@@ -43,11 +45,23 @@ struct CallerAsyncWriterTests {
   @Test
   func writeLargeBuffer() async {
     var writer = UniqueArrayCallerAsyncWriter(capacity: 100)
-    var data = UniqueArray(capacity: 5, copying: Array(1...50))
+    var data = UniqueArray(values: Array(1...50))
 
     await writer.write(buffer: &data)
 
     #expect(writer.storage.count == 50)
+    #expect(writer.storage.values == Array(1...50))
+  }
+
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+  @Test
+  func callerAsyncWriterFinish() async {
+    let sink = WriteSink<Void>()
+
+    await UniqueArrayCallerAsyncWriter(sink: sink).finish()
+
+    #expect(sink.values.isEmpty)
+    #expect(sink.finished)
   }
 }
 #endif

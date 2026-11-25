@@ -14,27 +14,51 @@ import AsyncStreaming
 import BasicContainers
 import ContainersPreview
 
-struct UniqueArrayAsyncReader: ~Copyable, AsyncReader {
-  typealias ReadElement = Int
-  typealias Buffer = UniqueArray<Int>
+/// An ``AsyncReader`` that delivers `chunks` one per `read`, as
+/// ``NoncopyableInt`` elements, and passes `finalElement` with the last chunk.
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+struct UniqueArrayAsyncReader<FinalElement: ~Copyable>: ~Copyable, AsyncReader {
+  typealias ReadElement = NoncopyableInt
+  typealias Buffer = UniqueArray<NoncopyableInt>
   typealias ReadFailure = Never
-  typealias FinalElement = Void
 
-  var storage: UniqueArray<Int>
-  var didEmitFinal: Bool = false
+  let chunks: [[Int]]
+  var nextChunk = 0
+  var finalElement: FinalElement?
+
+  init(chunks: [[Int]], finalElement: consuming FinalElement) {
+    precondition(!chunks.isEmpty, "a reader delivers at least one chunk")
+    self.chunks = chunks
+    self.finalElement = .some(finalElement)
+  }
+
+  init(values: [Int], finalElement: consuming FinalElement) {
+    self.init(chunks: [values], finalElement: finalElement)
+  }
 
   mutating func read<Return: ~Copyable, Failure: Error>(
-    body: (inout UniqueArray<Int>, Void?) async throws(Failure) -> Return
+    body: (inout UniqueArray<NoncopyableInt>, consuming FinalElement?) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
-    precondition(!self.didEmitFinal, "read called after end-of-stream")
-    self.didEmitFinal = true
+    precondition(self.nextChunk < self.chunks.count, "read called after end-of-stream")
+    var buffer = UniqueArray(values: self.chunks[self.nextChunk])
+    self.nextChunk += 1
+    let final: FinalElement? = self.nextChunk == self.chunks.count ? self.finalElement.take() : nil
     do {
-      var uniqueArray = self.storage.clone()
-      self.storage = .init()
-      return try await body(&uniqueArray, .some(()))
+      return try await body(&buffer, final)
     } catch {
       throw .second(error)
     }
+  }
+}
+
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+extension UniqueArrayAsyncReader where FinalElement == Void {
+  init(chunks: [[Int]]) {
+    self.init(chunks: chunks, finalElement: ())
+  }
+
+  init(values: [Int]) {
+    self.init(chunks: [values], finalElement: ())
   }
 }
 #endif
