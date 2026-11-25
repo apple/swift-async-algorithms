@@ -738,23 +738,23 @@ final class TestShare: XCTestCase {
 
   func test_share_releases_base_iterator_when_cancelled_with_full_buffer_and_idle_consumer() async {
     let released = Mutex(false)
-    do {
-      let shared = TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
-        bufferingPolicy: .bufferingOldest(1)
+    var shared = Optional(
+      TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+        bufferingPolicy: .bounded(1)
       )
-      var iterator1 = shared.makeAsyncIterator()
-      var iterator2 = shared.makeAsyncIterator()
-      let first1 = await iterator1.next(isolation: nil)
-      XCTAssertEqual(first1, 1)
-      // The second iterator never calls next(), so the iteration loop parks
-      // on the full buffer once it produces the next element. Releasing both
-      // iterators and then the sequence must wake the loop through cancel(),
-      // not the limit path, since the buffer is still full.
-      try? await Task.sleep(for: .milliseconds(100))
-      _ = iterator1
-      _ = iterator2
-      _ = shared
-    }
+    )
+    var iterator1 = Optional(shared!.makeAsyncIterator())
+    var iterator2 = Optional(shared!.makeAsyncIterator())
+    let first1 = await iterator1?.next(isolation: nil)
+    XCTAssertEqual(first1, 1)
+    // iterator2 never calls next(), so the loop parks on the full buffer.
+    try? await Task.sleep(for: .milliseconds(100))
+    // Release the reading iterator, then the idle one, then the sequence. The buffer is
+    // still full when the last side leaves, so only cancel() can wake the loop.
+    iterator1 = nil
+    iterator2 = nil
+    shared = nil
+    _ = (iterator1, iterator2, shared)
     await assertReleased(released)
   }
 
