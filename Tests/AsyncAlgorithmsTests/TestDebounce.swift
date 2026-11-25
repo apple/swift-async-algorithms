@@ -11,9 +11,80 @@
 
 import XCTest
 import AsyncAlgorithms
+import Synchronization
 
 private struct DebounceTestError: Error, Equatable, Sendable {
   let value: Int
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private final class DebounceReleaseFlag: Sendable {
+  let value = Mutex(false)
+  var isSet: Bool { value.withLock { $0 } }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private struct OneThenSleep: AsyncSequence, Sendable {
+  final class Token: Sendable {
+    let released: DebounceReleaseFlag
+    init(_ released: DebounceReleaseFlag) { self.released = released }
+    deinit { released.value.withLock { $0 = true } }
+  }
+  struct AsyncIterator: AsyncIteratorProtocol {
+    let token: Token
+    var count = 0
+    mutating func next() async -> Int? {
+      count += 1
+      if count == 1 { return 1 }
+      try? await Task.sleep(for: .seconds(3600))
+      return nil
+    }
+  }
+  let released: DebounceReleaseFlag
+  func makeAsyncIterator() -> AsyncIterator { AsyncIterator(token: Token(released)) }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private struct TwoThenSleep: AsyncSequence, Sendable {
+  final class Token: Sendable {
+    let released: DebounceReleaseFlag
+    init(_ released: DebounceReleaseFlag) { self.released = released }
+    deinit { released.value.withLock { $0 = true } }
+  }
+  struct AsyncIterator: AsyncIteratorProtocol {
+    let token: Token
+    let gap: Duration
+    var count = 0
+    mutating func next() async -> Int? {
+      count += 1
+      if count == 1 { return 1 }
+      if count == 2 {
+        try? await Task.sleep(for: gap)
+        return 2
+      }
+      try? await Task.sleep(for: .seconds(3600))
+      return nil
+    }
+  }
+  let released: DebounceReleaseFlag
+  let gap: Duration
+  func makeAsyncIterator() -> AsyncIterator { AsyncIterator(token: Token(released), gap: gap) }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+private struct TrackedClock: Clock, Sendable {
+  final class Token: Sendable {
+    let released: DebounceReleaseFlag
+    init(_ released: DebounceReleaseFlag) { self.released = released }
+    deinit { released.value.withLock { $0 = true } }
+  }
+  let base = ContinuousClock()
+  let token: Token
+  var now: ContinuousClock.Instant { base.now }
+  var minimumResolution: Duration { base.minimumResolution }
+  func sleep(until deadline: ContinuousClock.Instant, tolerance: Duration?) async throws {
+    try await base.sleep(until: deadline, tolerance: tolerance)
+  }
 }
 
 final class TestDebounce: XCTestCase {
@@ -163,5 +234,92 @@ final class TestDebounce: XCTestCase {
       for await _ in c1.debounce(for: .seconds(1), clock: .continuous) {}
     }
     t.cancel()
+  }
+
+  func test_debounce_releasesUpstreamOnCancelBetweenNextCalls() async throws {
+    guard #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) else {
+      throw XCTSkip("Skipped due to Synchronization availability")
+    }
+
+    let released = DebounceReleaseFlag()
+    let sequence = OneThenSleep(released: released).debounce(for: .milliseconds(10))
+    let consumer = Task {
+      var iterator = sequence.makeAsyncIterator()
+      _ = await iterator.next()
+      try? await Task.sleep(for: .milliseconds(100))
+      withUnsafeCurrentTask { $0?.cancel() }
+      return await iterator.next()
+    }
+    let second = await consumer.value
+    XCTAssertNil(second)
+
+    // Cancelling the internal task is asynchronous, so poll for the
+    // upstream iterator to be released instead of asserting right away.
+    for _ in 0..<100 where !released.isSet {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(released.isSet)
+  }
+
+  func test_debounce_releasesUpstreamParkedOnContinuation() async throws {
+    guard #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) else {
+      throw XCTSkip("Skipped due to Synchronization availability")
+    }
+
+    // The second element is already buffered when the consumer cancels, so
+    // the upstream task is parked on its continuation. Cancelling must resume
+    // that continuation; cancelling the task alone cannot.
+    let released = DebounceReleaseFlag()
+    let sequence = TwoThenSleep(released: released, gap: .milliseconds(30)).debounce(for: .milliseconds(10))
+    let consumer = Task {
+      var iterator = sequence.makeAsyncIterator()
+      let first = await iterator.next()
+      try? await Task.sleep(for: .milliseconds(150))
+      withUnsafeCurrentTask { $0?.cancel() }
+      let second = await iterator.next()
+      return (first, second)
+    }
+    let (first, second) = await consumer.value
+    XCTAssertEqual(first, 1)
+    XCTAssertNil(second)
+
+    for _ in 0..<200 where !released.isSet {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(released.isSet, "upstream iterator not released")
+  }
+
+  func test_debounce_releasesClockTask() async throws {
+    guard #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) else {
+      throw XCTSkip("Skipped due to Synchronization availability")
+    }
+
+    // The clock is held only by the debounce storage, which the internal
+    // task's child closures capture, so it is freed only once both child
+    // tasks have ended.
+    let upstreamReleased = DebounceReleaseFlag()
+    let clockReleased = DebounceReleaseFlag()
+    let consumer = Task {
+      let sequence = TwoThenSleep(released: upstreamReleased, gap: .seconds(3600))
+        .debounce(for: .milliseconds(10), clock: TrackedClock(token: TrackedClock.Token(clockReleased)))
+      var iterator = sequence.makeAsyncIterator()
+      let first = await iterator.next()
+      try? await Task.sleep(for: .milliseconds(100))
+      withUnsafeCurrentTask { $0?.cancel() }
+      let second = await iterator.next()
+      return (first, second)
+    }
+    let (first, second) = await consumer.value
+    XCTAssertEqual(first, 1)
+    XCTAssertNil(second)
+
+    for _ in 0..<200 where !upstreamReleased.isSet {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(upstreamReleased.isSet, "upstream iterator not released")
+    for _ in 0..<200 where !clockReleased.isSet {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(clockReleased.isSet, "clock (debounce storage) not released")
   }
 }

@@ -582,6 +582,14 @@ struct DebounceStateMachine<Base: AsyncSequence & Sendable, C: Clock>: Sendable 
       upstreamContinuation: UnsafeContinuation<Void, Error>?,
       clockContinuation: UnsafeContinuation<C.Instant, Error>?
     )
+    /// Indicates that the task and the upstream and clock continuations
+    /// should be cancelled. There is no downstream continuation to resume
+    /// since the consumer is between `next()` calls.
+    case cancelTaskAndUpstreamAndClockContinuations(
+      task: Task<Void, Never>,
+      upstreamContinuation: UnsafeContinuation<Void, Error>?,
+      clockContinuation: UnsafeContinuation<C.Instant, Error>?
+    )
   }
 
   mutating func cancelled() -> CancelledAction? {
@@ -590,12 +598,18 @@ struct DebounceStateMachine<Base: AsyncSequence & Sendable, C: Clock>: Sendable 
       state = .finished
       return .none
 
-    case .waitingForDemand:
-      // We got cancelled before we event got any demand. This can happen if a cancelled task
-      // calls next and the onCancel handler runs first. We can transition to finished right away.
+    case .waitingForDemand(let task, let upstreamContinuation, let clockContinuation, _):
+      // We got cancelled between `next()` calls. The task and the child
+      // tasks already exist by now, so we need to cancel everything to
+      // release the upstream iterator. The in-flight `next()` resumes its
+      // own continuation with `nil` from the finished state.
       self.state = .finished
 
-      return .none
+      return .cancelTaskAndUpstreamAndClockContinuations(
+        task: task,
+        upstreamContinuation: upstreamContinuation,
+        clockContinuation: clockContinuation
+      )
 
     case .demandSignalled(let task, let clockContinuation, let downstreamContinuation):
       // We got cancelled while we were waiting for the first upstream element
