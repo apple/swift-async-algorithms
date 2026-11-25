@@ -63,6 +63,14 @@ where Base.Element: Sendable, Inner.Element: Sendable {
     }
   }
 
+  /// Called once every copy of the iterator is gone. No `next()` can be in flight then, so this
+  /// takes the same path as cancellation: finish, cancel both tasks and resume whichever of them is
+  /// parked waiting for demand.
+  func iteratorDeinitialized() {
+    let action = lock.withLock { stateMachine.cancelled() }
+    handleAction(action)
+  }
+
   private func suspend() async throws -> Element? {
     return try await withUnsafeThrowingContinuation { continuation in
       let action = lock.withLock { stateMachine.next(for: continuation) }

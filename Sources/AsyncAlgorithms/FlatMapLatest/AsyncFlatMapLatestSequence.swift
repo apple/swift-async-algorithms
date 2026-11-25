@@ -72,18 +72,38 @@ where Base.Element: Sendable, Inner.Element: Sendable, Base.Failure == Inner.Fai
   }
 
   struct Iterator: AsyncIteratorProtocol, Sendable {
-    let storage: FlatMapLatestStorage<Base, Inner>
+    /// This class is needed to hook the deinit to observe once all references to the ``AsyncIterator`` are dropped.
+    ///
+    /// The outer and inner tasks hold the storage, so the storage cannot notice on its own that the
+    /// iterator is gone. Without this hook, dropping the iterator without cancelling its task (for
+    /// example with a `break` out of `for await`) left both tasks parked forever, keeping the base
+    /// and inner iterators alive.
+    ///
+    /// If we get move-only types we should be able to drop this class and use the `deinit` of the ``AsyncIterator`` struct itself.
+    final class InternalClass: Sendable {
+      let storage: FlatMapLatestStorage<Base, Inner>
+
+      init(storage: FlatMapLatestStorage<Base, Inner>) {
+        self.storage = storage
+      }
+
+      deinit {
+        self.storage.iteratorDeinitialized()
+      }
+    }
+
+    let internalClass: InternalClass
 
     init(base: Base, transform: @escaping @Sendable (Base.Element) -> Inner) {
-      self.storage = FlatMapLatestStorage(base: base, transform: transform)
+      self.internalClass = InternalClass(storage: FlatMapLatestStorage(base: base, transform: transform))
     }
 
     func next() async rethrows -> Element? {
-      return try await storage.next(isolation: nil)
+      return try await internalClass.storage.next(isolation: nil)
     }
 
     func next(isolation: isolated (any Actor)? = #isolation) async throws(Failure) -> Element? {
-      return try await storage.next(isolation: isolation)
+      return try await internalClass.storage.next(isolation: isolation)
     }
   }
 }

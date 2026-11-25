@@ -226,6 +226,86 @@ final class TestFlatMapLatest: XCTestCase {
     // Determine success by running without crashing
     for try await _ in combined {}
   }
+
+  // MARK: - Resource release
+
+  // Breaking out of `for await` drops the iterator without cancelling the task. The outer and inner
+  // tasks must still stop and release their iterators: before, both stayed parked waiting for
+  // demand forever.
+
+  func test_break_releases_inner_iterator() async {
+    let innerReleased = expectation(description: "inner iterator released")
+    let source = [1].async.flatMapLatest { _ in
+      TrackedCounter(onIteratorRelease: { innerReleased.fulfill() })
+    }
+    for await _ in source { break }
+    await fulfillment(of: [innerReleased], timeout: 2)
+  }
+
+  func test_break_releases_outer_iterator() async {
+    let outerReleased = expectation(description: "outer iterator released")
+    let source = TrackedCounter(onIteratorRelease: { outerReleased.fulfill() }).flatMapLatest { value in
+      [value].async
+    }
+    for await _ in source { break }
+    await fulfillment(of: [outerReleased], timeout: 2)
+  }
+
+  func test_dropping_an_unused_iterator_does_not_crash() async {
+    // An iterator that never called `next()` has started no tasks.
+    var iterator = Optional([1, 2, 3].async.flatMapLatest { [$0].async }.makeAsyncIterator())
+    iterator = nil
+    XCTAssertNil(iterator)
+  }
+
+  func test_dropping_one_copy_keeps_the_other_copy_working() async throws {
+    let source = [1, 2, 3].async.flatMapLatest { [$0, $0 * 10].async }
+    var iterator = Optional(source.makeAsyncIterator())
+    var copy = iterator!
+    iterator = nil
+    XCTAssertNil(iterator)
+    var results = [Int]()
+    while let value = try await copy.next() {
+      results.append(value)
+    }
+    XCTAssertEqual(results.last, 30)
+  }
+}
+
+private final class ReleaseTracker: Sendable {
+  let onRelease: @Sendable () -> Void
+
+  init(_ onRelease: @escaping @Sendable () -> Void) {
+    self.onRelease = onRelease
+  }
+
+  deinit {
+    onRelease()
+  }
+}
+
+/// Counts up until cancelled, sleeping briefly before each element, and reports when its iterator
+/// is released.
+private struct TrackedCounter: AsyncSequence, Sendable {
+  typealias Element = Int
+
+  let onIteratorRelease: @Sendable () -> Void
+
+  struct AsyncIterator: AsyncIteratorProtocol {
+    let tracker: ReleaseTracker
+    var current = 0
+
+    mutating func next() async -> Int? {
+      try? await Task.sleep(nanoseconds: 1_000_000)
+      if Task.isCancelled { return nil }
+      current += 1
+      return current
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(tracker: ReleaseTracker(onIteratorRelease))
+  }
 }
 
 private struct FlatMapLatestFailure: Error, Equatable {}
