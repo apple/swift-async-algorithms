@@ -736,6 +736,28 @@ final class TestShare: XCTestCase {
     await assertReleased(released)
   }
 
+  func test_share_releases_base_iterator_when_cancelled_with_full_buffer_and_idle_consumer() async {
+    let released = Mutex(false)
+    do {
+      let shared = TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+        bufferingPolicy: .bufferingOldest(1)
+      )
+      var iterator1 = shared.makeAsyncIterator()
+      var iterator2 = shared.makeAsyncIterator()
+      let first1 = await iterator1.next(isolation: nil)
+      XCTAssertEqual(first1, 1)
+      // The second iterator never calls next(), so the iteration loop parks
+      // on the full buffer once it produces the next element. Releasing both
+      // iterators and then the sequence must wake the loop through cancel(),
+      // not the limit path, since the buffer is still full.
+      try? await Task.sleep(for: .milliseconds(100))
+      _ = iterator1
+      _ = iterator2
+      _ = shared
+    }
+    await assertReleased(released)
+  }
+
   func test_share_releases_base_iterator_when_idle_consumer_released_first() async {
     let released = Mutex(false)
     do {
@@ -745,7 +767,7 @@ final class TestShare: XCTestCase {
       ).share()
       var iterator1 = shared.makeAsyncIterator()
       do {
-        var iterator2 = shared.makeAsyncIterator()
+        let iterator2 = shared.makeAsyncIterator()
         let first1 = await iterator1.next(isolation: nil)
         XCTAssertEqual(first1, 1)
         // The idle iterator never calls next(); it is released first.
