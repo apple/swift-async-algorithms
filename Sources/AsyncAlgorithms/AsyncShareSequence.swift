@@ -201,6 +201,13 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
         }
       }
 
+      var isCancelled: Bool {
+        switch self {
+        case .cancelled: true
+        default: false
+        }
+      }
+
       func cancel() {
         switch self {
         case .running(let task):
@@ -250,6 +257,19 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
         case .bufferingNewest(let bound): self.storagePolicy = .bufferingNewest(bound)
         case .unbounded: self.storagePolicy = .unbounded
         }
+      }
+
+      // Marks the iteration as cancelled and hands back the task together with any
+      // continuation the iteration loop is parked on, so the loop can be woken and exit.
+      mutating func cancelIteration() -> (
+        IteratingTask, UnsafeContinuation<Bool, Never>?, UnsafeContinuation<Void, Never>?
+      ) {
+        let task = iteratingTask
+        let parked = (limit, demand)
+        iteratingTask = .cancelled
+        limit = nil
+        demand = nil
+        return (task, parked.0, parked.1)
       }
 
       // Removes elements from the front of the buffer that all consumers have already processed.
@@ -364,11 +384,9 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
           state.cancelled = true
           return state.emit(nil, limit: limit)
         }
-        defer {
-          state.iteratingTask = .cancelled
-          state.cancelled = true
-        }
-        return state.emit(state.iteratingTask, limit: limit)
+        state.cancelled = true
+        let (task, limit, demand) = state.cancelIteration()
+        return (task, limit, demand, true)
       }
       task?.cancel()
       limitContinuation?.resume(returning: cancelled)
@@ -384,35 +402,30 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
     }
 
     func unregisterSide(_ id: Int) {
-      let (side, continuation, cancelled, iteratingTaskToCancel) = state.withLock {
-        state -> (Side.State?, UnsafeContinuation<Bool, Never>?, Bool, IteratingTask?) in
+      let (side, continuation, cancelled, iteratingTaskToCancel, demand) = state.withLock {
+        state -> (
+          Side.State?, UnsafeContinuation<Bool, Never>?, Bool, IteratingTask?, UnsafeContinuation<Void, Never>?
+        ) in
         let side = state.sides.removeValue(forKey: id)
         state.trimBuffer()
-        let cancelRequested = state.sides.count == 0 && state.cancelled
+        if state.sides.count == 0 && state.cancelled && !state.iteratingTask.isCancelled {
+          // The shared sequence is gone and this was its last consumer. Stop the
+          // iteration and wake the loop if it is parked, so it exits and releases
+          // the base iterator.
+          let (task, limit, demand) = state.cancelIteration()
+          return (side, limit, true, task, demand)
+        }
         guard let limit, state.buffer.count < limit else {
-          guard case .cancelled = state.iteratingTask else {
-            defer {
-              if cancelRequested {
-                state.iteratingTask = .cancelled
-              }
-            }
-            return (side, nil, false, cancelRequested ? state.iteratingTask : nil)
-          }
-          return (side, nil, true, nil)
+          return (side, nil, state.iteratingTask.isCancelled, nil, nil)
         }
         defer { state.limit = nil }
-        guard case .cancelled = state.iteratingTask else {
-          defer {
-            if cancelRequested {
-              state.iteratingTask = .cancelled
-            }
-          }
-          return (side, state.limit, false, cancelRequested ? state.iteratingTask : nil)
-        }
-        return (side, state.limit, true, nil)
+        return (side, state.limit, state.iteratingTask.isCancelled, nil, nil)
       }
       if let continuation {
         continuation.resume(returning: cancelled)
+      }
+      if let demand {
+        demand.resume()
       }
       if let side {
         side.continuation?.resume(returning: .success(nil))
@@ -426,18 +439,15 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       if let limit, limit > 0 {
         let cancelled = await withUnsafeContinuation { (continuation: UnsafeContinuation<Bool, Never>) in
           let (resume, cancelled) = state.withLock { state -> (UnsafeContinuation<Bool, Never>?, Bool) in
-            guard state.buffer.count >= limit else {
-              assert(state.limit == nil)
-              guard case .cancelled = state.iteratingTask else {
-                return (continuation, false)
-              }
+            if state.iteratingTask.isCancelled {
               return (continuation, true)
             }
-            state.limit = continuation
-            guard case .cancelled = state.iteratingTask else {
-              return (nil, false)
+            guard state.buffer.count >= limit else {
+              assert(state.limit == nil)
+              return (continuation, false)
             }
-            return (nil, true)
+            state.limit = continuation
+            return (nil, false)
           }
           if let resume {
             resume.resume(returning: cancelled)
@@ -451,6 +461,9 @@ where Base.Element: Sendable, Base: SendableMetatype, Base.AsyncIterator: Sendab
       // await a demand
       await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
         let hasPendingDemand = state.withLock { state in
+          if state.iteratingTask.isCancelled {
+            return true
+          }
           for (_, side) in state.sides {
             if side.continuation != nil {
               return true

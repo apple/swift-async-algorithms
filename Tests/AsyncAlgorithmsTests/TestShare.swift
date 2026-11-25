@@ -621,12 +621,384 @@ final class TestShare: XCTestCase {
     XCTAssertEqual(results1, [1, 2, 3, 4, 5])
     XCTAssertEqual(results2, [])  // Should be empty since source is exhausted
   }
+
+  // MARK: - Release Tracking Tests
+
+  // Polls a flag until it is set, failing the test explicitly on timeout.
+  // `await fulfillment(of:timeout:)` does not fail on timeout on Linux XCTest,
+  // so leak assertions must poll like this instead.
+  private func waitForFlag(
+    _ flag: borrowing Mutex<Bool>,
+    timeout: Duration = .seconds(2),
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) async {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+      if flag.withLock({ $0 }) { return }
+      try? await Task.sleep(for: .milliseconds(10))
+    }
+    XCTFail("flag was not set within \(timeout)", file: file, line: line)
+  }
+
+  private func assertReleased(
+    _ released: borrowing Mutex<Bool>,
+    timeout: Duration = .seconds(2),
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) async {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+      if released.withLock({ $0 }) { return }
+      try? await Task.sleep(for: .milliseconds(10))
+    }
+    XCTFail("base iterator was not released within \(timeout)", file: file, line: line)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration() async {
+    let released = Mutex(false)
+    for await _ in TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share() {
+      break
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration_unbounded() async {
+    let released = Mutex(false)
+    for await _ in TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+      bufferingPolicy: .unbounded
+    ) {
+      break
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration_to_end() async {
+    let released = Mutex(false)
+    for await _ in FiniteTrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share() {}
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration_throwing_base() async {
+    let released = Mutex(false)
+    do {
+      for try await _ in ThrowingTrackedCounter(onIteratorRelease: { released.withLock { $0 = true } })
+        .share()
+      {
+        break
+      }
+    } catch {
+      XCTFail("unexpected error: \(error)")
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration_buffering_oldest() async {
+    let released = Mutex(false)
+    for await _ in TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+      bufferingPolicy: .bufferingOldest(2)
+    ) {
+      break
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_after_inline_iteration_buffering_latest() async {
+    let released = Mutex(false)
+    for await _ in TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+      bufferingPolicy: .bufferingLatest(2)
+    ) {
+      break
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_lagging_consumer_fills_buffer() async {
+    let released = Mutex(false)
+    do {
+      let shared = TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share()
+      var iterator1 = shared.makeAsyncIterator()
+      var iterator2 = shared.makeAsyncIterator()
+      let first1 = await iterator1.next(isolation: nil)
+      XCTAssertEqual(first1, 1)
+      let first2 = await iterator2.next(isolation: nil)
+      XCTAssertEqual(first2, 1)
+      // The fast consumer takes a second element while the lagging consumer
+      // never catches up, so the loop parks on the limit with a full buffer.
+      let second1 = await iterator1.next(isolation: nil)
+      XCTAssertEqual(second1, 2)
+      try? await Task.sleep(for: .milliseconds(100))
+      // Both iterators and then the sequence are released at scope exit.
+      _ = iterator1
+      _ = iterator2
+      _ = shared
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_cancelled_with_full_buffer_and_idle_consumer() async {
+    let released = Mutex(false)
+    var shared = Optional(
+      TrackedCounter(onIteratorRelease: { released.withLock { $0 = true } }).share(
+        bufferingPolicy: .bounded(1)
+      )
+    )
+    var iterator1 = Optional(shared!.makeAsyncIterator())
+    var iterator2 = Optional(shared!.makeAsyncIterator())
+    let first1 = await iterator1?.next(isolation: nil)
+    XCTAssertEqual(first1, 1)
+    // iterator2 never calls next(), so the loop parks on the full buffer.
+    try? await Task.sleep(for: .milliseconds(100))
+    // Release the reading iterator, then the idle one, then the sequence. The buffer is
+    // still full when the last side leaves, so only cancel() can wake the loop.
+    iterator1 = nil
+    iterator2 = nil
+    shared = nil
+    _ = (iterator1, iterator2, shared)
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_idle_consumer_released_first() async {
+    let released = Mutex(false)
+    do {
+      let shared = SlowCounter(
+        onIteratorRelease: { released.withLock { $0 = true } },
+        ignoresCancellation: true
+      ).share()
+      var iterator1 = shared.makeAsyncIterator()
+      do {
+        let iterator2 = shared.makeAsyncIterator()
+        let first1 = await iterator1.next(isolation: nil)
+        XCTAssertEqual(first1, 1)
+        // The idle iterator never calls next(); it is released first.
+        _ = iterator2
+      }
+      _ = iterator1
+      _ = shared
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_consumer_cancelled_during_slow_next() async {
+    let released = Mutex(false)
+    let enteredSecond = Mutex(false)
+    let entries = Mutex(0)
+    do {
+      let shared = SlowCounter(
+        onIteratorRelease: { released.withLock { $0 = true } },
+        onEnterNext: {
+          let count = entries.withLock { value in
+            value += 1
+            return value
+          }
+          if count == 2 { enteredSecond.withLock { $0 = true } }
+        },
+        ignoresCancellation: true
+      ).share()
+      let consumer = Task {
+        var iterator = shared.makeAsyncIterator()
+        _ = await iterator.next(isolation: nil)
+        _ = await iterator.next(isolation: nil)
+      }
+      // The loop is inside the second base next() when this flag is set.
+      await waitForFlag(enteredSecond)
+      consumer.cancel()
+      await consumer.value
+      _ = shared
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_consumer_cancelled_during_slow_next_unbounded() async {
+    let released = Mutex(false)
+    let enteredSecond = Mutex(false)
+    let entries = Mutex(0)
+    do {
+      let shared = SlowCounter(
+        onIteratorRelease: { released.withLock { $0 = true } },
+        onEnterNext: {
+          let count = entries.withLock { value in
+            value += 1
+            return value
+          }
+          if count == 2 { enteredSecond.withLock { $0 = true } }
+        },
+        ignoresCancellation: true
+      ).share(bufferingPolicy: .unbounded)
+      let consumer = Task {
+        var iterator = shared.makeAsyncIterator()
+        _ = await iterator.next(isolation: nil)
+        _ = await iterator.next(isolation: nil)
+      }
+      await waitForFlag(enteredSecond)
+      consumer.cancel()
+      await consumer.value
+      _ = shared
+    }
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_cancelled_before_first_element_unbounded() async {
+    let released = Mutex(false)
+    let enteredFirst = Mutex(false)
+    let consumer = Task {
+      for await _ in SlowCounter(
+        onIteratorRelease: { released.withLock { $0 = true } },
+        onEnterNext: { enteredFirst.withLock { $0 = true } },
+        ignoresCancellation: false
+      ).share(bufferingPolicy: .unbounded) {
+        // No element is expected before cancellation.
+      }
+    }
+    // The loop is inside the first base next() when this flag is set.
+    await waitForFlag(enteredFirst)
+    consumer.cancel()
+    await consumer.value
+    await assertReleased(released)
+  }
+
+  func test_share_releases_base_iterator_when_cancelled_before_first_element_bounded() async {
+    let released = Mutex(false)
+    let enteredFirst = Mutex(false)
+    let consumer = Task {
+      for await _ in SlowCounter(
+        onIteratorRelease: { released.withLock { $0 = true } },
+        onEnterNext: { enteredFirst.withLock { $0 = true } },
+        ignoresCancellation: true
+      ).share() {
+        // No element is expected before cancellation.
+      }
+    }
+    await waitForFlag(enteredFirst)
+    consumer.cancel()
+    await consumer.value
+    await assertReleased(released)
+  }
 }
 
 // MARK: - Helper Types
 
 private enum TestError: Error, Equatable {
   case failure
+}
+
+private final class ReleaseTracker: Sendable {
+  let onRelease: @Sendable () -> Void
+  init(_ onRelease: @escaping @Sendable () -> Void) { self.onRelease = onRelease }
+  deinit { onRelease() }
+}
+
+/// Counts up from 1 until its task is cancelled. Its iterator calls
+/// `onIteratorRelease` when it is deallocated.
+private struct TrackedCounter: AsyncSequence, Sendable {
+  let onIteratorRelease: @Sendable () -> Void
+
+  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
+    let tracker: ReleaseTracker
+    var current = 0
+
+    mutating func next() async -> Int? {
+      if Task.isCancelled { return nil }
+      current += 1
+      return current
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(tracker: ReleaseTracker(onIteratorRelease))
+  }
+}
+
+/// Counts up from 1 to 3, then ends. Its iterator calls `onIteratorRelease`
+/// when it is deallocated.
+private struct FiniteTrackedCounter: AsyncSequence, Sendable {
+  let onIteratorRelease: @Sendable () -> Void
+
+  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
+    let tracker: ReleaseTracker
+    var current = 0
+
+    mutating func next() async -> Int? {
+      if Task.isCancelled { return nil }
+      guard current < 3 else { return nil }
+      current += 1
+      return current
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(tracker: ReleaseTracker(onIteratorRelease))
+  }
+}
+
+/// Returns 1, 2, then throws. Its iterator calls `onIteratorRelease` when it
+/// is deallocated.
+private struct ThrowingTrackedCounter: AsyncSequence, Sendable {
+  let onIteratorRelease: @Sendable () -> Void
+
+  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
+    let tracker: ReleaseTracker
+    var current = 0
+
+    mutating func next() async throws -> Int? {
+      if Task.isCancelled { return nil }
+      current += 1
+      if current == 3 { throw TestError.failure }
+      return current
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(tracker: ReleaseTracker(onIteratorRelease))
+  }
+}
+
+/// A counter whose `next()` sleeps before producing each element, so tests can
+/// observe the iteration loop while it is inside the base iterator. When
+/// `ignoresCancellation` is true the sleep is swallowed and an element is still
+/// produced; otherwise a cancelled task ends the sequence.
+private struct SlowCounter: AsyncSequence, Sendable {
+  let onIteratorRelease: @Sendable () -> Void
+  let onEnterNext: (@Sendable () -> Void)?
+  let ignoresCancellation: Bool
+  let delay: Duration
+
+  init(
+    onIteratorRelease: @escaping @Sendable () -> Void,
+    onEnterNext: (@Sendable () -> Void)? = nil,
+    ignoresCancellation: Bool = false,
+    delay: Duration = .milliseconds(200)
+  ) {
+    self.onIteratorRelease = onIteratorRelease
+    self.onEnterNext = onEnterNext
+    self.ignoresCancellation = ignoresCancellation
+    self.delay = delay
+  }
+
+  struct AsyncIterator: AsyncIteratorProtocol, Sendable {
+    let tracker: ReleaseTracker
+    let onEnterNext: (@Sendable () -> Void)?
+    let ignoresCancellation: Bool
+    let delay: Duration
+    var current = 0
+
+    mutating func next() async -> Int? {
+      onEnterNext?()
+      try? await Task.sleep(for: delay)
+      if !ignoresCancellation, Task.isCancelled { return nil }
+      current += 1
+      return current
+    }
+  }
+
+  func makeAsyncIterator() -> AsyncIterator {
+    AsyncIterator(
+      tracker: ReleaseTracker(onIteratorRelease),
+      onEnterNext: onEnterNext,
+      ignoresCancellation: ignoresCancellation,
+      delay: delay
+    )
+  }
 }
 
 #endif
