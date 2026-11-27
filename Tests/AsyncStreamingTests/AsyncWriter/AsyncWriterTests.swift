@@ -13,6 +13,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
@@ -22,10 +23,10 @@ struct AsyncWriterTests {
   func writeElements() async {
     var writer = UniqueArrayAsyncWriter()
 
-    try! await writer.write { buffer in
-      buffer.append(1)
-      buffer.append(2)
-      buffer.append(3)
+    try! await writer.write { output in
+      output.append(1)
+      output.append(2)
+      output.append(3)
     }
 
     #expect(writer.storage.count == 3)
@@ -35,6 +36,7 @@ struct AsyncWriterTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func writeEmptyBuffer() async {
     var writer = UniqueArrayAsyncWriter()
@@ -45,14 +47,15 @@ struct AsyncWriterTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func writeReturnsValue() async {
     var writer = UniqueArrayAsyncWriter()
 
-    let count = try! await writer.write { buffer in
-      buffer.append(10)
-      buffer.append(20)
-      return buffer.count
+    let count = try! await writer.write { output in
+      output.append(10)
+      output.append(20)
+      return output.count
     }
 
     #expect(count == 2)
@@ -60,6 +63,7 @@ struct AsyncWriterTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func writeWithThrowingBody() async {
     enum TestError: Error, Equatable {
@@ -74,23 +78,24 @@ struct AsyncWriterTests {
       }
       Issue.record("Expected error to be thrown")
     } catch {
-      #expect(error == EitherError<Never, TestError>.second(TestError.failed))
+      #expect(error as? EitherError<Never, TestError> == EitherError<Never, TestError>.second(TestError.failed))
     }
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func writeMultipleTimes() async {
     var writer = UniqueArrayAsyncWriter()
 
-    try! await writer.write { buffer in
-      buffer.append(1)
-      buffer.append(2)
+    try! await writer.write { output in
+      output.append(1)
+      output.append(2)
     }
 
-    try! await writer.write { buffer in
-      buffer.append(3)
-      buffer.append(4)
+    try! await writer.write { output in
+      output.append(3)
+      output.append(4)
     }
 
     #expect(writer.storage.count == 4)
@@ -101,6 +106,7 @@ struct AsyncWriterTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func finishVoidConvenience() async {
     let writer = UniqueArrayAsyncWriter()
@@ -108,6 +114,7 @@ struct AsyncWriterTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func finishDeliversFinalElement() async {
     let writer = UniqueArrayAsyncWriter()

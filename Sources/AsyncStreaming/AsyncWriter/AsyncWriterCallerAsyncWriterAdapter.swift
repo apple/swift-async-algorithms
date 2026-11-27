@@ -10,24 +10,27 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
+
+public import SpanPreview
+
 public import ContainersPreview
 
 /// A ``CallerAsyncWriter`` that is implemented in terms of an
 /// ``AsyncWriter``.
 ///
-/// Each ``write(buffer:)`` call drains the caller's buffer through one
+/// Each ``write(_:)`` call drains the caller's elements through one
 /// or more ``AsyncWriter/write(_:)`` closures on the underlying writer.
 /// When the underlying writer's buffer fills before the caller's empties,
 /// the adapter loops with another closure call to continue draining.
 ///
 /// The adapter introduces no buffer of its own — elements move directly
-/// from the caller-supplied buffer into the underlying writer's
+/// from the caller-supplied span into the underlying writer's
 /// closure-supplied buffer. The underlying writer's deferred-flush
 /// behavior, if any, is preserved.
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct AsyncWriterCallerAsyncWriterAdapter<
   Underlying: AsyncWriter & ~Copyable
->: ~Copyable, CallerAsyncWriter {
+>: ~Copyable, CallerAsyncWriter where Underlying.WriteElement: Copyable {
   public typealias WriteElement = Underlying.WriteElement
   public typealias WriteFailure = Underlying.WriteFailure
   public typealias FinalElement = Underlying.FinalElement
@@ -41,22 +44,15 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
   }
 
   @inlinable
-  public mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer
-  ) async throws(WriteFailure) {
-    var consumer = buffer.consumeAll()
-    while let head = consumer.next() {
-      var pending: WriteElement? = head
+  public mutating func write(_ elements: Span<WriteElement>) async throws(WriteFailure) {
+    var offset = 0
+    while offset < elements.count {
       do throws(EitherError<WriteFailure, Never>) {
-        try await self.underlying.write {
-          (innerBuffer: inout Underlying.Buffer) async throws(Never) -> Void in
-          if case .some(let element) = pending.take() {
-            innerBuffer.append(element)
-          }
-          while innerBuffer.freeCapacity > 0 {
-            guard let element = consumer.next() else { return }
-            innerBuffer.append(element)
-          }
+        try await self.underlying.write { (output: inout OutputSpan<WriteElement>) async throws(Never) -> Void in
+          let count = Swift.min(output.freeCapacity, elements.count - offset)
+          precondition(count > 0, "AsyncWriter provided an output span without free capacity")
+          output.append(copying: elements.extracting(offset..<(offset + count)))
+          offset += count
         }
       } catch {
         switch error {
@@ -68,24 +64,50 @@ public struct AsyncWriterCallerAsyncWriterAdapter<
   }
 
   @inlinable
-  public consuming func finish<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer,
+  public mutating func write(_ elements: inout InputSpan<WriteElement>) async throws(WriteFailure) {
+    while !elements.isEmpty {
+      do throws(EitherError<WriteFailure, Never>) {
+        try await self.underlying.write { (output: inout OutputSpan<WriteElement>) async throws(Never) -> Void in
+          let count = output.append(moving: &elements)
+          precondition(count > 0, "AsyncWriter provided an output span without free capacity")
+        }
+      } catch {
+        switch error {
+        case .first(let writeFailure): throw writeFailure
+        case .second: fatalError("Unreachable")
+        }
+      }
+    }
+  }
+
+  @inlinable
+  public consuming func finish(
+    _ elements: inout InputSpan<WriteElement>,
     finalElement: consuming FinalElement
   ) async throws(WriteFailure) {
-    try await self.write(buffer: &buffer)
+    try await self.write(&elements)
+    try await self.underlying.finish(finalElement: finalElement)
+  }
+
+  @inlinable
+  public consuming func finish(
+    _ elements: Span<WriteElement>,
+    finalElement: consuming FinalElement
+  ) async throws(WriteFailure) {
+    try await self.write(elements)
     try await self.underlying.finish(finalElement: finalElement)
   }
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncWriter where Self: ~Copyable {
+extension AsyncWriter where Self: ~Copyable, WriteElement: Copyable {
   /// Adapts this ``AsyncWriter`` to a ``CallerAsyncWriter``.
   ///
-  /// The returned adapter accepts caller-supplied buffers via
-  /// ``CallerAsyncWriter/write(buffer:)`` and drains them through this
+  /// The returned adapter accepts caller-supplied spans via
+  /// ``CallerAsyncWriter/write(_:)`` and copies them through this
   /// writer's closure-based ``AsyncWriter/write(_:)``. When this
-  /// writer's buffer fills before the caller's empties, the adapter
-  /// loops with another closure call.
+  /// writer's output span fills before the caller's span empties, the
+  /// adapter loops with another closure call.
   ///
   /// The adapter introduces no buffer of its own.
   ///

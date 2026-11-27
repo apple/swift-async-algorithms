@@ -11,37 +11,29 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
+public import SpanPreview
+
 import ContainersPreview
 
 // swift-format-ignore: AmbiguousTrailingClosureOverload
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
-  /// Iterates over all chunks from the reader, executing the provided body for
-  /// each buffer until the stream signals end-of-stream.
-  ///
-  /// This method continuously reads chunks from the async reader, executing
-  /// `body` for every chunk — including the terminal one — and terminates the
-  /// loop when the reader delivers a non-`nil` ``AsyncReader/FinalElement``.
-  /// The returned value is that ``AsyncReader/FinalElement``.
-  ///
-  /// ## Example
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
+  /// Calls `body` for each chunk of the stream that is not empty, until the
+  /// reader signals end-of-stream.
   ///
   /// ```swift
-  /// var fileReader: FileAsyncReader = ...
-  ///
-  /// _ = try await fileReader.forEachBuffer { buffer in
-  ///     print("Processing \(buffer.count) elements")
+  /// _ = try await fileReader.forEachSpan { elements in
+  ///     print("Processing \(elements.count) elements")
   /// }
   /// ```
   ///
-  /// - Parameter body: An asynchronous closure that processes each buffer of
-  ///   elements read from the stream.
+  /// - Parameter body: Processes one chunk. The reader destroys the elements
+  ///   that `body` leaves in the span.
   /// - Returns: The ``AsyncReader/FinalElement`` delivered with the terminal
   ///   chunk, or `nil` if none was observed.
-  /// - Throws: An `EitherError` containing either a `ReadFailure` from the
-  ///   read operation or a `Failure` from the body closure.
-  public consuming func forEachBuffer<Failure: Error>(
-    body: (inout Buffer) async throws(Failure) -> Void
+  /// - Throws: A `ReadFailure` from the read, or the error of `body`.
+  public consuming func forEachSpan<Failure: Error>(
+    body: (inout InputSpan<ReadElement>) async throws(Failure) -> Void
   ) async throws(EitherError<ReadFailure, Failure>) -> FinalElement? {
     var final: FinalElement? = nil
     var done = false
@@ -50,7 +42,7 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
         if !next.isEmpty {
           try await body(&next)
         }
-        if let finalElement {
+        if finalElement != nil {
           final = finalElement
           done = true
         }
@@ -59,34 +51,22 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable {
     return final
   }
 
-  /// Iterates over all chunks from a non-failing reader, executing the
-  /// provided body for each buffer until the stream signals end-of-stream.
+  /// Calls `body` for each chunk of a stream that cannot fail, until the reader
+  /// signals end-of-stream.
   ///
-  /// Use this overload when the reader's ``AsyncReader/ReadFailure`` type is `Never`.
-  ///
-  /// ## Example
-  ///
-  /// ```swift
-  /// var fileReader: FileAsyncReader = ...
-  ///
-  /// _ = await fileReader.forEachBuffer { buffer in
-  ///     print("Processing \(buffer.count) elements")
-  /// }
-  /// ```
-  ///
-  /// - Parameter body: An asynchronous closure that processes each buffer of
-  ///   elements read from the stream.
+  /// - Parameter body: Processes one chunk. The reader destroys the elements
+  ///   that `body` leaves in the span.
   /// - Returns: The ``AsyncReader/FinalElement`` delivered with the terminal chunk.
   @inlinable
-  public consuming func forEachBuffer(
-    body: (inout Buffer) async -> Void
+  public consuming func forEachSpan(
+    body: (inout InputSpan<ReadElement>) async -> Void
   ) async -> FinalElement where ReadFailure == Never {
     do {
-      let final: FinalElement? = try await self.forEachBuffer { (buffer) async throws(Never) -> Void in
-        await body(&buffer)
+      var final: FinalElement? = try await self.forEachSpan { (elements) async throws(Never) -> Void in
+        await body(&elements)
       }
       // The force-unwrap is safe since final element must be set at this point
-      return final!
+      return final.take()!
     } catch {
       fatalError()
     }

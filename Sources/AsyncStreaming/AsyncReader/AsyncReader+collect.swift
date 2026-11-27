@@ -26,62 +26,42 @@ public struct AsyncReaderInsufficientElementsError: Error, Hashable {
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable {
-  /// Collects elements from the reader into the provided container, up to the
-  /// container's available space.
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
+  /// Moves the elements of the stream into `target`, up to its free capacity.
   ///
-  /// Reads chunks from the reader and moves them into `target` until the reader
-  /// signals end-of-stream. The reader can deliver fewer elements than
-  /// `target.freeCapacity`; the container needn't be full when the stream ends.
-  /// If the reader produces more elements than `target` can accept, the method
-  /// throws ``AsyncReaderLeftOverElementsError``.
+  /// The reader can deliver fewer elements than `target.freeCapacity`.
   ///
-  /// - Parameter target: The container that receives the collected elements.
-  ///   The method preserves the container's existing contents and appends
-  ///   collected elements to the end.
+  /// - Parameter target: Receives the elements after its existing contents.
   /// - Returns: The ``AsyncReader/FinalElement`` delivered with the terminal chunk.
-  /// - Throws: An `EitherError` wrapping either a ``AsyncReader/ReadFailure`` or
-  ///   an ``AsyncReaderLeftOverElementsError`` if the reader produced more
-  ///   elements than `target` could accept.
-  public consuming func collect<Container: RangeReplaceableContainer<ReadElement> & ~Copyable & ~Escapable>(
-    into target: inout Container
+  /// - Throws: A ``AsyncReader/ReadFailure``, or ``AsyncReaderLeftOverElementsError``
+  ///   if the reader produced more elements than `target` could accept.
+  public consuming func collect(
+    into target: inout OutputSpan<ReadElement>
   ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement {
     var reader = self
     var finalElement: FinalElement? = nil
     while finalElement == nil {
-      try await reader.read { (buffer, final) throws(AsyncReaderLeftOverElementsError) -> Void in
-        if buffer.count > target.freeCapacity {
+      try await reader.read { (elements, final) throws(AsyncReaderLeftOverElementsError) -> Void in
+        if elements.count > target.freeCapacity {
           throw AsyncReaderLeftOverElementsError()
         }
-        target.append(moving: buffer.startIndex..<buffer.endIndex, from: &buffer)
-        if let final {
-          finalElement = final
-        }
+        target.append(moving: &elements)
+        finalElement = final
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 
-  /// Collects elements from the reader into the provided container, requiring
-  /// that the reader fill the container exactly.
+  /// Moves the elements of the stream into `target`, which the reader must fill
+  /// exactly.
   ///
-  /// Reads chunks from the reader and moves them into `target` until either the
-  /// reader signals end-of-stream or the container becomes full. The reader
-  /// must produce exactly `target.freeCapacity` elements. If it produces fewer
-  /// before signaling end-of-stream, the method throws
-  /// ``AsyncReaderInsufficientElementsError``. If it produces more, it throws
-  /// ``AsyncReaderLeftOverElementsError``.
-  ///
-  /// - Parameter target: The container to fill exactly. The method appends
-  ///   collected elements to the container's existing contents.
+  /// - Parameter target: Receives the elements after its existing contents.
   /// - Returns: The ``AsyncReader/FinalElement`` delivered with the terminal chunk.
-  /// - Throws: An `EitherError` wrapping either a ``AsyncReader/ReadFailure``
-  ///   or an `EitherError` wrapping
-  ///   ``AsyncReaderLeftOverElementsError`` (too many elements) or
-  ///   ``AsyncReaderInsufficientElementsError`` (too few elements).
-  public consuming func collect<Container: RangeReplaceableContainer<ReadElement> & ~Copyable & ~Escapable>(
-    exactlyInto target: inout Container
+  /// - Throws: A ``AsyncReader/ReadFailure``, ``AsyncReaderLeftOverElementsError``
+  ///   for too many elements, or ``AsyncReaderInsufficientElementsError`` for too few.
+  public consuming func collect(
+    exactlyInto target: inout OutputSpan<ReadElement>
   ) async throws(EitherError<
     ReadFailure, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
   >) -> FinalElement {
@@ -90,70 +70,58 @@ extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Cop
     while finalElement == nil {
       try await reader.read {
         (
-          buffer,
+          elements,
           final
         ) throws(EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>) -> Void in
-        if buffer.count > target.freeCapacity {
+        if elements.count > target.freeCapacity {
           throw .first(AsyncReaderLeftOverElementsError())
         }
-        if final != nil, buffer.count < target.freeCapacity {
+        if final != nil, elements.count < target.freeCapacity {
           throw .second(AsyncReaderInsufficientElementsError())
         }
-        target.append(moving: buffer.startIndex..<buffer.endIndex, from: &buffer)
-        if let final {
-          finalElement = final
-        }
+        target.append(moving: &elements)
+        finalElement = final
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 
-  /// Collects elements from the reader into the provided dynamic container,
-  /// growing it up to the specified maximum size.
-  ///
-  /// Reads chunks from the reader and appends them to `target`, which grows as
-  /// elements arrive. The reader can deliver fewer than `maximumSize` elements
-  /// before signaling end-of-stream; if it delivers more, the method throws
-  /// ``AsyncReaderLeftOverElementsError``.
+  /// Moves the elements of the stream into `target`, which grows by at most
+  /// `maximumSize` elements.
   ///
   /// - Parameters:
-  ///   - target: The dynamic container that receives the collected elements.
-  ///     The method appends collected elements to the container's existing
-  ///     contents.
+  ///   - target: Receives the elements after its existing contents.
   ///   - maximumSize: The maximum number of elements to append to `target`.
   /// - Returns: The ``AsyncReader/FinalElement`` delivered with the terminal chunk.
-  /// - Throws: An `EitherError` wrapping either a ``AsyncReader/ReadFailure`` or
-  ///   an ``AsyncReaderLeftOverElementsError`` if the reader produced more than
-  ///   `maximumSize` elements.
+  /// - Throws: A ``AsyncReader/ReadFailure``, or ``AsyncReaderLeftOverElementsError``
+  ///   if the reader produced more than `maximumSize` elements.
   public consuming func collect<Container: DynamicContainer<ReadElement> & ~Copyable>(
     into target: inout Container,
     maximumSize: Int
-  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement {
+  ) async throws(EitherError<ReadFailure, AsyncReaderLeftOverElementsError>) -> FinalElement
+  where Container.Element: ~Copyable {
     precondition(maximumSize >= 0, "maximumSize must be non-negative")
     var reader = self
     var finalElement: FinalElement? = nil
     var remaining = maximumSize
     while finalElement == nil {
-      try await reader.read { (buffer, final) throws(AsyncReaderLeftOverElementsError) -> Void in
-        let chunkCount = buffer.count
+      try await reader.read { (elements, final) throws(AsyncReaderLeftOverElementsError) -> Void in
+        let chunkCount = elements.count
         if chunkCount > remaining {
           throw AsyncReaderLeftOverElementsError()
         }
         if chunkCount > 0 {
-          var consumer = buffer.consumeAll()
-          while let element = consumer.next() {
-            target.append(element)
+          target.append(addingCount: chunkCount) { output in
+            output.append(moving: &elements)
           }
           remaining -= chunkCount
         }
-        if let final {
-          finalElement = final
-        }
+        finalElement = final
       }
     }
     // The force-unwrap is safe since final element must be set at this point
-    return finalElement!
+    return finalElement.take()!
   }
 }
 

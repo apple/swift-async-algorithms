@@ -149,17 +149,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
     }
 
     @inlinable
-    func write<Buffer: RangeReplaceableContainer<Element> & ~Copyable>(
-      buffer: inout sending Buffer
+    func write(
+      _ elements: Span<Element>
     ) throws -> MultiProducerSingleConsumerAsyncChannel.Source._SendResult {
-      var disconnectedBuffer = _Disconnected(value: Optional(buffer))
       let action = self._stateMachine.withLock {
-        var buffer = disconnectedBuffer.swap(newValue: nil)!
-        let action = $0.send(buffer: &buffer)
-        disconnectedBuffer.swap(newValue: buffer)
-        return action
+        $0.send(elements)
       }
-      buffer = disconnectedBuffer.take()!
 
       switch consume action {
       case .returnProduceMore:
@@ -442,13 +437,12 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
 
     @inlinable
     mutating func send(
-      buffer: inout sending some RangeReplaceableContainer<Element> & ~Copyable
+      _ elements: Span<Element>
     ) -> sending SendAction {
       switch consume self._state {
       case .channeling(var s):
-        // Take the noncopyable buffer out, drain the caller's buffer into it,
-        // and put it back. We iterate elements via `consumeAll` so the caller
-        // is left holding an empty buffer (per the writer contract).
+        // Take the noncopyable buffer out, copy the caller's elements into
+        // it, and put it back.
 
         let shouldProduceMore: Bool = s.buffer.withValue {
           (inner: inout UniqueDeque<Element>?) -> Bool in
@@ -462,13 +456,8 @@ extension MultiProducerSingleConsumerAsyncChannel._Storage {
             current = UniqueDeque<Element>()
           }
           let offsetBefore = current.count
-          // Drain the caller's buffer into the channel's internal deque so
-          // the caller is left holding an empty buffer (per the writer
-          // contract). `consumeAll` iterates by-move and works for both
-          // `Copyable` and `~Copyable` element types.
-          var consumer = buffer.consumeAll()
-          while let element = consumer.next() {
-            current.append(element)
+          for index in elements.indices {
+            current.append(elements[index])
           }
           let didProduce = s.backpressureStrategy.didSend(
             buffer: current,

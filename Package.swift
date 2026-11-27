@@ -69,6 +69,7 @@ let package = Package(
         .product(name: "BasicContainers", package: "swift-collections"),
         .product(name: "ContainersPreview", package: "swift-collections"),
         .product(name: "DequeModule", package: "swift-collections"),
+        .product(name: "SpanPreview", package: "swift-collections"),
       ],
       exclude: ["NNNN-async-streaming.md"],
       swiftSettings: [

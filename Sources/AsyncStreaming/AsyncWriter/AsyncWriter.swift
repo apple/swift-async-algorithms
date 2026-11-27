@@ -10,13 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
-public import ContainersPreview
 
 /// Writes elements asynchronously to a destination using callee-managed buffering.
 ///
 /// Adopt ``AsyncWriter`` when you need callee-managed buffering,
 /// where the writer supplies a buffer that the caller fills
-/// with elements to write.
+/// with elements to write. The writer owns the elements that the caller
+/// appends, which can be noncopyable, for example buffers leased from a pool.
 ///
 /// ## Signaling end of stream
 ///
@@ -35,10 +35,6 @@ public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable
   // TODO: Check if we should support ~Escapable elements
   associatedtype WriteElement: ~Copyable
 
-  /// The container type the writer uses to receive elements from the caller.
-  // TODO: Check if we should support ~Escapable buffer
-  associatedtype Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable
-
   /// The error type that writing operations throw.
   associatedtype WriteFailure: Error
 
@@ -51,7 +47,7 @@ public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable
 
   /// Provides a buffer for writing elements to the destination.
   ///
-  /// The writer supplies a buffer, sized by the implementation, that
+  /// The writer supplies an output span, sized by the implementation, that
   /// `body` uses to append elements. The writer manages the buffer
   /// allocation and handles the writing operation once `body` completes.
   /// Oversized payloads are split across multiple calls.
@@ -64,11 +60,11 @@ public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable
   /// ```swift
   /// var writer: SomeAsyncWriter = ...
   ///
-  /// try await writer.write { buffer in
+  /// try await writer.write { output in
   ///     for item in items {
-  ///         buffer.append(item)
+  ///         output.append(item)
   ///     }
-  ///     return buffer.count
+  ///     return output.count
   /// }
   /// ```
   ///
@@ -77,7 +73,7 @@ public protocol AsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable
   /// - Throws: An `EitherError` containing either a `WriteFailure` from the write operation
   ///   or a `Failure` from the body closure.
   mutating func write<Return: ~Copyable, Failure: Error>(
-    _ body: (inout Buffer) async throws(Failure) -> Return
+    _ body: (inout OutputSpan<WriteElement>) async throws(Failure) -> Return
   ) async throws(EitherError<WriteFailure, Failure>) -> Return
 
   /// Closes the writer, delivering a ``FinalElement`` payload alongside the

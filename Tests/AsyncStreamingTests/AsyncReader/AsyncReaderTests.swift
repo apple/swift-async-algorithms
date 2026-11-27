@@ -13,18 +13,20 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
 struct AsyncReaderTests {
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func read() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
 
     var observedFinal = false
-    let result: UniqueArray<Int> = try! await reader.read { (buffer, finalElement) in
+    let result: [Int] = try! await reader.read { (elements, finalElement) in
       observedFinal = finalElement != nil
-      return buffer.clone()
+      return Array(elements)
     }
 
     #expect(result.count == 5)
@@ -36,14 +38,16 @@ struct AsyncReaderTests {
     #expect(observedFinal)
   }
 
+  @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func readDeliversTerminator() async {
     var reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
     var observedFinal = false
-    let count: Int = try! await reader.read { (buffer, finalElement) in
+    let count: Int = try! await reader.read { (elements, finalElement) in
       observedFinal = finalElement != nil
-      return buffer.count
+      return elements.count
     }
 
     #expect(count == 3)

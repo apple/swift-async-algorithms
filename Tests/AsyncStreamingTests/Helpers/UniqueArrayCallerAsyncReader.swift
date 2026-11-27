@@ -13,6 +13,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 struct UniqueArrayCallerAsyncReader: ~Copyable, CallerAsyncReader {
@@ -24,9 +25,9 @@ struct UniqueArrayCallerAsyncReader: ~Copyable, CallerAsyncReader {
   var position: Int = 0
   var didEmitFinal: Bool = false
 
-  mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
-    into buffer: inout Buffer
-  ) async throws(ReadFailure) -> Void? where Buffer.Element: ~Copyable {
+  mutating func read(
+    into buffer: inout OutputSpan<Int>
+  ) async throws(ReadFailure) -> Void? {
     precondition(!self.didEmitFinal, "read called after end-of-stream")
     let count = min(buffer.freeCapacity, storage.count - position)
     for i in 0..<count {

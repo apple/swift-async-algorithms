@@ -236,19 +236,19 @@ extension MultiProducerSingleConsumerAsyncChannel {
     /// argument to the body of its next
     /// ``MultiProducerSingleConsumerAsyncChannel/read(body:)`` call. The
     /// channel delivers any elements still buffered from earlier
-    /// ``write(buffer:)`` calls before the terminator.
+    /// ``write(_:)`` calls before the terminator.
     ///
     /// - Note: This method delivers only the end-of-stream signal. To send a
     ///   final batch of elements alongside the terminator, call
-    ///   ``write(buffer:)`` first and then ``finish(finalElement:)``.
+    ///   ``write(_:)`` first and then ``finish(finalElement:)``.
     @inlinable
     public consuming func finish(finalElement: consuming sending FinalElement) {
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
 
-    /// Writes every element of `buffer` to the channel.
+    /// Writes copies of all `elements` to the channel.
     ///
-    /// On success the call drains `buffer` completely. If the channel's
+    /// If the channel's
     /// backpressure strategy signals that production should pause, the call
     /// suspends until the reader drains enough of the channel to fall below
     /// the low watermark.
@@ -257,12 +257,12 @@ extension MultiProducerSingleConsumerAsyncChannel {
     ///   if the channel has already finished, or `CancellationError` if the
     ///   task is canceled while suspended on backpressure.
     @inlinable
-    public mutating func write<Buffer: RangeReplaceableContainer<Element> & ~Copyable & Sendable>(
-      buffer: inout sending Buffer
+    public mutating func write(
+      _ elements: Span<Element>
     ) async throws {
       let sendResult: _SendResult
       do {
-        sendResult = try self._storage.write(buffer: &buffer)
+        sendResult = try self._storage.write(elements)
       } catch {
         throw error
       }
@@ -407,7 +407,7 @@ extension MultiProducerSingleConsumerAsyncChannel {
   }
 }
 
-/// An error that ``MultiProducerSingleConsumerAsyncChannel/Source/write(buffer:)``
+/// An error that ``MultiProducerSingleConsumerAsyncChannel/Source/write(_:)``
 /// throws when its source has already finished.
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public struct MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError: Error {

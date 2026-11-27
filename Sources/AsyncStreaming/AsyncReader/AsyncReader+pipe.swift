@@ -11,7 +11,9 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
-import ContainersPreview
+public import SpanPreview
+
+public import ContainersPreview
 
 // TODO: The `Writer` generic parameter on every `pipe` variant in this file
 // should additionally be constrained `& ~Escapable`. We currently can't express
@@ -26,131 +28,102 @@ import ContainersPreview
 // back so `pipe` works for `~Escapable` writers too.
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension AsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
-  /// Pipes all elements from this reader into the given writer, fusing the
-  /// terminal chunk with a `finish` on the writer.
+extension AsyncReader where Self: ~Copyable, Self: ~Escapable, ReadElement: ~Copyable, FinalElement: ~Copyable {
+  /// Moves all elements of this reader into a caller-owned writer and fuses
+  /// the terminal chunk with the writer's `finish`.
   ///
-  /// Consumes both the reader and the writer. Each chunk the reader produces is
-  /// forwarded with `writer.write(buffer:)` until the reader signals
-  /// end-of-stream by delivering a non-`nil` ``AsyncReader/FinalElement``. The
-  /// terminal chunk is fused with the writer's ``CallerAsyncWriter/finish(buffer:finalElement:)``.
+  /// The writer takes ownership of each chunk through
+  /// the `InputSpan` overload of ``CallerAsyncWriter/write(_:)``, so no element is copied.
   ///
-  /// ## Example
-  ///
-  /// ```swift
-  /// let dataReader: DataAsyncReader = ...
-  /// let fileWriter: FileCallerAsyncWriter = ...
-  ///
-  /// // Copy all data from reader to writer and finish the writer.
-  /// try await dataReader.pipe(into: fileWriter)
-  /// ```
-  ///
-  /// - Parameter writer: A ``CallerAsyncWriter`` to receive the elements. The
-  ///   writer is consumed; its ``CallerAsyncWriter/finish(buffer:finalElement:)``
-  ///   method is called with the reader's terminal chunk and ``AsyncReader/FinalElement``.
-  ///
-  /// - Throws: An error originating from the read or write operations.
+  /// - Parameter writer: Receives the elements. The writer is consumed.
+  /// - Throws: An error from the read or the write operations.
   public consuming func pipe<Writer>(
     into writer: consuming Writer
   ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
   where
     Writer: CallerAsyncWriter & ~Copyable,
     Writer.WriteElement == ReadElement,
-    Writer.FinalElement == FinalElement
-  {
-    var reader = self
-    var writerOpt: Writer? = .some(writer)
-    var done = false
-    while !done {
-      try await reader.read { (buffer: inout Buffer, finalElement: FinalElement?) throws(Writer.WriteFailure) -> Void in
-        if let finalElement {
-          let w = writerOpt.take()!
-          try await w.finish(buffer: &buffer, finalElement: finalElement)
-          done = true
-        } else {
-          try await writerOpt!.write(buffer: &buffer)
-        }
-      }
-    }
-  }
-
-  /// Pipes all elements from this reader into the given writer, copying each
-  /// element from the reader's buffer into the writer's buffer.
-  ///
-  /// Consumes both the reader and the writer. Because both protocols supply
-  /// their own buffer, each element is transferred between them. The writer's
-  /// buffer may be smaller than the reader's, in which case multiple `write`
-  /// calls are issued per chunk produced by the reader.
-  ///
-  /// On the terminal chunk this method drains all bytes through `write` calls
-  /// first and then calls ``AsyncWriter/finish(finalElement:)`` carrying
-  /// only the ``AsyncReader/FinalElement`` payload.
-  ///
-  /// ## Example
-  ///
-  /// ```swift
-  /// let dataReader: DataAsyncReader = ...
-  /// let fileWriter: FileAsyncWriter = ...
-  ///
-  /// try await dataReader.pipe(copyingInto: fileWriter)
-  /// ```
-  ///
-  /// - Parameter writer: An ``AsyncWriter`` to receive the elements. The
-  ///   writer is consumed; its ``AsyncWriter/finish(finalElement:)`` method
-  ///   is called with the reader's ``AsyncReader/FinalElement`` payload.
-  ///
-  /// - Throws: An error originating from the read or write operations.
-  public consuming func pipe<Writer>(
-    copyingInto writer: consuming Writer
-  ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
-  where
-    Writer: AsyncWriter & ~Copyable,
-    Writer.WriteElement == ReadElement,
-    Writer.FinalElement == FinalElement
+    Writer.FinalElement == FinalElement,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable
   {
     var reader = self
     var writerOpt: Writer? = .some(writer)
     var done = false
     while !done {
       try await reader.read {
-        (readerBuffer: inout Buffer, finalElement: FinalElement?) throws(Writer.WriteFailure) -> Void in
-        try await Self.drain(readerBuffer: &readerBuffer, into: &writerOpt!)
-        if let finalElement {
+        (
+          elements: inout InputSpan<ReadElement>,
+          finalElement: consuming FinalElement?
+        ) throws(Writer.WriteFailure)
+          -> Void in
+        switch consume finalElement {
+        case .some(let finalElement):
           let w = writerOpt.take()!
-          try await w.finish(finalElement: finalElement)
+          try await w.finish(&elements, finalElement: finalElement)
           done = true
+        case .none:
+          try await writerOpt!.write(&elements)
         }
       }
     }
   }
 
-  /// Drains `readerBuffer` into `writer` across as many `write` calls as
-  /// required to move every element. Used by ``pipe(copyingInto:)`` to share
-  /// the multi-write loop between mid-stream and terminal chunks.
-  private static func drain<Writer>(
-    readerBuffer: inout Buffer,
+  /// Moves all elements of this reader into a callee-owned writer.
+  ///
+  /// Each chunk moves from the reader's span into the output spans of the
+  /// writer, so every element is moved once between the two buffers.
+  ///
+  /// - Parameter writer: Receives the elements. The writer is consumed.
+  /// - Throws: An error from the read or the write operations.
+  public consuming func pipe<Writer>(
+    movingInto writer: consuming Writer
+  ) async throws(EitherError<ReadFailure, Writer.WriteFailure>)
+  where
+    Writer: AsyncWriter & ~Copyable,
+    Writer.WriteElement == ReadElement,
+    Writer.FinalElement == FinalElement,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable
+  {
+    var reader = self
+    var writerOpt: Writer? = .some(writer)
+    var done = false
+    while !done {
+      try await reader.read {
+        (
+          elements: inout InputSpan<ReadElement>,
+          finalElement: consuming FinalElement?
+        ) throws(Writer.WriteFailure)
+          -> Void in
+        try await Self.move(&elements, into: &writerOpt!)
+        switch consume finalElement {
+        case .some(let finalElement):
+          let w = writerOpt.take()!
+          try await w.finish(finalElement: finalElement)
+          done = true
+        case .none:
+          break
+        }
+      }
+    }
+  }
+
+  private static func move<Writer>(
+    _ elements: inout InputSpan<ReadElement>,
     into writer: inout Writer
   ) async throws(Writer.WriteFailure)
   where
     Writer: AsyncWriter & ~Copyable,
-    Writer.WriteElement == ReadElement
+    Writer.WriteElement == ReadElement,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable
   {
-    var consumer = readerBuffer.consumeAll()
-    while let firstElement = consumer.next() {
-      var pending: ReadElement? = firstElement
+    while !elements.isEmpty {
       do throws(EitherError<Writer.WriteFailure, Never>) {
-        try await writer.write { (writerBuffer: inout Writer.Buffer) in
-          switch consume pending {
-          case .some(let element):
-            writerBuffer.append(element)
-          case .none:
-            break
-          }
-          pending = nil
-          while writerBuffer.freeCapacity > 0 {
-            guard let element = consumer.next() else { return }
-            writerBuffer.append(element)
-          }
+        try await writer.write { (output: inout OutputSpan<ReadElement>) in
+          let count = output.append(moving: &elements)
+          precondition(count > 0, "AsyncWriter provided an output span without free capacity")
         }
       } catch {
         switch error {

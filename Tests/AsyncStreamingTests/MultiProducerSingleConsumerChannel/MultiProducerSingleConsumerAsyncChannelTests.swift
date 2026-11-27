@@ -14,6 +14,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import DequeModule
 import Testing
 
@@ -35,7 +36,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 5)
       for v in [1, 2, 3, 4, 5] { writeBuffer.append(v) }
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
 
       try await channel.read { buffer, _ in
         #expect(buffer.count == 5)
@@ -68,7 +69,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
         try await Task.sleep(nanoseconds: 10_000_000)
         var writeBuffer = UniqueArray<Int>(minimumCapacity: 1)
         writeBuffer.append(42)
-        try await source.write(buffer: &writeBuffer)
+        try await source.write(writeBuffer.span)
         let result = try await group.next()
         #expect(result == [42])
       }
@@ -200,7 +201,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 1)
       writeBuffer.append(1)
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
 
       try await channel.read { buffer, finalElement in
         #expect(buffer.count == 1)
@@ -231,7 +232,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 1)
       writeBuffer.append(1)
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
       source.finish(throwing: TestError())
 
       // First read still delivers the buffered element.
@@ -265,7 +266,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 1)
       writeBuffer.append(1)
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
 
       do {
         try await channel.read { _, _ throws(BodyError) in
@@ -292,7 +293,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 5)
       for v in [1, 2, 3, 4, 5] { writeBuffer.append(v) }
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
 
       try await channel.read { buffer, _ in
         var consumer = buffer.consumeFirst(2)
@@ -325,11 +326,11 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
           // Fill to exactly the high watermark - this write suspends.
           var firstBatch = UniqueArray<Int>(minimumCapacity: 4)
           for v in [1, 2, 3, 4] { firstBatch.append(v) }
-          try await source.write(buffer: &firstBatch)
+          try await source.write(firstBatch.span)
           // Then send the 5th element once backpressure is relieved.
           var secondBatch = UniqueArray<Int>(minimumCapacity: 1)
           secondBatch.append(5)
-          try await source.write(buffer: &secondBatch)
+          try await source.write(secondBatch.span)
         }
 
         // Wait until the producer suspends after appending the first batch.
@@ -370,7 +371,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 4)
       for v in [1, 2, 3, 4] { writeBuffer.append(v) }
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
       let afterSend = callCount
 
       try await channel.read { buffer, _ in
@@ -401,7 +402,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
       // allocating a fresh buffer per read.
       var firstBatch = UniqueArray<Int>(minimumCapacity: 10)
       for v in 0..<10 { firstBatch.append(v) }
-      try await source.write(buffer: &firstBatch)
+      try await source.write(firstBatch.span)
       nonisolated(unsafe) var firstCapacity = 0
       try await channel.read { buffer, _ in
         firstCapacity = buffer.capacity
@@ -415,7 +416,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
       // workload's capacity, so this read should see at least as much.
       var secondBatch = UniqueArray<Int>(minimumCapacity: 10)
       for v in 0..<10 { secondBatch.append(v) }
-      try await source.write(buffer: &secondBatch)
+      try await source.write(secondBatch.span)
       try await channel.read { buffer, _ in
         #expect(buffer.capacity >= firstCapacity)
         var c = buffer.consumeAll()
@@ -426,7 +427,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
       // (capacity matches first read's exactly).
       var thirdBatch = UniqueArray<Int>(minimumCapacity: 10)
       for v in 0..<10 { thirdBatch.append(v) }
-      try await source.write(buffer: &thirdBatch)
+      try await source.write(thirdBatch.span)
       try await channel.read { buffer, _ in
         #expect(buffer.capacity == firstCapacity)
         var c = buffer.consumeAll()
@@ -447,7 +448,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
       var writeBuffer = UniqueArray<Int>(minimumCapacity: 3)
       for v in [1, 2, 3] { writeBuffer.append(v) }
-      try await source.write(buffer: &writeBuffer)
+      try await source.write(writeBuffer.span)
       source.finish()
 
       nonisolated(unsafe) var collected: [Int] = []
@@ -472,7 +473,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
-  func writeAppendsAllElementsAndClearsBuffer() async throws {
+  func writeCopiesAllElementsAndLeavesSourceUntouched() async throws {
     try await MultiProducerSingleConsumerAsyncChannel.withChannel(
       of: Int.self,
       backpressureStrategy: .watermark(low: 5, high: 100)
@@ -485,8 +486,8 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
       writeBuffer.append(20)
       writeBuffer.append(30)
 
-      try await source.write(buffer: &writeBuffer)
-      #expect(writeBuffer.count == 0, "write should drain the caller's buffer")
+      try await source.write(writeBuffer.span)
+      #expect(writeBuffer.count == 3, "write should copy and leave the caller's storage untouched")
 
       try await channel.read { buffer, _ in
         #expect(buffer.count == 3)
@@ -517,7 +518,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
       writeBuffer.append(1)
 
       do {
-        try await extraSource.write(buffer: &writeBuffer)
+        try await extraSource.write(writeBuffer.span)
         Issue.record("expected throw")
       } catch is MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError {
         // expected
@@ -555,7 +556,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
 
         var buf = UniqueArray<Int>(minimumCapacity: 4)
         for i in 0..<4 { buf.append(i) }
-        try await source.write(buffer: &buf)
+        try await source.write(buf.span)
         source.finish()
         try await group.next()
       }
@@ -589,7 +590,7 @@ struct MultiProducerSingleConsumerAsyncChannelTests {
         for start in stride(from: 0, to: total, by: 10) {
           var buf = UniqueArray<Int>(minimumCapacity: 10)
           for i in start..<(start + 10) { buf.append(i) }
-          try await source.write(buffer: &buf)
+          try await source.write(buf.span)
         }
         source.finish()
         try await group.next()

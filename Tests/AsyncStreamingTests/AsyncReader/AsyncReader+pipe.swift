@@ -13,6 +13,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
@@ -31,14 +32,16 @@ struct AsyncReaderPipeTests {
       let writerB = writerB
       let readerB = readerB
 
-      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
-      try await writerA.write(buffer: &array)
+      let array = [1, 2, 3, 4, 5]
+      try await writerA.write(array.span)
       try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      var target = RigidArray<Int>(capacity: 5)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
+      #expect(Array(target.span) == [1, 2, 3, 4, 5])
     }
   }
 
@@ -57,7 +60,9 @@ struct AsyncReaderPipeTests {
       try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      var target = RigidArray<Int>(capacity: 5)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(into: &target)
       #expect(target.count == 0)
     }
@@ -76,18 +81,20 @@ struct AsyncReaderPipeTests {
       let readerB = readerB
 
       let elements = Array(1...50)
-      var array = UniqueArray(copying: elements)
-      try await writerA.write(buffer: &array)
+      let array = elements
+      try await writerA.write(array.span)
       try await writerA.finish()
       try await readerB.pipe(into: writerB)
 
-      var target = RigidArray<Int>(capacity: 50)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 50)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
+      #expect(Array(target.span) == elements)
     }
   }
 
-  // MARK: - pipe(copyingInto:) — into an AsyncWriter via the adapter
+  // MARK: - pipe(movingInto:) — into an AsyncWriter via the adapter
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
@@ -101,14 +108,16 @@ struct AsyncReaderPipeTests {
       let writerB = writerB
       let readerB = readerB
 
-      var array = UniqueArray(copying: [1, 2, 3, 4, 5])
-      try await writerA.write(buffer: &array)
+      let array = [1, 2, 3, 4, 5]
+      try await writerA.write(array.span)
       try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+      try await readerB.pipe(movingInto: writerB.asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
+      #expect(Array(target.span) == [1, 2, 3, 4, 5])
     }
   }
 
@@ -125,9 +134,11 @@ struct AsyncReaderPipeTests {
       let readerB = readerB
 
       try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter())
+      try await readerB.pipe(movingInto: writerB.asAsyncWriter())
 
-      var target = RigidArray<Int>(capacity: 5)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(into: &target)
       #expect(target.count == 0)
     }
@@ -148,14 +159,16 @@ struct AsyncReaderPipeTests {
       let readerB = readerB
 
       let elements = Array(1...200)
-      var array = UniqueArray(copying: elements)
-      try await writerA.write(buffer: &array)
+      let array = elements
+      try await writerA.write(array.span)
       try await writerA.finish()
-      try await readerB.pipe(copyingInto: writerB.asAsyncWriter(initialCapacity: 16))
+      try await readerB.pipe(movingInto: writerB.asAsyncWriter(capacity: 16))
 
-      var target = RigidArray<Int>(capacity: 200)
+      let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 200)
+      defer { storage.deallocate() }
+      var target = OutputSpan(buffer: storage, initializedCount: 0)
       try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == elements)
+      #expect(Array(target.span) == elements)
     }
   }
 }

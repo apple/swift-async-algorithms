@@ -13,6 +13,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 
 struct WriterCapacityError: Error {}
 
@@ -29,25 +30,17 @@ struct UniqueArrayCallerAsyncWriter: ~Copyable, CallerAsyncWriter {
     self.storage = UniqueArray(minimumCapacity: capacity)
   }
 
-  mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer
-  ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
-    self.storage.reserveCapacity(buffer.count)
-    var consumer = buffer.consumeAll()
-    while let element = consumer.next() {
-      self.storage.append(element)
-    }
+  mutating func write(
+    _ elements: Span<Int>
+  ) async throws(WriteFailure) {
+    self.storage.append(copying: elements)
   }
 
-  consuming func finish<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer,
+  consuming func finish(
+    _ elements: Span<Int>,
     finalElement: consuming Void
-  ) async throws(WriteFailure) where Buffer.Element: ~Copyable {
-    self.storage.reserveCapacity(buffer.count)
-    var consumer = buffer.consumeAll()
-    while let element = consumer.next() {
-      self.storage.append(element)
-    }
+  ) async throws(WriteFailure) {
+    self.storage.append(copying: elements)
     self.didFinish = true
   }
 }

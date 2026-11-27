@@ -13,11 +13,11 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
   typealias WriteElement = Int
-  typealias Buffer = UniqueArray<Int>
   typealias WriteFailure = Never
   typealias FinalElement = Void
 
@@ -29,12 +29,16 @@ struct UniqueArrayAsyncWriter: ~Copyable, AsyncWriter {
   }
 
   mutating func write<Return: ~Copyable, Failure: Error>(
-    _ body: (inout UniqueArray<Int>) async throws(Failure) -> Return
+    _ body: (inout OutputSpan<Int>) async throws(Failure) -> Return
   ) async throws(EitherError<Never, Failure>) -> Return {
-    var buffer = UniqueArray<Int>(minimumCapacity: 64)
+    let capacity = 64
+    let scratch = UnsafeMutableBufferPointer<Int>.allocate(capacity: capacity)
+    defer { scratch.deallocate() }
+    var output = OutputSpan(buffer: scratch, initializedCount: 0)
     do {
-      let result = try await body(&buffer)
-      self.storage.append(copying: buffer)
+      let result = try await body(&output)
+      let count = output.finalize(for: scratch)
+      self.storage.append(copying: Span(_unsafeStart: scratch.baseAddress!, count: count))
       return result
     } catch {
       throw .second(error)

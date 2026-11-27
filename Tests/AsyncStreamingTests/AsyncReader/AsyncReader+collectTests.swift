@@ -14,6 +14,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
@@ -22,21 +23,23 @@ struct AsyncReaderCollectIntoTests {
   @Test
   func collectFillsTargetWhenReaderHasFewerElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 10)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 10)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     try await reader.collect(into: &target)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+    #expect(Array(target.span) == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectFillsTargetWhenReaderHasExactlyFreeCapacityElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 3)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     try await reader.collect(into: &target)
 
@@ -44,25 +47,31 @@ struct AsyncReaderCollectIntoTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectThrowsWhenReaderProducesMoreThanFreeCapacity() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 2)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     do {
       try await reader.collect(into: &target)
       Issue.record("Expected error")
     } catch {
       let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
-      #expect(error == expected)
+      #expect(error as? EitherError<Never, AsyncReaderLeftOverElementsError> == expected)
     }
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectIntoEmptyReader() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
-    var target = RigidArray<Int>(capacity: 5)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     try await reader.collect(into: &target)
 
@@ -76,21 +85,23 @@ struct AsyncReaderCollectExactlyTests {
   @Test
   func collectExactlyFillsTargetWhenReaderProducesExactCount() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 3)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 3)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     try await reader.collect(exactlyInto: &target)
 
-    var collected: [Int] = []
-    var c = target.consumeAll()
-    while let v = c.next() { collected.append(v) }
-    #expect(collected == [1, 2, 3])
+    #expect(Array(target.span) == [1, 2, 3])
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectExactlyThrowsWhenReaderProducesFewer() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
-    var target = RigidArray<Int>(capacity: 5)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     do {
       try await reader.collect(exactlyInto: &target)
@@ -100,15 +111,22 @@ struct AsyncReaderCollectExactlyTests {
         Never,
         EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
       >.second(.second(AsyncReaderInsufficientElementsError()))
-      #expect(error == expected)
+      #expect(
+        error
+          as? EitherError<Never, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>>
+          == expected
+      )
     }
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectExactlyThrowsWhenReaderProducesMore() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
-    var target = RigidArray<Int>(capacity: 2)
+    let storage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 2)
+    defer { storage.deallocate() }
+    var target = OutputSpan(buffer: storage, initializedCount: 0)
 
     do {
       try await reader.collect(exactlyInto: &target)
@@ -118,7 +136,11 @@ struct AsyncReaderCollectExactlyTests {
         Never,
         EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>
       >.second(.first(AsyncReaderLeftOverElementsError()))
-      #expect(error == expected)
+      #expect(
+        error
+          as? EitherError<Never, EitherError<AsyncReaderLeftOverElementsError, AsyncReaderInsufficientElementsError>>
+          == expected
+      )
     }
   }
 }
@@ -140,6 +162,7 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectFillsContainerExactlyAtMaximum() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
@@ -151,6 +174,7 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectThrowsWhenReaderProducesMoreThanMaximum() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
@@ -161,11 +185,12 @@ struct AsyncReaderCollectIntoMaximumSizeTests {
       Issue.record("Expected error")
     } catch {
       let expected = EitherError<Never, AsyncReaderLeftOverElementsError>.second(AsyncReaderLeftOverElementsError())
-      #expect(error == expected)
+      #expect(error as? EitherError<Never, AsyncReaderLeftOverElementsError> == expected)
     }
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
   func collectAppendsToExistingContents() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 2, copying: [3, 4]))

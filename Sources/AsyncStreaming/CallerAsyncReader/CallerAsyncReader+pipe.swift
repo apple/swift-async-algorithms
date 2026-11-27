@@ -11,8 +11,9 @@
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
 
-import ContainersPreview
-import BasicContainers
+public import SpanPreview
+
+public import ContainersPreview
 
 // TODO: The `Writer` generic parameter on every `pipe` variant in this file
 // should additionally be constrained `& ~Escapable`. We currently can't
@@ -27,7 +28,8 @@ import BasicContainers
 // added back so `pipe` works for `~Escapable` writers too.
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable {
+extension CallerAsyncReader
+where Self: ~Copyable, Self: ~Escapable, Self.ReadElement: ~Copyable, Self.FinalElement: ~Copyable {
   /// Pipes all elements from this reader into the given writer, then signals
   /// end-of-stream with a `finish` call on the writer.
   ///
@@ -55,7 +57,9 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
   where
     Writer: AsyncWriter & ~Copyable,
     Writer.WriteElement == ReadElement,
-    Writer.FinalElement == FinalElement
+    Writer.FinalElement == FinalElement,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable
   {
     var reader = self
     var writerOpt: Writer? = .some(writer)
@@ -63,10 +67,10 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
     while !done {
       var pendingFinal: FinalElement? = nil
       try await writerOpt!
-        .write { (buffer: inout Writer.Buffer) throws(ReadFailure) -> Void in
-          pendingFinal = try await reader.read(into: &buffer)
+        .write { (output: inout OutputSpan<Writer.WriteElement>) throws(ReadFailure) -> Void in
+          pendingFinal = try await reader.read(into: &output)
         }
-      if let final = pendingFinal {
+      if let final = pendingFinal.take() {
         let w = writerOpt.take()!
         do throws(Writer.WriteFailure) {
           try await w.finish(finalElement: final)
@@ -83,7 +87,7 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
   /// Consumes both the reader and the writer. Because neither protocol supplies
   /// a buffer, this method allocates an intermediate buffer of the requested
   /// capacity and reuses it across iterations. The terminal chunk is fused
-  /// with the writer's ``CallerAsyncWriter/finish(buffer:finalElement:)``.
+  /// with the writer's ``CallerAsyncWriter/finish(_:finalElement:)``.
   ///
   /// ## Example
   ///
@@ -108,34 +112,56 @@ extension CallerAsyncReader where Self: ~Copyable, Self: ~Escapable, Self.ReadEl
   where
     Writer: CallerAsyncWriter & ~Copyable,
     Writer.WriteElement == ReadElement,
-    Writer.FinalElement == FinalElement
+    Writer.FinalElement == FinalElement,
+    Writer.WriteElement: ~Copyable,
+    Writer.FinalElement: ~Copyable
   {
+    precondition(intermediateCapacity > 0, "intermediateCapacity must be positive")
     var reader = self
     var writerOpt: Writer? = .some(writer)
-    var buffer = UniqueArray<ReadElement>(minimumCapacity: intermediateCapacity)
+    let storage = UnsafeMutableBufferPointer<ReadElement>.allocate(capacity: intermediateCapacity)
+    defer { unsafe storage.deallocate() }
     var done = false
     while !done {
+      var output = unsafe OutputSpan(buffer: storage, initializedCount: 0)
       let final: FinalElement?
       do throws(ReadFailure) {
-        final = try await reader.read(into: &buffer)
+        final = try await reader.read(into: &output)
       } catch {
+        let count = unsafe output.finalize(for: storage)
+        unsafe storage.baseAddress.unsafelyUnwrapped.deinitialize(count: count)
         throw .first(error)
       }
-      if let final {
+      let count = unsafe output.finalize(for: storage)
+      // The writer takes the elements out of the buffer. It leaves elements
+      // behind only when it throws, and these are destroyed here.
+      let filled = unsafe UnsafeMutableBufferPointer(start: storage.baseAddress, count: count)
+      var elements = unsafe InputSpan(buffer: filled, initializedCount: count)
+      var failure: Writer.WriteFailure? = nil
+      switch consume final {
+      case .some(let final):
         let w = writerOpt.take()!
         do throws(Writer.WriteFailure) {
-          try await w.finish(buffer: &buffer, finalElement: final)
+          try await w.finish(&elements, finalElement: final)
         } catch {
-          throw .second(error)
+          failure = error
         }
         done = true
-      } else if buffer.count > 0 {
-        do throws(Writer.WriteFailure) {
-          try await writerOpt!.write(buffer: &buffer)
-          assert(buffer.count == 0, "CallerAsyncWriter must drain the buffer during write(buffer:)")
-        } catch {
-          throw .second(error)
+      case .none:
+        if count > 0 {
+          do throws(Writer.WriteFailure) {
+            try await writerOpt!.write(&elements)
+          } catch {
+            failure = error
+          }
         }
+      }
+      let remaining = unsafe elements.finalize(for: filled)
+      if remaining > 0 {
+        unsafe (filled.baseAddress.unsafelyUnwrapped + (count - remaining)).deinitialize(count: remaining)
+      }
+      if let failure {
+        throw .second(failure)
       }
     }
   }

@@ -10,31 +10,22 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
-public import ContainersPreview
-import BasicContainers
 
-/// Writes elements asynchronously from a caller-provided buffer.
+public import SpanPreview
+
+public import ContainersPreview
+
+/// Writes elements asynchronously from a buffer that the caller owns.
 ///
-/// Adopt ``CallerAsyncWriter`` when you need caller-managed buffering,
-/// where the caller provides a buffer of elements for the writer
-/// to consume.
+/// The caller either lends the elements as a `Span`, which the writer copies or
+/// writes before it returns, or hands them over as an `InputSpan`, from which the
+/// writer takes ownership. The latter lets a writer keep a buffer leased from a
+/// pool until the destination is done with it.
 ///
-/// ## Signaling end of stream
-///
-/// The writer is terminated by a call to ``finish(buffer:finalElement:)``.
-/// The `finish` call communicates a final buffer (if any) and the
-/// ``FinalElement`` payload, allowing implementations to fuse the last data
-/// frame with the end signal on transports that support it.
-///
-/// The ``FinalElement`` associated type controls what data, if any, the writer
-/// transmits alongside the end signal. The default is `Void`. Use a custom
-/// type to carry data along with the end signal, or `Never` for endless
-/// streams. When ``FinalElement`` is `Never`, ``finish(buffer:finalElement:)``
-/// cannot be called and the writer can be written to indefinitely.
-///
-/// Conformers must accept zero, one, or many `write(buffer:)` calls, optionally
-/// followed by a single `finish(buffer:finalElement:)` call. After `finish`
-/// returns, the writer is consumed and no further calls are valid.
+/// ``finish(_:finalElement:)`` ends the stream and can fuse the last elements
+/// with the end signal. With `FinalElement == Never`, `finish` cannot be called
+/// and the stream never ends. Conformers accept zero or more writes, optionally
+/// followed by a single `finish`.
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
 public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Copyable, ~Escapable {
   /// The type of elements this writer writes.
@@ -50,55 +41,92 @@ public protocol CallerAsyncWriter<WriteElement, WriteFailure, FinalElement>: ~Co
   // TODO: Check if we should support ~Escapable final element
   associatedtype FinalElement: ~Copyable = Void
 
-  /// Writes elements from the provided buffer to the underlying destination.
-  ///
-  /// This method asynchronously writes all elements from the provided buffer
-  /// to the underlying destination.
-  ///
-  /// ## Example
+  /// Writes the given elements to the destination.
   ///
   /// ```swift
-  /// var fileWriter: FileAsyncWriter = ...
-  /// var data = UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5])
-  ///
-  /// try await fileWriter.write(buffer: &data)
+  /// let data: [UInt8] = [1, 2, 3, 4, 5]
+  /// try await fileWriter.write(data.span)
   /// ```
   ///
-  /// - Parameter buffer: The buffer of elements to write.
-  ///
+  /// - Parameter elements: The elements to write. The writer has written or
+  ///   copied all of them when the call returns.
   /// - Throws: A `WriteFailure` from the underlying write operation.
-  mutating func write<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer
-  ) async throws(WriteFailure) where Buffer.Element: ~Copyable
+  mutating func write(
+    _ elements: Span<WriteElement>
+  ) async throws(WriteFailure)
 
-  /// Sends the final buffer and ``FinalElement`` payload, and signals
-  /// end-of-stream to the destination.
+  /// Writes the given elements to the destination and takes ownership of them.
   ///
-  /// The buffer may be empty if there is no remaining content to emit
-  /// alongside the terminator. When ``FinalElement`` is `Void`, use the
-  /// closure-less ``finish()`` convenience instead of passing `()` explicitly.
+  /// The default implementation writes `elements.span` and then destroys the
+  /// elements.
+  ///
+  /// - Parameter elements: The elements to write. On return the span is empty.
+  ///   If the call throws, the span keeps the elements that the writer did not take.
+  /// - Throws: A `WriteFailure` from the underlying write operation.
+  mutating func write(
+    _ elements: inout InputSpan<WriteElement>
+  ) async throws(WriteFailure)
+
+  /// Writes the last elements, delivers the ``FinalElement`` payload, and
+  /// signals end-of-stream.
   ///
   /// - Parameters:
-  ///   - buffer: The buffer of remaining elements to write alongside the
-  ///     terminator.
-  ///   - finalElement: The ``FinalElement`` payload to deliver with the end
-  ///     signal.
+  ///   - elements: The last elements to write. Can be empty.
+  ///   - finalElement: The payload to deliver with the end signal.
   /// - Throws: A `WriteFailure` from the underlying write operation.
-  consuming func finish<Buffer: RangeReplaceableContainer<WriteElement> & ~Copyable>(
-    buffer: inout Buffer,
+  consuming func finish(
+    _ elements: Span<WriteElement>,
     finalElement: consuming FinalElement
-  ) async throws(WriteFailure) where Buffer.Element: ~Copyable
+  ) async throws(WriteFailure)
+
+  /// Writes the last elements, takes ownership of them, delivers the
+  /// ``FinalElement`` payload, and signals end-of-stream.
+  ///
+  /// The default implementation calls ``finish(_:finalElement:)`` with
+  /// `elements.span` and then destroys the elements.
+  ///
+  /// - Parameters:
+  ///   - elements: The last elements to write. Can be empty.
+  ///   - finalElement: The payload to deliver with the end signal.
+  /// - Throws: A `WriteFailure` from the underlying write operation.
+  consuming func finish(
+    _ elements: inout InputSpan<WriteElement>,
+    finalElement: consuming FinalElement
+  ) async throws(WriteFailure)
 }
 
 @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
-extension CallerAsyncWriter where Self: ~Copyable, Self: ~Escapable, FinalElement == Void {
-  /// Concludes the writer with no final buffer and no extra payload.
-  ///
-  /// Available only when ``FinalElement`` is `Void`. Equivalent to calling
-  /// ``finish(buffer:finalElement:)`` with an empty buffer and `()`.
+extension CallerAsyncWriter
+where Self: ~Copyable, Self: ~Escapable, WriteElement: ~Copyable, FinalElement: ~Copyable {
+  @inlinable
+  public mutating func write(
+    _ elements: inout InputSpan<WriteElement>
+  ) async throws(WriteFailure) {
+    try await self.write(elements.span)
+    // `removeAll()` traps on an empty span that has no memory.
+    if !elements.isEmpty {
+      elements.removeAll()
+    }
+  }
+
+  @inlinable
+  public consuming func finish(
+    _ elements: inout InputSpan<WriteElement>,
+    finalElement: consuming FinalElement
+  ) async throws(WriteFailure) {
+    try await self.finish(elements.span, finalElement: finalElement)
+    // `removeAll()` traps on an empty span that has no memory.
+    if !elements.isEmpty {
+      elements.removeAll()
+    }
+  }
+}
+
+@available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+extension CallerAsyncWriter where Self: ~Copyable, Self: ~Escapable, WriteElement: ~Copyable, FinalElement == Void {
+  /// Ends the stream with no last elements and no payload.
   public consuming func finish() async throws(WriteFailure) {
-    var empty = UniqueArray<WriteElement>()
-    try await self.finish(buffer: &empty, finalElement: ())
+    try await self.finish(Span<WriteElement>(), finalElement: ())
   }
 }
 #endif

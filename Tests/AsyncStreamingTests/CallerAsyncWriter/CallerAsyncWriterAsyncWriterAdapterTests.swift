@@ -13,6 +13,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
@@ -32,16 +33,20 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       let writerB = writerB
 
       var asyncWriter = writerB.asAsyncWriter()
-      try await asyncWriter.write { buffer in
-        buffer.append(1)
-        buffer.append(2)
-        buffer.append(3)
+      try await asyncWriter.write { output in
+        output.append(1)
+        output.append(2)
+        output.append(3)
       }
       try await asyncWriter.finish()
 
-      var target = RigidArray<Int>(capacity: 5)
+      let targetStorage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+
+      defer { targetStorage.deallocate() }
+
+      var target = OutputSpan(buffer: targetStorage, initializedCount: 0)
       try await readerA.collect(into: &target)
-      #expect(Array(draining: &target) == [1, 2, 3])
+      #expect(Array(target.span) == [1, 2, 3])
     }
   }
 
@@ -62,22 +67,20 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
 
       try await asyncWriter.write { $0.append(10) }
       // Reader sees the first write before any second write or finish.
-      try await readerA.read { buffer, _ in
-        #expect(buffer.count == 1)
-        var c = buffer.consumeAll()
-        #expect(c.next() == 10)
+      try await readerA.read { elements, _ in
+        #expect(elements.count == 1)
+        #expect(elements[0] == 10)
       }
 
       try await asyncWriter.write { $0.append(20) }
-      try await readerA.read { buffer, _ in
-        #expect(buffer.count == 1)
-        var c = buffer.consumeAll()
-        #expect(c.next() == 20)
+      try await readerA.read { elements, _ in
+        #expect(elements.count == 1)
+        #expect(elements[0] == 20)
       }
 
       try await asyncWriter.finish()
-      try await readerA.read { buffer, finalElement in
-        #expect(buffer.count == 0)
+      try await readerA.read { elements, finalElement in
+        #expect(elements.count == 0)
         #expect(finalElement != nil)
       }
     }
@@ -96,7 +99,11 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       let asyncWriter = writerB.asAsyncWriter()
       try await asyncWriter.finish()
 
-      var target = RigidArray<Int>(capacity: 5)
+      let targetStorage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+
+      defer { targetStorage.deallocate() }
+
+      var target = OutputSpan(buffer: targetStorage, initializedCount: 0)
       try await readerA.collect(into: &target)
       #expect(target.count == 0)
     }
@@ -104,7 +111,7 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
-  func customBufferTypePreservesElements() async throws {
+  func customCapacityPreservesElements() async throws {
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
       of: Int.self,
       backpressureStrategy: .watermark(low: 8, high: 32)
@@ -112,18 +119,19 @@ struct CallerAsyncWriterAsyncWriterAdapterTests {
       let readerA = readerA
       let writerB = writerB
 
-      var asyncWriter = writerB.asAsyncWriter(
-        bufferOf: UniqueArray<Int>.self,
-        initialCapacity: 16
-      )
-      try await asyncWriter.write { buffer in
-        for v in 1...5 { buffer.append(v) }
+      var asyncWriter = writerB.asAsyncWriter(capacity: 16)
+      try await asyncWriter.write { output in
+        for v in 1...5 { output.append(v) }
       }
       try await asyncWriter.finish()
 
-      var target = RigidArray<Int>(capacity: 5)
+      let targetStorage = UnsafeMutableBufferPointer<Int>.allocate(capacity: 5)
+
+      defer { targetStorage.deallocate() }
+
+      var target = OutputSpan(buffer: targetStorage, initializedCount: 0)
       try await readerA.collect(exactlyInto: &target)
-      #expect(Array(draining: &target) == [1, 2, 3, 4, 5])
+      #expect(Array(target.span) == [1, 2, 3, 4, 5])
     }
   }
 }

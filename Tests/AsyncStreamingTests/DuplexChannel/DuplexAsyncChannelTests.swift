@@ -14,6 +14,7 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import DequeModule
 import Testing
 
@@ -33,13 +34,12 @@ struct DuplexAsyncChannelTests {
 
       var buf = UniqueArray<Int>(minimumCapacity: 5)
       for v in [1, 2, 3, 4, 5] { buf.append(v) }
-      try await writerA.write(buffer: &buf)
+      try await writerA.write(buf.span)
 
       try await readerB.read { buffer, _ in
         #expect(buffer.count == 5)
-        var c = buffer.consumeAll()
         var collected: [Int] = []
-        while let v = c.next() { collected.append(v) }
+        for i in 0..<buffer.count { collected.append(buffer[i]) }
         #expect(collected == [1, 2, 3, 4, 5])
       }
     }
@@ -57,13 +57,12 @@ struct DuplexAsyncChannelTests {
 
       var buf = UniqueArray<Int>(minimumCapacity: 3)
       for v in [10, 20, 30] { buf.append(v) }
-      try await writerB.write(buffer: &buf)
+      try await writerB.write(buf.span)
 
       try await readerA.read { buffer, _ in
         #expect(buffer.count == 3)
-        var c = buffer.consumeAll()
         var collected: [Int] = []
-        while let v = c.next() { collected.append(v) }
+        for i in 0..<buffer.count { collected.append(buffer[i]) }
         #expect(collected == [10, 20, 30])
       }
     }
@@ -85,24 +84,22 @@ struct DuplexAsyncChannelTests {
 
       var fwdBuf = UniqueArray<Int>(minimumCapacity: 1)
       fwdBuf.append(1)
-      try await writerA.write(buffer: &fwdBuf)
+      try await writerA.write(fwdBuf.span)
 
       var revBuf = UniqueArray<Int>(minimumCapacity: 1)
       revBuf.append(99)
-      try await writerB.write(buffer: &revBuf)
+      try await writerB.write(revBuf.span)
 
       // readerB sees the forward write.
       try await readerB.read { buffer, _ in
         #expect(buffer.count == 1)
-        var c = buffer.consumeAll()
-        #expect(c.next() == 1)
+        #expect(buffer[0] == 1)
       }
 
       // readerA sees the reverse write, and only that.
       try await readerA.read { buffer, _ in
         #expect(buffer.count == 1)
-        var c = buffer.consumeAll()
-        #expect(c.next() == 99)
+        #expect(buffer[0] == 99)
       }
     }
   }
@@ -125,8 +122,7 @@ struct DuplexAsyncChannelTests {
           var done = false
           while !done {
             try await readerA.read { buffer, finalElement in
-              var c = buffer.consumeAll()
-              while let v = c.next() { collected.append(v) }
+              for i in 0..<buffer.count { collected.append(buffer[i]) }
               if finalElement != nil { done = true }
             }
           }
@@ -136,13 +132,13 @@ struct DuplexAsyncChannelTests {
         // Forward: write 0..<10 from main scope.
         var fwd = UniqueArray<Int>(minimumCapacity: 10)
         for i in 0..<10 { fwd.append(i) }
-        try await writerA.write(buffer: &fwd)
+        try await writerA.write(fwd.span)
         try await writerA.finish()
 
         // Reverse: write 100..<110 from main scope.
         var rev = UniqueArray<Int>(minimumCapacity: 10)
         for i in 100..<110 { rev.append(i) }
-        try await writerB.write(buffer: &rev)
+        try await writerB.write(rev.span)
         try await writerB.finish()
 
         // Drain forward from the main scope.
@@ -150,8 +146,7 @@ struct DuplexAsyncChannelTests {
         var done = false
         while !done {
           try await readerB.read { buffer, finalElement in
-            var c = buffer.consumeAll()
-            while let v = c.next() { forwardCollected.append(v) }
+            for i in 0..<buffer.count { forwardCollected.append(buffer[i]) }
             if finalElement != nil { done = true }
           }
         }
@@ -180,20 +175,19 @@ struct DuplexAsyncChannelTests {
       // Close forward direction.
       var fwdBuf = UniqueArray<Int>(minimumCapacity: 1)
       fwdBuf.append(7)
-      try await writerA.write(buffer: &fwdBuf)
+      try await writerA.write(fwdBuf.span)
       try await writerA.finish()
 
       // Reverse direction still works.
       var revBuf = UniqueArray<Int>(minimumCapacity: 1)
       revBuf.append(8)
-      try await writerB.write(buffer: &revBuf)
+      try await writerB.write(revBuf.span)
 
       // Forward EOS is fused with the buffered element on the same read.
       var sawForwardFinal = false
       try await readerB.read { buffer, finalElement in
         #expect(buffer.count == 1)
         if finalElement != nil { sawForwardFinal = true }
-        buffer.removeAll()
       }
       #expect(sawForwardFinal)
 
@@ -201,7 +195,6 @@ struct DuplexAsyncChannelTests {
       try await readerA.read { buffer, finalElement in
         #expect(buffer.count == 1)
         #expect(finalElement == nil)
-        buffer.removeAll()
       }
     }
   }
@@ -221,7 +214,7 @@ struct DuplexAsyncChannelTests {
 
       var buf = UniqueArray<Int>(minimumCapacity: 3)
       for v in [1, 2, 3] { buf.append(v) }
-      try await writerA.write(buffer: &buf)
+      try await writerA.write(buf.span)
       writerA.finish(finalElement: "trailers")
 
       var collected: [Int] = []
@@ -229,8 +222,7 @@ struct DuplexAsyncChannelTests {
       var done = false
       while !done {
         try await readerB.read { buffer, finalElement in
-          var c = buffer.consumeAll()
-          while let v = c.next() { collected.append(v) }
+          for i in 0..<buffer.count { collected.append(buffer[i]) }
           if let f = finalElement {
             trailerSeen = f
             done = true
@@ -262,7 +254,7 @@ struct DuplexAsyncChannelTests {
       // Send a final element on reverse so we can verify it survives.
       var revBuf = UniqueArray<Int>(minimumCapacity: 1)
       revBuf.append(42)
-      try await writerB.write(buffer: &revBuf)
+      try await writerB.write(revBuf.span)
       try await writerB.finish()
 
       // Fail forward direction.
@@ -283,8 +275,7 @@ struct DuplexAsyncChannelTests {
       var sawFinal = false
       try await readerA.read { buffer, finalElement in
         #expect(buffer.count == 1)
-        var c = buffer.consumeAll()
-        #expect(c.next() == 42)
+        #expect(buffer[0] == 42)
         if finalElement != nil { sawFinal = true }
       }
       #expect(sawFinal)
@@ -313,17 +304,16 @@ struct DuplexAsyncChannelTests {
         group.addTask {
           var fwd = UniqueArray<Int>(minimumCapacity: 4)
           for i in 0..<4 { fwd.append(i) }
-          try await writerA.write(buffer: &fwd)
+          try await writerA.write(fwd.span)
         }
 
         // Even with forward backpressured, reverse fully works.
         var rev = UniqueArray<Int>(minimumCapacity: 1)
         rev.append(99)
-        try await writerB.write(buffer: &rev)
+        try await writerB.write(rev.span)
         try await readerA.read { buffer, _ in
           #expect(buffer.count == 1)
-          var c = buffer.consumeAll()
-          #expect(c.next() == 99)
+          #expect(buffer[0] == 99)
         }
 
         // Drain forward (4 elements) so the suspended writer task can
@@ -331,8 +321,7 @@ struct DuplexAsyncChannelTests {
         var collected: [Int] = []
         while collected.count < 4 {
           try await readerB.read { buffer, _ in
-            var c = buffer.consumeAll()
-            while let v = c.next() { collected.append(v) }
+            for i in 0..<buffer.count { collected.append(buffer[i]) }
           }
         }
         #expect(collected == [0, 1, 2, 3])
@@ -363,11 +352,11 @@ struct DuplexAsyncChannelTests {
 
       var buf1 = UniqueArray<Int>(minimumCapacity: 5)
       for v in 0..<5 { buf1.append(v) }
-      try await writerA.write(buffer: &buf1)
+      try await writerA.write(buf1.span)
 
       var buf2 = UniqueArray<Int>(minimumCapacity: 5)
       for v in 100..<105 { buf2.append(v) }
-      try await clone.write(buffer: &buf2)
+      try await clone.write(buf2.span)
 
       // Either writer can close the direction independently. The other
       // writer is still alive but the channel is now finishing.
@@ -378,8 +367,7 @@ struct DuplexAsyncChannelTests {
       var done = false
       while !done {
         try await readerB.read { buffer, finalElement in
-          var c = buffer.consumeAll()
-          while let v = c.next() { collected.insert(v) }
+          for i in 0..<buffer.count { collected.insert(buffer[i]) }
           if finalElement != nil { done = true }
         }
       }
@@ -411,7 +399,7 @@ struct DuplexAsyncChannelTests {
       let clone = writerA.clone()
       var buffer = UniqueArray<Int>(minimumCapacity: 3)
       for value in 0..<3 { buffer.append(value) }
-      try await writerA.write(buffer: &buffer)
+      try await writerA.write(buffer.span)
 
       try await writerA.finish()
       try await Self.finishThroughProtocol(clone)
@@ -420,8 +408,7 @@ struct DuplexAsyncChannelTests {
       var done = false
       while !done {
         try await readerB.read { buffer, finalElement in
-          var consumer = buffer.consumeAll()
-          while let value = consumer.next() { collected.append(value) }
+          while let value = buffer.popFirst() { collected.append(value) }
           if finalElement != nil { done = true }
         }
       }
@@ -466,7 +453,7 @@ struct DuplexAsyncChannelTests {
       var buffer = UniqueArray<Int>(minimumCapacity: 1)
       buffer.append(1)
       do {
-        try await clone.finish(buffer: &buffer, finalElement: ())
+        try await clone.finish(buffer.span, finalElement: ())
         Issue.record("Expected error")
       } catch {
         #expect(error is MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError)
@@ -492,7 +479,7 @@ struct DuplexAsyncChannelTests {
 
       var buf = UniqueArray<Int>(minimumCapacity: 1)
       buf.append(1)
-      try await writerA.write(buffer: &buf)
+      try await writerA.write(buf.span)
 
       do {
         try await readerB.read { _, _ throws(BodyError) in
@@ -532,17 +519,14 @@ struct DuplexAsyncChannelTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
   func writerConformsToCallerAsyncWriter() async throws {
-    // Exercise CallerAsyncWriter.finish(buffer:finalElement:) by calling
+    // Exercise CallerAsyncWriter.finish(_:finalElement:) by calling
     // it through a generic function that only sees the protocol.
     func finishViaProtocol<W: CallerAsyncWriter & ~Copyable>(
       _ writer: consuming W,
       finalElement: consuming W.FinalElement
     ) async throws(W.WriteFailure) where W.WriteElement == Int {
-      var buf = UniqueArray<Int>(minimumCapacity: 3)
-      buf.append(7)
-      buf.append(8)
-      buf.append(9)
-      try await writer.finish(buffer: &buf, finalElement: finalElement)
+      let elements = [7, 8, 9]
+      try await writer.finish(elements.span, finalElement: finalElement)
     }
 
     try await DuplexAsyncChannel<Int, Void, Never>.withDuplex(
@@ -560,8 +544,7 @@ struct DuplexAsyncChannelTests {
       var done = false
       while !done {
         try await readerB.read { buffer, finalElement in
-          var c = buffer.consumeAll()
-          while let v = c.next() { collected.append(v) }
+          for i in 0..<buffer.count { collected.append(buffer[i]) }
           if finalElement != nil {
             sawFinal = true
             done = true
@@ -580,12 +563,11 @@ struct DuplexAsyncChannelTests {
     // sees the protocol.
     func readOneChunk<R: AsyncReader & ~Copyable & ~Escapable>(
       _ reader: inout R
-    ) async throws -> [Int] where R.ReadElement == Int, R.Buffer == UniqueDeque<Int> {
+    ) async throws -> [Int] where R.ReadElement == Int {
       nonisolated(unsafe) var collected: [Int] = []
       do throws(EitherError<R.ReadFailure, Never>) {
-        try await reader.read { (buffer: inout R.Buffer, _: consuming R.FinalElement?) in
-          var c = buffer.consumeAll()
-          while let v = c.next() { collected.append(v) }
+        try await reader.read { (buffer: inout InputSpan<Int>, _: consuming R.FinalElement?) in
+          for i in 0..<buffer.count { collected.append(buffer[i]) }
         }
       } catch {
         // Swallow read-side errors for the test.
@@ -604,7 +586,7 @@ struct DuplexAsyncChannelTests {
 
       var buf = UniqueArray<Int>(minimumCapacity: 3)
       for v in [11, 22, 33] { buf.append(v) }
-      try await writerA.write(buffer: &buf)
+      try await writerA.write(buf.span)
 
       let collected = try await readOneChunk(&readerB)
       #expect(collected == [11, 22, 33])

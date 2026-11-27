@@ -10,8 +10,11 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
+
+public import SpanPreview
 public import DequeModule
 public import ContainersPreview
+public import BasicContainers
 
 /// A bidirectional, in-memory duplex channel with four connected handles.
 ///
@@ -232,18 +235,17 @@ extension DuplexAsyncChannel {
 extension DuplexAsyncChannel {
   /// The writer half of one side of a ``DuplexAsyncChannel``.
   ///
-  /// Conforms to ``CallerAsyncWriter``: callers provide their own
-  /// ``RangeReplaceableContainer``-conforming buffer that the writer
-  /// drains.
+  /// Conforms to ``CallerAsyncWriter``: callers lend a `Span` of elements
+  /// that the writer copies into the channel.
   ///
   /// Elements written here travel the channel's forward or reverse
   /// direction and are observed on the peer side's ``Reader``. The writer
-  /// applies backpressure: ``write(buffer:)`` suspends when the
+  /// applies backpressure: ``write(_:)`` suspends when the
   /// destination's buffer rises above the configured high watermark.
   ///
   /// Writers can be cloned with ``clone()`` to produce concurrently from
   /// multiple tasks. Terminate the direction with
-  /// ``finish(buffer:finalElement:)``, ``finish(finalElement:)``, or
+  /// ``finish(_:finalElement:)``, ``finish(finalElement:)``, or
   /// ``finish(throwing:)``.
   public struct Writer: ~Copyable, CallerAsyncWriter {
     public typealias WriteElement = Element
@@ -289,7 +291,7 @@ extension DuplexAsyncChannel {
     /// Terminates this direction with the supplied error.
     ///
     /// After the peer reader consumes all buffered elements on this
-    /// direction, its next ``Reader/read(body:)`` call throws `error`.
+    /// direction, its next ``Reader/read(maxCount:body:)`` call throws `error`.
     /// This path delivers no ``FinalElement`` payload to the peer.
     ///
     /// To terminate this direction cleanly with an end-of-stream payload,
@@ -303,45 +305,31 @@ extension DuplexAsyncChannel {
     /// Finishes this direction with a ``FinalElement`` payload.
     ///
     /// The peer reader observes end-of-stream as a non-`nil` `finalElement`
-    /// argument to the body of its next ``Reader/read(body:)`` call. The
+    /// argument to the body of its next ``Reader/read(maxCount:body:)`` call. The
     /// channel delivers any elements still buffered from earlier
-    /// ``write(buffer:)`` calls before the terminator.
+    /// ``write(_:)`` calls before the terminator.
     ///
     /// - Note: This method delivers only the end-of-stream signal. To
     ///   send a final batch of elements alongside the terminator, call
-    ///   ``write(buffer:)`` first and then ``finish(finalElement:)``.
+    ///   ``write(_:)`` first and then ``finish(finalElement:)``.
     @inlinable
     public consuming func finish(finalElement: consuming sending FinalElement) {
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
 
-    /// Writes every element of `buffer` to this direction.
+    /// Writes copies of all `elements` to this direction.
     ///
-    /// On success the call drains `buffer` completely. If the
-    /// direction's backpressure strategy signals that production should
-    /// pause, the call suspends until the peer reader drains enough of
-    /// the channel to fall below the low watermark.
+    /// If the direction's backpressure strategy signals that production
+    /// should pause, the call suspends until the peer reader drains enough
+    /// of the channel to fall below the low watermark.
     ///
     /// - Throws: ``MultiProducerSingleConsumerAsyncChannelAlreadyFinishedError``
     ///   if this direction has already finished, or `CancellationError`
     ///   if the task is canceled while suspended on backpressure.
     @inlinable
-    public mutating func write<Buffer: RangeReplaceableContainer<Element> & ~Copyable>(
-      buffer: inout Buffer
-    ) async throws {
-      // Move the caller's buffer into a `nonisolated(unsafe)` local so we
-      // can hand it to the storage's `inout sending` API. Safe because
-      // the elements are Sendable and we have the buffer inout so an exclusive
-      // ownership.
-      nonisolated(unsafe) var localBuffer = consume buffer
-      let sendResult: MultiProducerSingleConsumerAsyncChannel<Element, FinalElement, Failure>.Source._SendResult
-      do {
-        sendResult = try self._storage.write(buffer: &localBuffer)
-      } catch {
-        buffer = consume localBuffer
-        throw error
-      }
-      buffer = consume localBuffer
+    public mutating func write(_ elements: Span<Element>) async throws {
+      guard !elements.isEmpty else { return }
+      let sendResult = try self._storage.write(elements)
 
       switch consume sendResult {
       case .produceMore:
@@ -349,45 +337,27 @@ extension DuplexAsyncChannel {
 
       case .enqueueCallback(let token):
         let storage = self._storage
-        do {
-          try await withTaskCancellationHandler {
-            try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Void, any Error>) in
-              storage.enqueueProducer(callbackToken: token, continuation: continuation)
-            }
-          } onCancel: {
-            storage.cancelProducer(callbackToken: token)
+        try await withTaskCancellationHandler {
+          try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Void, any Error>) in
+            storage.enqueueProducer(callbackToken: token, continuation: continuation)
           }
-        } catch {
-          throw error
+        } onCancel: {
+          storage.cancelProducer(callbackToken: token)
         }
       }
     }
 
-    /// Drains `buffer` to the peer, then signals end-of-stream with the
-    /// ``FinalElement`` payload. Consumes the writer.
+    /// Writes copies of the remaining `elements`, then signals
+    /// end-of-stream with the ``FinalElement`` payload. Consumes the writer.
     ///
-    /// This is the ``CallerAsyncWriter`` protocol entry point. The
-    /// duplex's in-memory transport doesn't fuse the last write with the
-    /// end-of-stream signal — `write(buffer:)` and `finish` are issued
-    /// sequentially. The observable result for the peer reader matches
-    /// the fused contract: the peer sees the trailing buffer's elements
-    /// and the `finalElement` together on its terminal `read`.
-    ///
-    /// - Parameters:
-    ///   - buffer: A buffer of remaining elements to write before
-    ///     signaling end-of-stream.
-    ///   - finalElement: The payload to deliver alongside the
-    ///     end-of-stream signal.
-    /// - Throws: Any error thrown while draining `buffer`. If draining
-    ///   fails, the direction is left unterminated; the scope's
-    ///   finalizer terminates it on body return.
+    /// This is the ``CallerAsyncWriter`` entry point.
     @inlinable
-    public consuming func finish<Buffer: RangeReplaceableContainer<Element> & ~Copyable>(
-      buffer: inout Buffer,
+    public consuming func finish(
+      _ elements: Span<Element>,
       finalElement: consuming FinalElement
     ) async throws {
-      if !buffer.isEmpty {
-        try await self.write(buffer: &buffer)
+      if !elements.isEmpty {
+        try await self.write(elements)
       }
       self._storage.finish(throwing: nil, finalElement: finalElement)
     }
@@ -413,67 +383,122 @@ extension DuplexAsyncChannel.Writer where FinalElement == Void {
 extension DuplexAsyncChannel {
   /// The reader half of one side of a ``DuplexAsyncChannel``.
   ///
-  /// Conforms to ``AsyncReader``: the reader hands a noncopyable
-  /// ``UniqueDeque`` of elements to the body closure alongside an
-  /// optional ``FinalElement`` payload that signals end-of-stream when
-  /// present.
+  /// Conforms to ``AsyncReader``: the reader lends an `InputSpan` of elements to
+  /// the body closure alongside an optional ``FinalElement`` payload that
+  /// signals end-of-stream when present.
+  ///
+  /// The channel stores its elements in a double ended queue that can wrap
+  /// around, so the span covers the first contiguous segment. The elements
+  /// the body doesn't see are delivered by the following reads.
   ///
   /// Reads elements written by the peer side's ``Writer``.
   public struct Reader: ~Copyable, AsyncReader {
     public typealias ReadElement = Element
-    public typealias Buffer = UniqueDeque<Element>
     public typealias ReadFailure = EitherError<Failure, CancellationError>
     @usableFromInline
     let _storage: MultiProducerSingleConsumerAsyncChannel<Element, FinalElement, Failure>._Storage
+
+    /// Elements of a terminal chunk that did not fit into the first
+    /// contiguous span, together with the payload that ends the stream.
+    @usableFromInline
+    var _carry: UniqueDeque<Element>?
+
+    @usableFromInline
+    var _carryFinal: FinalElement?
 
     @usableFromInline
     init(
       storage: MultiProducerSingleConsumerAsyncChannel<Element, FinalElement, Failure>._Storage
     ) {
       self._storage = storage
+      self._carry = nil
+      self._carryFinal = nil
     }
 
-    /// Reads the next chunk of elements from this direction.
+    /// Lends the first contiguous segment of `buffer`, at most `maxCount`
+    /// elements, to `body`.
     ///
-    /// The reader passes the buffered elements to `body` along with an
-    /// optional ``FinalElement`` payload. A non-`nil` `finalElement`
-    /// marks the chunk as terminal and delivers the end-of-stream signal.
-    /// The terminal chunk's buffer may be empty or contain a final batch
-    /// of elements.
-    ///
-    /// - Throws: An ``EitherError`` whose outer `.first` arm carries a
-    ///   read-side error — either the duplex's `Failure` (when the peer
-    ///   writer called ``Writer/finish(throwing:)``) or a
-    ///   `CancellationError` (when the task is canceled while suspended
-    ///   in `read`) — and whose outer `.second` arm carries the failure
-    ///   thrown by `body`.
-    ///
-    /// - Important: After the reader observes a non-`nil` `finalElement` or
-    ///   `read(body:)` throws a read-side error, calling `read(body:)` again is
-    ///   a programmer error.
+    /// A double ended queue can wrap around, so the elements are not always
+    /// one span. The elements that remain are given back to the channel, or,
+    /// for the terminal chunk, kept in the reader for the next read.
+    @inlinable
+    mutating func _deliver<Return: ~Copyable, BodyFailure: Error>(
+      _ buffer: consuming UniqueDeque<Element>,
+      final: consuming FinalElement?,
+      returnToChannel: Bool,
+      maxCount: Int,
+      body: (inout InputSpan<Element>, consuming FinalElement?) async throws(BodyFailure) -> Return
+    ) async throws(EitherError<EitherError<Failure, CancellationError>, BodyFailure>) -> Return {
+      var buffer = buffer
+      var final = final
+      var index = 0
+      let count = buffer.nextSpan(after: &index, maxCount: maxCount, limitedBy: buffer.count).count
+      let isLast = count == buffer.count
+      var result: Return? = nil
+      var bodyFailure: BodyFailure? = nil
+      do {
+        // The consumer removes the delivered elements from the buffer when it
+        // is destroyed at the end of this scope. An empty deque may have no
+        // storage, so it gets an empty span instead.
+        if count > 0 {
+          var consumer = buffer.consumeSubrange(0..<count)
+          var elements = consumer.drainNext(maxCount: count)
+          do throws(BodyFailure) {
+            result = try await body(&elements, isLast ? final.take() : nil)
+          } catch {
+            bodyFailure = error
+          }
+        } else {
+          var elements = InputSpan<Element>()
+          do throws(BodyFailure) {
+            result = try await body(&elements, isLast ? final.take() : nil)
+          } catch {
+            bodyFailure = error
+          }
+        }
+      }
+      if returnToChannel {
+        self._storage.returnCachedReadBuffer(buffer)
+      } else if bodyFailure == nil, !isLast {
+        self._carry = consume buffer
+        self._carryFinal = final.take()
+      }
+      if let bodyFailure {
+        throw .second(bodyFailure)
+      }
+      // The force-unwrap is safe since the body returned without throwing.
+      return result.take()!
+    }
+
     @inlinable
     public mutating func read<Return: ~Copyable, BodyFailure: Error>(
-      body: (inout UniqueDeque<Element>, consuming FinalElement?) async throws(BodyFailure) -> Return
+      maxCount: Int,
+      body: (inout InputSpan<Element>, consuming FinalElement?) async throws(BodyFailure) -> Return
     ) async throws(EitherError<EitherError<Failure, CancellationError>, BodyFailure>) -> Return {
+      precondition(maxCount > 0, "maxCount must be greater than zero")
+      if let carry = self._carry.take() {
+        return try await self._deliver(
+          carry,
+          final: self._carryFinal.take(),
+          returnToChannel: false,
+          maxCount: maxCount,
+          body: body
+        )
+      }
       while true {
         let action = self._storage.readAvailable()
         switch consume action {
         case .returnElements(let disconnected):
-          var buffer = disconnected.take()
-          let result: Return
-          do throws(BodyFailure) {
-            result = try await body(&buffer, nil)
-            let buffer = buffer
-            self._storage.returnCachedReadBuffer(buffer)
-          } catch {
-            let buffer = buffer
-            self._storage.returnCachedReadBuffer(buffer)
-            throw .second(error)
-          }
-          return result
+          return try await self._deliver(
+            disconnected.take(),
+            final: nil,
+            returnToChannel: true,
+            maxCount: maxCount,
+            body: body
+          )
 
         case .returnElementsAndResumeProducers(let disconnected, let producers):
-          var buffer = disconnected.take()
+          let buffer = disconnected.take()
           for producer in producers {
             switch producer {
             case .closure(let onProduceMore):
@@ -482,35 +507,25 @@ extension DuplexAsyncChannel {
               continuation.resume()
             }
           }
-          let result: Return
-          do throws(BodyFailure) {
-            result = try await body(&buffer, nil)
-            let buffer = buffer
-            self._storage.returnCachedReadBuffer(buffer)
-          } catch {
-            let buffer = buffer
-            self._storage.returnCachedReadBuffer(buffer)
-            throw .second(error)
-          }
-          return result
+          return try await self._deliver(buffer, final: nil, returnToChannel: true, maxCount: maxCount, body: body)
 
         case .returnTerminalChunk(let disconnectedBuffer, let disconnectedFinal, let onTerminations):
           for (_, callback) in onTerminations { callback() }
-          var buffer = disconnectedBuffer.take()
-          let final = disconnectedFinal.take()
-          do throws(BodyFailure) {
-            return try await body(&buffer, final)
-          } catch {
-            throw .second(error)
-          }
+          return try await self._deliver(
+            disconnectedBuffer.take(),
+            final: disconnectedFinal.take(),
+            returnToChannel: false,
+            maxCount: maxCount,
+            body: body
+          )
 
         case .throwFailure(let failure, let onTerminations):
           for (_, callback) in onTerminations { callback() }
           if let failure {
             throw .first(.first(failure))
           }
-          var empty = UniqueDeque<Element>()
           do throws(BodyFailure) {
+            var empty = InputSpan<Element>()
             return try await body(&empty, nil)
           } catch {
             throw .second(error)

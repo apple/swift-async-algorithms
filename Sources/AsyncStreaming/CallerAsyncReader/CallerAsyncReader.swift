@@ -10,13 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 #if UnstableAsyncStreaming && compiler(>=6.4)
-public import ContainersPreview
 
 /// Reads elements asynchronously into a caller-provided buffer.
 ///
 /// Adopt ``CallerAsyncReader`` when you need caller-managed buffering,
 /// where the caller supplies a buffer that the reader fills
-/// with elements.
+/// with elements. The caller owns the elements that the reader appends,
+/// which can be noncopyable, for example buffers leased from a pool.
 ///
 /// ## Signaling end of stream
 ///
@@ -48,22 +48,25 @@ public protocol CallerAsyncReader<ReadElement, ReadFailure, FinalElement>: ~Copy
   // TODO: Check if we should support ~Escapable final element
   associatedtype FinalElement: ~Copyable = Void
 
-  /// Reads elements from the source into the provided buffer.
+  /// Reads elements from the source into the provided output span.
   ///
-  /// This method appends elements into `buffer`. A non-`nil` return value
+  /// This method appends elements into `buffer`'s free capacity. A reader
+  /// that has nothing to deliver and is not at the end of the stream suspends
+  /// until it can append at least one element. A buffer without free capacity
+  /// is a programmer error. A non-`nil` return value
   /// signals end-of-stream and delivers the final payload. The call may
   /// also append a final batch of elements before signaling end.
   ///
   /// After the reader has returned a non-`nil` `FinalElement`, calling
   /// ``read(into:)`` again is a programmer error.
   ///
-  /// - Parameter buffer: The buffer to fill with read elements.
+  /// - Parameter buffer: The output span to append the read elements to. The
+  ///   caller keeps the storage alive for the duration of the call.
   /// - Returns: A non-`nil` ``FinalElement`` if this call delivered the
   ///   end-of-stream signal; `nil` if more elements may follow.
   /// - Throws: A `ReadFailure` from the underlying read operation.
-  // TODO: Check if we should support ~Escapable buffer
-  mutating func read<Buffer: RangeReplaceableContainer<ReadElement> & ~Copyable>(
-    into buffer: inout Buffer
-  ) async throws(ReadFailure) -> FinalElement? where Buffer.Element: ~Copyable
+  mutating func read(
+    into buffer: inout OutputSpan<ReadElement>
+  ) async throws(ReadFailure) -> FinalElement?
 }
 #endif

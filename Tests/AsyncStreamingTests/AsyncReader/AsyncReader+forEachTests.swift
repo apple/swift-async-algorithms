@@ -14,32 +14,34 @@
 import AsyncStreaming
 import BasicContainers
 import ContainersPreview
+import SpanPreview
 import Testing
 
 @Suite
-struct AsyncReaderforEachBufferTests {
+struct AsyncReaderforEachSpanTests {
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
   @Test
-  func forEachBufferIteratesAllSpans() async throws {
+  func forEachSpanIteratesAllSpans() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 5, copying: [1, 2, 3, 4, 5]))
     var elementCount = 0
 
-    await reader.forEachBuffer { buffer in
-      elementCount += buffer.count
+    await reader.forEachSpan { elements in
+      elementCount += elements.count
     }
 
     #expect(elementCount == 5)
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferProcessesElements() async throws {
+  func forEachSpanProcessesElements() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [10, 20, 30]))
     var sum = 0
 
-    await reader.forEachBuffer { buffer in
-      for i in buffer.indices {
-        sum += buffer[i]
+    await reader.forEachSpan { elements in
+      for i in elements.indices {
+        sum += elements[i]
       }
     }
 
@@ -47,12 +49,13 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferWithEmptyReader() async throws {
+  func forEachSpanWithEmptyReader() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
     var callCount = 0
 
-    await reader.forEachBuffer { buffer in
+    await reader.forEachSpan { elements in
       callCount += 1
     }
 
@@ -61,36 +64,39 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
+  func forEachSpanDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
     var observedCounts: [Int] = []
 
-    _ = await reader.forEachBuffer { buffer in
-      observedCounts.append(buffer.count)
+    _ = await reader.forEachSpan { elements in
+      observedCounts.append(elements.count)
     }
 
     #expect(observedCounts.allSatisfy { $0 > 0 })
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferThrowingDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
+  func forEachSpanThrowingDoesNotInvokeBodyWithEmptyTerminalBuffer() async throws {
     enum TestError: Error {}
 
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 0, copying: []))
     var observedCounts: [Int] = []
 
-    _ = try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
-      observedCounts.append(buffer.count)
+    _ = try await reader.forEachSpan { (elements) throws(TestError) -> Void in
+      observedCounts.append(elements.count)
     }
 
     #expect(observedCounts.allSatisfy { $0 > 0 })
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferWithThrowingBody() async {
+  func forEachSpanWithThrowingBody() async {
     enum TestError: Error {
       case failed
     }
@@ -98,18 +104,19 @@ struct AsyncReaderforEachBufferTests {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
 
     do {
-      _ = try await reader.forEachBuffer { (_) throws(TestError) -> Void in
+      _ = try await reader.forEachSpan { (_) throws(TestError) -> Void in
         throw TestError.failed
       }
       Issue.record("Expected error to be thrown")
     } catch {
-      #expect(error == EitherError.second(TestError.failed))
+      #expect(error as? EitherError<Never, TestError> == EitherError.second(TestError.failed))
     }
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferWithNeverFailingReader() async {
+  func forEachSpanWithNeverFailingReader() async {
     enum TestError: Error {
       case failed
     }
@@ -118,8 +125,8 @@ struct AsyncReaderforEachBufferTests {
     var count = 0
 
     do {
-      _ = try await reader.forEachBuffer { (buffer) throws(TestError) -> Void in
-        count += buffer.count
+      _ = try await reader.forEachSpan { (elements) throws(TestError) -> Void in
+        count += elements.count
       }
     } catch {
       Issue.record("No error should be thrown from reader")
@@ -129,15 +136,16 @@ struct AsyncReaderforEachBufferTests {
   }
 
   @available(macOS 27.0, iOS 27.0, watchOS 27.0, tvOS 27.0, visionOS 27.0, *)
+
   @Test
-  func forEachBufferWithAsyncWork() async throws {
+  func forEachSpanWithAsyncWork() async throws {
     let reader = UniqueArrayAsyncReader(storage: UniqueArray(capacity: 3, copying: [1, 2, 3]))
     var results: [Int] = []
 
-    _ = await reader.forEachBuffer { buffer in
+    _ = await reader.forEachSpan { elements in
       await Task.yield()
-      for i in buffer.indices {
-        results.append(buffer[i])
+      for i in elements.indices {
+        results.append(elements[i])
       }
     }
 
